@@ -1,0 +1,12 @@
+# TonyPi Robot Client Requirements
+# Install these on your Raspberry Pi 5
+
+paho-mqtt>=1.6.1
+psutil>=5.9.0
+asyncio-mqtt>=0.11.0
+
+# Optional: For advanced hardware integration
+# RPi.GPIO>=0.7.1
+# gpiozero>=1.6.2
+# picamera2>=0.3.0
+# opencv-python>=4.7.0

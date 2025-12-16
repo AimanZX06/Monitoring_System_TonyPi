@@ -1,0 +1,137 @@
+services:
+  # MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: tonypi_mosquitto
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:1883:1883"
+      - "0.0.0.0:9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - tonypi_network
+
+  # Time-series Database
+  influxdb:
+    image: influxdb:2.7
+    container_name: tonypi_influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./influxdb/data:/var/lib/influxdb2
+      - ./influxdb/config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-adminpass}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-tonypi}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-robot_data}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-auth-token}
+    networks:
+      - tonypi_network
+
+  # Relational Database
+  postgres:
+    image: postgres:15
+    container_name: tonypi_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-tonypi_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    networks:
+      - tonypi_network
+
+  # Grafana for Visualization
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: tonypi_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_SECURITY_COOKIE_SAMESITE=none
+    depends_on:
+      - influxdb
+      - postgres
+    networks:
+      - tonypi_network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tonypi_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - POSTGRES_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tonypi_db}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-auth-token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-tonypi}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-robot_data}
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - GRAFANA_BASE_URL=${GRAFANA_BASE_URL:-http://grafana:3000}
+      - GRAFANA_API_KEY=${GRAFANA_API_KEY:-}
+    depends_on:
+      - postgres
+      - influxdb
+      - mosquitto
+    networks:
+      - tonypi_network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tonypi_frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_MQTT_BROKER_URL=ws://localhost:9001
+      - REACT_APP_GRAFANA_URL=${GRAFANA_URL:-http://localhost:3000}
+      - REACT_APP_GRAFANA_ENABLED=${GRAFANA_ENABLED:-true}
+    depends_on:
+      - backend
+      - grafana
+    networks:
+      - tonypi_network
+
+networks:
+  tonypi_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  influxdb_data:
+  grafana_data:

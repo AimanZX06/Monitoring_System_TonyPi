@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Full React Diagnostic</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+        .section { background: white; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .info { background: #e3f2fd; color: #1565c0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 React Diagnostic Tool</h1>
+    
+    <div class="section">
+        <h3>1. Basic Web Server Test</h3>
+        <p id="server-status">Testing server...</p>
+    </div>
+    
+    <div class="section">
+        <h3>2. React Root Element</h3>
+        <p id="root-status">Checking root element...</p>
+    </div>
+    
+    <div class="section">
+        <h3>3. JavaScript Console Errors</h3>
+        <p id="console-status">Monitoring console...</p>
+        <div id="error-log"></div>
+    </div>
+    
+    <div class="section">
+        <h3>4. React App Status</h3>
+        <p id="react-status">Checking React...</p>
+    </div>
+    
+    <div class="section">
+        <h3>5. Network Resources</h3>
+        <p id="network-status">Testing resource loading...</p>
+    </div>
+    
+    <script>
+        // 1. Server Status
+        document.getElementById('server-status').innerHTML = '✅ Web server is working (you can see this page)';
+        document.getElementById('server-status').parentElement.className += ' success';
+        
+        // 2. Root Element Check
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            document.getElementById('root-status').innerHTML = '✅ Root element exists';
+            document.getElementById('root-status').parentElement.className += ' success';
+        } else {
+            document.getElementById('root-status').innerHTML = '❌ Root element not found';
+            document.getElementById('root-status').parentElement.className += ' error';
+        }
+        
+        // 3. Console Error Monitoring
+        const originalConsoleError = console.error;
+        const errors = [];
+        console.error = function(...args) {
+            errors.push(args.join(' '));
+            originalConsoleError.apply(console, args);
+            updateErrorDisplay();
+        };
+        
+        function updateErrorDisplay() {
+            const errorDiv = document.getElementById('error-log');
+            if (errors.length === 0) {
+                document.getElementById('console-status').innerHTML = '✅ No console errors detected';
+                document.getElementById('console-status').parentElement.className += ' success';
+            } else {
+                document.getElementById('console-status').innerHTML = '❌ ' + errors.length + ' console errors detected';
+                document.getElementById('console-status').parentElement.className += ' error';
+                errorDiv.innerHTML = errors.map(e => '<div style="margin:5px 0;padding:5px;background:#ffcdd2;">' + e + '</div>').join('');
+            }
+        }
+        
+        // 4. React Status Check
+        setTimeout(() => {
+            fetch('/')
+                .then(response => response.text())
+                .then(html => {
+                    if (html.includes('<div id="root"></div>')) {
+                        document.getElementById('react-status').innerHTML = '✅ React HTML template is served correctly';
+                        document.getElementById('react-status').parentElement.className += ' success';
+                        
+                        // Check if root has content after React loads
+                        setTimeout(() => {
+                            const root = document.getElementById('root');
+                            if (root && root.innerHTML.trim() !== '') {
+                                document.getElementById('react-status').innerHTML += '<br/>✅ React app has rendered content';
+                            } else {
+                                document.getElementById('react-status').innerHTML += '<br/>❌ React app did not render (white screen issue)';
+                                document.getElementById('react-status').parentElement.className = 'section error';
+                            }
+                        }, 3000);
+                        
+                    } else {
+                        document.getElementById('react-status').innerHTML = '❌ React HTML template issue';
+                        document.getElementById('react-status').parentElement.className += ' error';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('react-status').innerHTML = '❌ Cannot fetch main page: ' + err.message;
+                    document.getElementById('react-status').parentElement.className += ' error';
+                });
+        }, 1000);
+        
+        // 5. Network Resources
+        Promise.all([
+            fetch('/static/js/').catch(e => ({error: e.message})),
+            fetch('/static/css/').catch(e => ({error: e.message}))
+        ]).then(results => {
+            let status = '✅ Static resources accessible\n';
+            results.forEach((result, i) => {
+                const type = i === 0 ? 'JS' : 'CSS';
+                if (result.error) {
+                    status += `❌ ${type}: ${result.error}\n`;
+                } else {
+                    status += `✅ ${type}: ${result.status}\n`;
+                }
+            });
+            document.getElementById('network-status').innerHTML = status.replace(/\n/g, '<br/>');
+            document.getElementById('network-status').parentElement.className += ' info';
+        });
+        
+        // Initial error check
+        updateErrorDisplay();
+    </script>
+</body>
+</html>

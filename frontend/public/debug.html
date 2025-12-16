@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>React Test</title>
+</head>
+<body>
+    <div id="root"></div>
+    <div id="debug" style="padding: 20px; font-family: Arial;">
+        <h2>React Debug Info</h2>
+        <p id="status">Checking React...</p>
+    </div>
+    
+    <script>
+        console.log('Debug script started');
+        document.getElementById('status').innerHTML = 'JavaScript is working!';
+        
+        // Check if React files are accessible
+        fetch('/static/js/')
+            .then(response => {
+                console.log('Static files response:', response.status);
+                document.getElementById('status').innerHTML += '<br/>Static files: ' + response.status;
+            })
+            .catch(err => {
+                console.error('Static files error:', err);
+                document.getElementById('status').innerHTML += '<br/>Static files: ERROR - ' + err.message;
+            });
+            
+        // Try to detect if React is loaded
+        setTimeout(() => {
+            if (window.React) {
+                document.getElementById('status').innerHTML += '<br/>✅ React is loaded!';
+            } else {
+                document.getElementById('status').innerHTML += '<br/>❌ React not loaded';
+            }
+            
+            const rootElement = document.getElementById('root');
+            if (rootElement && rootElement.innerHTML.trim() === '') {
+                document.getElementById('status').innerHTML += '<br/>❌ Root element is empty';
+                
+                // Manually add content to test
+                rootElement.innerHTML = '<div style="padding: 20px; background: lightblue;">Manual React Mount Point Test</div>';
+            } else {
+                document.getElementById('status').innerHTML += '<br/>✅ Root element has content';
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
