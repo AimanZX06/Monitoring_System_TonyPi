@@ -154,7 +154,7 @@ const Monitoring: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <div className="spinner"></div>
       </div>
     );
   }
@@ -230,14 +230,14 @@ const Monitoring: React.FC = () => {
       {metrics ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {metricCards.map((card, index) => (
-            <div key={index} className="card">
-              <div className="flex items-center">
-                <div className={`p-3 rounded-lg ${card.bgColor}`}>
+            <div key={index} className="metric-card fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-3 rounded-xl ${card.bgColor} shadow-sm`}>
                   <card.icon className={`h-6 w-6 ${card.color}`} />
                 </div>
-                <div className="ml-4 flex-1">
+                <div className="text-right">
                   <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-baseline gap-1">
                     <p className={`text-3xl font-bold ${card.color}`}>
                       {card.value.toFixed(1)}
                     </p>
@@ -245,15 +245,15 @@ const Monitoring: React.FC = () => {
                   </div>
                 </div>
               </div>
-              {/* Progress bar */}
-              <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+              {/* Enhanced Progress bar */}
+              <div className="progress-bar">
                 <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
+                  className={`progress-fill ${
                     card.value >= card.thresholds.danger
-                      ? 'bg-red-600'
+                      ? 'bg-gradient-to-r from-red-500 to-red-600'
                       : card.value >= card.thresholds.warning
-                      ? 'bg-yellow-500'
-                      : 'bg-green-600'
+                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-500'
+                      : 'bg-gradient-to-r from-green-500 to-green-600'
                   }`}
                   style={{ width: `${Math.min(card.value, 100)}%` }}
                 />
@@ -262,7 +262,8 @@ const Monitoring: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="card text-center py-8">
+        <div className="card text-center py-12">
+          <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">
             No performance records. Click "Refresh Performance" after the robot publishes telemetry.
           </p>
@@ -272,44 +273,101 @@ const Monitoring: React.FC = () => {
       {/* Charts */}
       {chartData.length > 0 && (
         <>
-          <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">CPU & Memory Usage Over Time</h3>
+          <div className="card hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">CPU & Memory Usage Over Time</h3>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 bg-blue-500 rounded-full pulse-live"></div>
+                <span>Live</span>
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis domain={[0, 100]} label={{ value: '%', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="time" stroke="#6b7280" />
+                <YAxis domain={[0, 100]} label={{ value: '%', angle: -90, position: 'insideLeft' }} stroke="#6b7280" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                  }} 
+                />
                 <Legend />
-                <Line type="monotone" dataKey="cpu" stroke="#3b82f6" name="CPU %" strokeWidth={2} />
-                <Line type="monotone" dataKey="memory" stroke="#8b5cf6" name="Memory %" strokeWidth={2} />
+                <Line 
+                  type="monotone" 
+                  dataKey="cpu" 
+                  stroke="#3b82f6" 
+                  name="CPU %" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="memory" 
+                  stroke="#8b5cf6" 
+                  name="Memory %" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card">
+            <div className="card hover:shadow-xl transition-shadow">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Disk Usage</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="disk" stroke="#f59e0b" name="Disk %" strokeWidth={2} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="time" stroke="#6b7280" />
+                  <YAxis domain={[0, 100]} stroke="#6b7280" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px' 
+                    }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="disk" 
+                    stroke="#f59e0b" 
+                    name="Disk %" 
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="card">
+            <div className="card hover:shadow-xl transition-shadow">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">CPU Temperature</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="temperature" stroke="#ef4444" name="Temp °C" strokeWidth={2} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="time" stroke="#6b7280" />
+                  <YAxis domain={[0, 100]} stroke="#6b7280" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px' 
+                    }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="temperature" 
+                    stroke="#ef4444" 
+                    name="Temp °C" 
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>

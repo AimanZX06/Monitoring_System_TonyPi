@@ -32,7 +32,9 @@ class MQTTClient:
             "tonypi/battery",    # Battery status
             "tonypi/commands/response",  # Command responses
             "tonypi/scan/+",     # QR scan events from robots
-            "tonypi/job/+"       # Job/progress events
+            "tonypi/job/+",      # Job/progress events
+            "tonypi/servos/+",   # Servo status data
+            "tonypi/alerts/+"    # Servo alerts
         ]
 
     def on_connect(self, client, userdata, flags, rc):
@@ -64,6 +66,10 @@ class MQTTClient:
                 self.handle_scan(topic, payload)
             elif topic.startswith("tonypi/job/"):
                 self.handle_job_event(topic, payload)
+            elif topic.startswith("tonypi/servos/"):
+                self.handle_servo_data(topic, payload)
+            elif topic.startswith("tonypi/alerts/"):
+                self.handle_alert_data(topic, payload)
             elif topic == "tonypi/commands/response":
                 self.handle_command_response(payload)
                 
@@ -144,6 +150,84 @@ class MQTTClient:
         }
         
         influx_client.write_sensor_data(measurement, tags, fields)
+    
+    def handle_servo_data(self, topic, payload):
+        """Handle servo status data and store in InfluxDB"""
+        robot_id = payload.get("robot_id", "tonypi_01")
+        servos = payload.get("servos", {})
+        timestamp = payload.get("timestamp")
+        
+        # Store each servo's data separately in InfluxDB
+        for servo_name, servo_data in servos.items():
+            if "error" in servo_data or not servo_data.get("available", True):
+                continue
+            
+            # Store individual servo metrics
+            measurement = "servos"
+            tags = {
+                "robot_id": robot_id,
+                "servo_id": str(servo_data.get("id", 0)),
+                "servo_name": servo_name
+            }
+            
+            fields = {}
+            # Add all available servo data as fields
+            if servo_data.get("position") is not None:
+                fields["position"] = float(servo_data.get("position", 0))
+            if servo_data.get("temperature") is not None:
+                fields["temperature"] = float(servo_data.get("temperature", 0))
+            if servo_data.get("voltage") is not None:
+                fields["voltage"] = float(servo_data.get("voltage", 0))
+            if servo_data.get("torque_enabled") is not None:
+                fields["torque_enabled"] = 1 if servo_data.get("torque_enabled") else 0
+            if servo_data.get("offset") is not None:
+                fields["offset"] = float(servo_data.get("offset", 0))
+            if servo_data.get("angle_min") is not None:
+                fields["angle_min"] = float(servo_data.get("angle_min", 0))
+            if servo_data.get("angle_max") is not None:
+                fields["angle_max"] = float(servo_data.get("angle_max", 0))
+            
+            # Add alert level as tag
+            tags["alert_level"] = servo_data.get("alert_level", "normal")
+            
+            if fields:  # Only write if we have data
+                influx_client.write_sensor_data(measurement, tags, fields)
+        
+        print(f"MQTT: Stored servo data for {len(servos)} servos from {robot_id}")
+    
+    def handle_alert_data(self, topic, payload):
+        """Handle servo alerts and store in InfluxDB and PostgreSQL"""
+        robot_id = payload.get("robot_id", "tonypi_01")
+        alerts = payload.get("alerts", [])
+        
+        # Store alerts in InfluxDB
+        for alert in alerts:
+            measurement = "robot_alerts"
+            tags = {
+                "robot_id": robot_id,
+                "alert_type": "servo_alert",
+                "severity": alert.get("alert_level", "warning"),
+                "servo_id": str(alert.get("servo_id", 0)),
+                "servo_name": alert.get("servo_name", "unknown")
+            }
+            fields = {
+                "temperature": float(alert.get("temperature", 0)),
+                "message": alert.get("message", "")
+            }
+            influx_client.write_sensor_data(measurement, tags, fields)
+        
+        # Log to PostgreSQL
+        if alerts:
+            alert_messages = [a.get("message", "") for a in alerts]
+            self._log_system_event(
+                level="WARNING" if any(a.get("alert_level") == "critical" for a in alerts) else "INFO",
+                category="servo",
+                message=f"{len(alerts)} servo alerts: {', '.join(alert_messages[:3])}",
+                robot_id=robot_id,
+                details={"alerts": alerts}
+            )
+        
+        print(f"MQTT: Processed {len(alerts)} servo alerts from {robot_id}")
 
     def handle_command_response(self, payload):
         """Handle command responses"""

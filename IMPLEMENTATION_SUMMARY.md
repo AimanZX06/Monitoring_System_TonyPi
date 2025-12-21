@@ -195,3 +195,11 @@ environment:
 
 The implementation successfully makes Grafana optional while maintaining all core functionality. Users get a seamless experience whether Grafana is available or not.
 
+
+
+
+
+
+
+
+

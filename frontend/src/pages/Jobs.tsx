@@ -114,44 +114,44 @@ const Jobs: React.FC = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-blue-50">
-              <Loader className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Active Jobs</p>
-              <p className="text-2xl font-bold text-gray-900">
+        <div className="metric-card fade-in">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Active Jobs</p>
+              <p className="text-3xl font-bold text-blue-600">
                 {Object.values(jobSummaries).filter(j => j.start_time && !j.end_time).length}
               </p>
             </div>
+            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 shadow-md">
+              <Loader className="h-8 w-8 text-blue-600" />
+            </div>
           </div>
         </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-green-50">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Completed Jobs</p>
-              <p className="text-2xl font-bold text-gray-900">
+        <div className="metric-card fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Completed Jobs</p>
+              <p className="text-3xl font-bold text-green-600">
                 {Object.values(jobSummaries).filter(j => j.end_time).length}
               </p>
             </div>
+            <div className="p-4 rounded-xl bg-gradient-to-br from-green-100 to-green-200 shadow-md">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
           </div>
         </div>
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-purple-50">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Items Processed</p>
-              <p className="text-2xl font-bold text-gray-900">
+        <div className="metric-card fade-in" style={{ animationDelay: '0.2s' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Total Items Processed</p>
+              <p className="text-3xl font-bold text-purple-600">
                 {Object.values(jobSummaries).reduce((sum, j) => sum + j.items_done, 0)}
               </p>
+            </div>
+            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-100 to-purple-200 shadow-md">
+              <TrendingUp className="h-8 w-8 text-purple-600" />
             </div>
           </div>
         </div>

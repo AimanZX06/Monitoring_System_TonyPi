@@ -11,9 +11,19 @@ import uuid
 import psutil
 import platform
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import paho.mqtt.client as mqtt
 import logging
+
+# Try to import HiwonderSDK for servo control
+try:
+    import hiwonder.ros_robot_controller_sdk as rrc
+    MOTOR_SDK_AVAILABLE = True
+    logger_temp = logging.getLogger("TonyPi-Client")
+    logger_temp.info("HiwonderSDK loaded successfully")
+except ImportError:
+    MOTOR_SDK_AVAILABLE = False
+    rrc = None
 
 # Configure logging
 logging.basicConfig(
@@ -42,6 +52,30 @@ class TonyPiRobotClient:
         self.sensors = {}
         self.status = "online"
         
+        # Servo/SDK initialization
+        self.board = None
+        if MOTOR_SDK_AVAILABLE:
+            try:
+                self.board = rrc.Board()
+                logger.info("Board initialized successfully for servo control")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Board: {e}")
+        
+        # Servo IDs - adjust based on your robot configuration
+        # TonyPi typically has 6-8 servos
+        self.servo_ids = {
+            1: "servo_1_left_front",
+            2: "servo_2_left_rear",
+            3: "servo_3_right_front",
+            4: "servo_4_right_rear",
+            5: "servo_5_head_pan",
+            6: "servo_6_head_tilt"
+        }
+        
+        # Servo monitoring thresholds
+        self.servo_temp_warning = 65.0   # °C
+        self.servo_temp_critical = 75.0  # °C
+        
         # MQTT Topics
         self.topics = {
             "sensors": f"tonypi/sensors/{self.robot_id}",
@@ -55,6 +89,7 @@ class TonyPiRobotClient:
         self.items_topic = f"tonypi/items/{self.robot_id}"
         self.scan_topic = f"tonypi/scan/{self.robot_id}"
         self.job_topic = f"tonypi/job/{self.robot_id}"
+        self.servos_topic = f"tonypi/servos/{self.robot_id}"
         
         # Setup MQTT callbacks
         self.client.on_connect = self.on_connect
@@ -63,8 +98,8 @@ class TonyPiRobotClient:
         
         logger.info(f"TonyPi Robot Client initialized with ID: {self.robot_id}")
 
-    def on_connect(self, client, userdata, flags, rc, properties=None):
-        """Callback for MQTT connection"""
+    def on_connect(self, client, userdata, flags, rc, *args, **kwargs):
+        """Callback for MQTT connection (compatible with paho-mqtt 2.x)"""
         if rc == 0:
             self.is_connected = True
             logger.info(f"Connected to MQTT broker at {self.mqtt_broker}:{self.mqtt_port}")
@@ -80,11 +115,20 @@ class TonyPiRobotClient:
         else:
             logger.error(f"Failed to connect to MQTT broker. Return code: {rc}")
 
-    def on_disconnect(self, client, userdata, flags=None, rc=None, properties=None):
+    def on_disconnect(self, client, userdata, *args, **kwargs):
         """Callback for MQTT disconnection (compatible with both paho-mqtt 1.x and 2.x)"""
         self.is_connected = False
         # Handle both v1 and v2 signatures
-        return_code = rc if rc is not None else flags
+        # VERSION1: on_disconnect(client, userdata, rc)
+        # VERSION2: on_disconnect(client, userdata, flags, rc, properties=None)
+        if args:
+            # VERSION2: flags is first arg, rc is second
+            if len(args) >= 2:
+                return_code = args[1]  # rc
+            else:
+                return_code = args[0]  # flags or rc
+        else:
+            return_code = kwargs.get('rc') or kwargs.get('flags', 0)
         logger.warning(f"Disconnected from MQTT broker. Return code: {return_code}")
 
     def on_message(self, client, userdata, msg):
@@ -336,6 +380,167 @@ class TonyPiRobotClient:
             "cpu_temperature": "°C"
         }
         return unit_map.get(sensor_name, "")
+    
+    def get_servo_status(self) -> Dict[str, Any]:
+        """Get comprehensive status of all servos using actual SDK methods"""
+        servo_data = {}
+        
+        if MOTOR_SDK_AVAILABLE and self.board:
+            for servo_id, servo_name in self.servo_ids.items():
+                try:
+                    servo_info = {
+                        "id": servo_id,
+                        "name": servo_name,
+                        "available": True
+                    }
+                    
+                    # Read position
+                    try:
+                        position = self.board.bus_servo_read_position(servo_id)
+                        servo_info["position"] = position if position is not None else None
+                    except Exception as e:
+                        logger.debug(f"Could not read position for servo {servo_id}: {e}")
+                        servo_info["position"] = None
+                    
+                    # Read temperature
+                    try:
+                        temp = self.board.bus_servo_read_temp(servo_id)
+                        # Temperature might be in 0.1°C units, convert if needed
+                        if temp and temp > 100:  # Likely in 0.1°C units
+                            temp = temp / 10.0
+                        servo_info["temperature"] = temp if temp is not None else None
+                        servo_info["temp_warning"] = temp >= self.servo_temp_warning if temp else False
+                        servo_info["temp_critical"] = temp >= self.servo_temp_critical if temp else False
+                    except Exception as e:
+                        logger.debug(f"Could not read temperature for servo {servo_id}: {e}")
+                        servo_info["temperature"] = None
+                    
+                    # Read voltage
+                    try:
+                        vin = self.board.bus_servo_read_vin(servo_id)
+                        # Voltage might be in mV, convert to V if needed
+                        if vin and vin > 20:  # Likely in mV
+                            vin = vin / 1000.0
+                        servo_info["voltage"] = vin if vin is not None else None
+                    except Exception as e:
+                        logger.debug(f"Could not read voltage for servo {servo_id}: {e}")
+                        servo_info["voltage"] = None
+                    
+                    # Read torque state
+                    try:
+                        torque_state = self.board.bus_servo_read_torque_state(servo_id)
+                        servo_info["torque_enabled"] = torque_state if torque_state is not None else None
+                    except Exception as e:
+                        logger.debug(f"Could not read torque state for servo {servo_id}: {e}")
+                        servo_info["torque_enabled"] = None
+                    
+                    # Read angle limits
+                    try:
+                        angle_limit = self.board.bus_servo_read_angle_limit(servo_id)
+                        if angle_limit:
+                            servo_info["angle_min"] = angle_limit.get("min") if isinstance(angle_limit, dict) else None
+                            servo_info["angle_max"] = angle_limit.get("max") if isinstance(angle_limit, dict) else None
+                    except Exception as e:
+                        logger.debug(f"Could not read angle limits for servo {servo_id}: {e}")
+                    
+                    # Read offset
+                    try:
+                        offset = self.board.bus_servo_read_offset(servo_id)
+                        servo_info["offset"] = offset if offset is not None else None
+                    except Exception as e:
+                        logger.debug(f"Could not read offset for servo {servo_id}: {e}")
+                    
+                    # Read servo ID (verify)
+                    try:
+                        read_id = self.board.bus_servo_read_id(servo_id)
+                        servo_info["read_id"] = read_id if read_id is not None else None
+                    except Exception as e:
+                        logger.debug(f"Could not read ID for servo {servo_id}: {e}")
+                    
+                    # Determine alert level
+                    if servo_info.get("temp_critical"):
+                        servo_info["alert_level"] = "critical"
+                    elif servo_info.get("temp_warning"):
+                        servo_info["alert_level"] = "warning"
+                    else:
+                        servo_info["alert_level"] = "normal"
+                    
+                    servo_data[servo_name] = servo_info
+                    
+                except Exception as e:
+                    logger.error(f"Error reading servo {servo_id} ({servo_name}): {e}")
+                    servo_data[servo_name] = {
+                        "id": servo_id,
+                        "name": servo_name,
+                        "available": False,
+                        "error": str(e)
+                    }
+        else:
+            # Simulated servo data for testing (when SDK not available)
+            import random
+            logger.debug("Using simulated servo data (SDK not available)")
+            for servo_id, servo_name in self.servo_ids.items():
+                temp = random.uniform(35, 70)
+                servo_data[servo_name] = {
+                    "id": servo_id,
+                    "name": servo_name,
+                    "available": True,
+                    "position": random.randint(-90, 90),
+                    "temperature": round(temp, 1),
+                    "voltage": round(random.uniform(4.8, 5.2), 2),
+                    "torque_enabled": True,
+                    "temp_warning": temp >= self.servo_temp_warning,
+                    "temp_critical": temp >= self.servo_temp_critical,
+                    "alert_level": "critical" if temp >= self.servo_temp_critical else ("warning" if temp >= self.servo_temp_warning else "normal"),
+                    "simulated": True
+                }
+        
+        return servo_data
+    
+    def send_servo_status(self):
+        """Publish comprehensive servo status to MQTT"""
+        if not self.is_connected:
+            return
+        
+        try:
+            servo_status = self.get_servo_status()
+            
+            payload = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "servos": servo_status,
+                "servo_count": len(servo_status)
+            }
+            
+            # Publish to servo-specific topic
+            self.client.publish(self.servos_topic, json.dumps(payload))
+            logger.info(f"Sent servo status: {len(servo_status)} servos to {self.servos_topic}")
+            
+            # Check for alerts and publish separately
+            alerts = []
+            for servo_name, servo_data in servo_status.items():
+                if servo_data.get("alert_level") in ["warning", "critical"]:
+                    alerts.append({
+                        "robot_id": self.robot_id,
+                        "servo_id": servo_data.get("id"),
+                        "servo_name": servo_name,
+                        "alert_level": servo_data.get("alert_level"),
+                        "temperature": servo_data.get("temperature"),
+                        "message": f"Servo {servo_name} {servo_data.get('alert_level')}: Temp={servo_data.get('temperature')}°C"
+                    })
+            
+            if alerts:
+                alert_payload = {
+                    "robot_id": self.robot_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "alerts": alerts
+                }
+                alert_topic = f"tonypi/alerts/{self.robot_id}"
+                self.client.publish(alert_topic, json.dumps(alert_payload))
+                logger.warning(f"Servo alerts detected: {len(alerts)} servos")
+            
+        except Exception as e:
+            logger.error(f"Error sending servo status: {e}")
 
     def send_battery_status(self):
         """Send battery status"""
@@ -441,6 +646,7 @@ class TonyPiRobotClient:
             last_battery_time = 0
             last_location_time = 0
             last_status_time = 0
+            last_servo_time = 0
             
             while self.running:
                 current_time = time.time()
@@ -464,6 +670,11 @@ class TonyPiRobotClient:
                 if current_time - last_status_time >= 60:
                     self.send_status_update()
                     last_status_time = current_time
+                
+                # Send servo status every 5 seconds
+                if current_time - last_servo_time >= 5:
+                    self.send_servo_status()
+                    last_servo_time = current_time
                 
                 # Simulate battery drain
                 if self.battery_level > 0:

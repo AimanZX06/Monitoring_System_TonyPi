@@ -188,3 +188,11 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
 - ✅ Better mobile support
 - ✅ Consistent UI/UX
 
+
+
+
+
+
+
+
+

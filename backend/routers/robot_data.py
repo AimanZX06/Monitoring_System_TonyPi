@@ -180,6 +180,66 @@ async def get_job_summary(robot_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching job summary: {str(e)}")
 
+@router.get("/robot-data/servos/{robot_id}")
+async def get_servo_data(
+    robot_id: str,
+    time_range: str = Query("5m", description="Time range for latest data")
+):
+    """Get latest servo data for a specific robot"""
+    try:
+        # Get servo data from InfluxDB
+        servo_data = influx_client.query_recent_data("servos", time_range)
+        
+        # Filter by robot_id
+        filtered_data = [d for d in servo_data if d.get('robot_id') == robot_id]
+        
+        if not filtered_data:
+            return {
+                "robot_id": robot_id,
+                "servos": {},
+                "message": "No servo data found"
+            }
+        
+        # Group by servo_name and get latest values for each servo
+        servos = {}
+        for item in filtered_data:
+            servo_name = item.get('servo_name', 'unknown')
+            servo_id = item.get('servo_id', '0')
+            
+            if servo_name not in servos:
+                servos[servo_name] = {
+                    "id": int(servo_id),
+                    "name": servo_name,
+                    "robot_id": robot_id
+                }
+            
+            # Update with latest value for each field
+            field = item.get('field')
+            value = item.get('value')
+            timestamp = item.get('time')
+            
+            # Keep latest value for each field
+            if field:
+                if f"{field}_time" not in servos[servo_name] or timestamp > servos[servo_name][f"{field}_time"]:
+                    servos[servo_name][field] = value
+                    servos[servo_name][f"{field}_time"] = timestamp
+        
+        # Clean up timestamp fields and format response
+        result_servos = {}
+        for servo_name, servo_info in servos.items():
+            cleaned_info = {k: v for k, v in servo_info.items() if not k.endswith('_time')}
+            result_servos[servo_name] = cleaned_info
+        
+        return {
+            "robot_id": robot_id,
+            "servos": result_servos,
+            "servo_count": len(result_servos),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching servo data: {str(e)}")
+
 
 class ScanRequest(BaseModel):
     robot_id: str

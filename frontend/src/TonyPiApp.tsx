@@ -3,6 +3,8 @@ import GrafanaPanel from './components/GrafanaPanel';
 import Monitoring from './pages/Monitoring';
 import Jobs from './pages/Jobs';
 import Robots from './pages/Robots';
+import Servos from './pages/Servos';
+import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle } from 'lucide-react';
 
 interface RobotData {
   robot_id: string;
@@ -27,7 +29,6 @@ const TonyPiApp: React.FC = () => {
   const [recentSensors, setRecentSensors] = useState<SensorReading[]>([]);
   const [jobSummary, setJobSummary] = useState<any>(null);
   const [selectedTab, setSelectedTab] = useState<string>('overview');
-  const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [selectedQR, setSelectedQR] = useState<string>('QR12345');
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [commandResponse, setCommandResponse] = useState<string>('');
@@ -43,14 +44,12 @@ const TonyPiApp: React.FC = () => {
   useEffect(() => {
     const fetchRobotData = async () => {
       try {
-        // Get robot status
         const statusResponse = await fetch('http://localhost:8000/api/robot-data/status');
         if (statusResponse.ok) {
           const robots = await statusResponse.json();
           if (robots.length > 0) {
             setRobotData(robots[0]);
             setIsConnected(true);
-            // fetch job summary for first robot
             try {
               const js = await fetch(`http://localhost:8000/api/robot-data/job-summary/${robots[0].robot_id}`);
               if (js.ok) {
@@ -65,11 +64,10 @@ const TonyPiApp: React.FC = () => {
           }
         }
 
-        // Get recent sensor data
         const sensorsResponse = await fetch('http://localhost:8000/api/robot-data/sensors?measurement=sensors&time_range=1m');
         if (sensorsResponse.ok) {
           const sensors = await sensorsResponse.json();
-          setRecentSensors(sensors.slice(-10)); // Keep last 10 readings
+          setRecentSensors(sensors.slice(-10));
         }
       } catch (error) {
         console.error('Error fetching robot data:', error);
@@ -77,38 +75,11 @@ const TonyPiApp: React.FC = () => {
       }
     };
 
-    // Initial fetch
     fetchRobotData();
-    
-    // Set up polling every 5 seconds
     const interval = setInterval(fetchRobotData, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  const containerStyle: React.CSSProperties = {
-    padding: '20px',
-    fontFamily: 'Arial, sans-serif',
-    maxWidth: '800px',
-    margin: '0 auto',
-    backgroundColor: '#f8f9fa'
-  };
-
-  const headerStyle: React.CSSProperties = {
-    color: '#2c3e50',
-    borderBottom: '2px solid #3498db',
-    paddingBottom: '10px',
-    marginBottom: '20px'
-  };
-
-  const cardStyle: React.CSSProperties = {
-    backgroundColor: 'white',
-    padding: '15px',
-    margin: '10px 0',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-  };
-
-  // Robot command functions
   const sendRobotCommand = async (command: any) => {
     try {
       const response = await fetch('http://localhost:8000/api/robot-data/command', {
@@ -118,8 +89,8 @@ const TonyPiApp: React.FC = () => {
       });
       
       if (response.ok) {
-        const result = await response.text();
         setCommandResponse(`Command sent: ${command.type}`);
+        setTimeout(() => setCommandResponse(''), 3000);
       } else {
         setCommandResponse(`Command failed: ${response.statusText}`);
       }
@@ -152,148 +123,253 @@ const TonyPiApp: React.FC = () => {
     });
   };
 
-  const statusStyle: React.CSSProperties = {
-    color: systemStatus === 'Online' ? '#27ae60' : '#e74c3c',
-    fontWeight: 'bold'
-  };
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'performance', label: 'Performance' },
+    { id: 'jobs', label: 'Jobs' },
+    { id: 'robots', label: 'Robots' },
+    { id: 'servos', label: 'Servos' }
+  ];
 
-  const robotStatusStyle: React.CSSProperties = {
-    color: isConnected ? '#27ae60' : '#e74c3c',
-    fontWeight: 'bold'
-  };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Activity className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  TonyPi Robot Monitoring System
+                </h1>
+                <p className="text-sm text-gray-500">Real-time monitoring and control</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg">
+                <Clock className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">{currentTime || 'Loading...'}</span>
+              </div>
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isConnected ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {isConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                <span className="text-sm font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-  const buttonStyle: React.CSSProperties = {
-    backgroundColor: '#3498db',
-    color: 'white',
-    padding: '8px 16px',
-    border: 'none',
-    borderRadius: '4px',
-    margin: '4px',
-    cursor: 'pointer',
-    fontSize: '12px'
-  };
+      {/* Tab Navigation */}
+      <div className="bg-white/60 backdrop-blur-sm border-b border-gray-200 sticky top-[73px] z-30">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex gap-2 py-3">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setSelectedTab(tab.id)}
+                className={`tab-button ${
+                  selectedTab === tab.id ? 'tab-button-active' : 'tab-button-inactive'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
-  const dangerButtonStyle: React.CSSProperties = {
-    ...buttonStyle,
-    backgroundColor: '#e74c3c'
-  };
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Performance Tab */}
+        {selectedTab === 'performance' && (
+          <div className="fade-in">
+            <Monitoring />
+          </div>
+        )}
 
-  const successButtonStyle: React.CSSProperties = {
-    ...buttonStyle,
-    backgroundColor: '#27ae60'
-  };
+        {/* Jobs Tab */}
+        {selectedTab === 'jobs' && (
+          <div className="fade-in">
+            <Jobs />
+          </div>
+        )}
 
-  return React.createElement('div', { style: containerStyle },
-    React.createElement('h1', { style: headerStyle }, 'TonyPi Robot Monitoring System'),
-    // Tabs
-    React.createElement('div', { style: { display: 'flex', gap: 8, marginBottom: 12 } },
-      React.createElement('button', { style: { ...buttonStyle, backgroundColor: selectedTab === 'overview' ? '#2d6cdf' : '#3498db' }, onClick: () => setSelectedTab('overview') }, 'Overview'),
-      React.createElement('button', { style: { ...buttonStyle, backgroundColor: selectedTab === 'performance' ? '#2d6cdf' : '#3498db' }, onClick: () => setSelectedTab('performance') }, 'Performance'),
-      React.createElement('button', { style: { ...buttonStyle, backgroundColor: selectedTab === 'jobs' ? '#2d6cdf' : '#3498db' }, onClick: () => setSelectedTab('jobs') }, 'Jobs'),
-      React.createElement('button', { style: { ...buttonStyle, backgroundColor: selectedTab === 'robots' ? '#2d6cdf' : '#3498db' }, onClick: () => setSelectedTab('robots') }, 'Robots')
-    ),
+        {/* Robots Tab */}
+        {selectedTab === 'robots' && (
+          <div className="fade-in">
+            <Robots />
+          </div>
+        )}
 
-    // Performance Tab - Task Manager
-    selectedTab === 'performance' ? React.createElement(Monitoring) : null,
+        {/* Servos Tab */}
+        {selectedTab === 'servos' && (
+          <div className="fade-in">
+            <Servos />
+          </div>
+        )}
 
-    // Jobs Tab - Job Tracking Dashboard
-    selectedTab === 'jobs' ? React.createElement(Jobs) : null,
+        {/* Overview Tab */}
+        {selectedTab === 'overview' && (
+          <div className="space-y-6 fade-in">
+            {/* System Status Card */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-blue-600" />
+                  System Status
+                </h2>
+                <div className={`status-${systemStatus === 'Online' ? 'online' : 'offline'}`}>
+                  {systemStatus}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <p className="text-sm text-gray-600 mb-1">Backend Status</p>
+                  <p className={`text-lg font-semibold ${systemStatus === 'Online' ? 'text-green-600' : 'text-red-600'}`}>
+                    {systemStatus}
+                  </p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                  <p className="text-sm text-gray-600 mb-1">Robot Connection</p>
+                  <p className={`text-lg font-semibold ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                    {isConnected ? 'Connected' : 'Disconnected'}
+                  </p>
+                </div>
+                <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                  <p className="text-sm text-gray-600 mb-1">Current Time</p>
+                  <p className="text-lg font-semibold text-gray-900">{currentTime || 'Loading...'}</p>
+                </div>
+              </div>
+            </div>
 
-    // Robots Tab - Robot Management
-    selectedTab === 'robots' ? React.createElement(Robots) : null,
-    
-    // Overview Tab Content - Only show when overview is selected
-    selectedTab === 'overview' ? React.createElement('div', null,
-      // System Status Card
-      React.createElement('div', { style: cardStyle },
-      React.createElement('h2', null, 'System Status'),
-      React.createElement('p', null, 'Backend: ', React.createElement('span', { style: statusStyle }, systemStatus)),
-      React.createElement('p', null, 'Robot: ', React.createElement('span', { style: robotStatusStyle }, isConnected ? 'Connected' : 'Disconnected')),
-      React.createElement('p', null, 'Current Time: ', currentTime || 'Loading...')
-    ),
+            {/* Robot Status Card */}
+            <div className="card">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-500" />
+                Robot Status
+              </h2>
+              {robotData ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                      <p className="text-sm text-gray-600 mb-1">Robot ID</p>
+                      <p className="text-lg font-semibold text-gray-900">{robotData.robot_id}</p>
+                    </div>
+                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+                      <p className="text-sm text-gray-600 mb-1">Status</p>
+                      <p className="text-lg font-semibold text-gray-900 capitalize">{robotData.status}</p>
+                    </div>
+                    <div className="p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200">
+                      <p className="text-sm text-gray-600 mb-1">Battery Level</p>
+                      <p className="text-lg font-semibold text-gray-900">{robotData.battery_level?.toFixed(1) || 'N/A'}%</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                      <p className="text-sm text-gray-600 mb-2">Position</p>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-700">X: {robotData.location?.x?.toFixed(2) || 0}</p>
+                        <p className="text-sm font-medium text-gray-700">Y: {robotData.location?.y?.toFixed(2) || 0}</p>
+                        <p className="text-sm font-medium text-gray-700">Z: {robotData.location?.z?.toFixed(2) || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No robot connected. Start the robot simulator to see data.</p>
+                </div>
+              )}
+            </div>
 
-    // Robot Status Card
-    robotData ? React.createElement('div', { style: cardStyle },
-      React.createElement('h2', null, 'Robot Status'),
-      React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' } },
-        React.createElement('div', null,
-          React.createElement('p', null, React.createElement('strong', null, 'Robot ID: '), robotData.robot_id),
-          React.createElement('p', null, React.createElement('strong', null, 'Status: '), robotData.status),
-          React.createElement('p', null, React.createElement('strong', null, 'Battery: '), `${robotData.battery_level?.toFixed(1) || 'N/A'}%`)
-        ),
-        React.createElement('div', null,
-          React.createElement('p', null, React.createElement('strong', null, 'Position:')),
-          React.createElement('p', null, `X: ${robotData.location?.x?.toFixed(2) || 0}`),
-          React.createElement('p', null, `Y: ${robotData.location?.y?.toFixed(2) || 0}`),
-          React.createElement('p', null, `Z: ${robotData.location?.z?.toFixed(2) || 0}`)
-        )
-      )
-    ) : React.createElement('div', { style: cardStyle },
-      React.createElement('h2', null, 'Robot Status'),
-      React.createElement('p', null, 'No robot connected. Start the robot simulator to see data.')
-    ),
+            {/* Sensor Data Card */}
+            <div className="card">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-purple-600" />
+                Recent Sensor Data
+              </h2>
+              {recentSensors.length > 0 ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                  {recentSensors.slice(-6).map((sensor, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-100 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-900">{sensor.sensor_type}</span>
+                        <span className="text-lg font-bold text-blue-600">
+                          {sensor.value} <span className="text-sm text-gray-500">{sensor.unit}</span>
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(sensor.timestamp).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-600 text-center py-8">No sensor data available. Start robot to see live data.</p>
+              )}
+            </div>
 
-    // Sensor Data Card
-    React.createElement('div', { style: cardStyle },
-      React.createElement('h2', null, 'Recent Sensor Data'),
-      recentSensors.length > 0 ? 
-        React.createElement('div', { style: { maxHeight: '200px', overflowY: 'auto' } },
-          recentSensors.slice(-6).map((sensor: SensorReading, index: number) => 
-            React.createElement('div', { 
-              key: index,
-              style: { 
-                padding: '5px', 
-                borderBottom: '1px solid #eee',
-                fontSize: '12px'
-              } 
-            },
-              React.createElement('strong', null, sensor.sensor_type + ': '),
-              `${sensor.value} ${sensor.unit} `,
-              React.createElement('span', { style: { color: '#666' } }, 
-                new Date(sensor.timestamp).toLocaleTimeString()
-              )
-            )
-          )
-        ) :
-        React.createElement('p', null, 'No sensor data available. Start robot to see live data.'),
+            {/* Robot Controls Card */}
+            <div className="card">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-blue-600" />
+                Robot Controls
+              </h2>
 
-      // Grafana embedded panel (optional - only shows if Grafana is available)
-      robotData ? React.createElement('div', { style: { marginTop: 12 } },
-        React.createElement('h3', null, 'Grafana Visualization'),
-        React.createElement(GrafanaPanel, { 
-          panelUrl: `http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&panelId=2&var-robot_id=${robotData.robot_id}&from=now-1h&to=now&refresh=5s&theme=light`, 
-          height: 360,
-          showFallback: true
-        })
-      ) : null,
-    ),
+              {/* Job Summary */}
+              <div className="mb-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Job Summary</h3>
+                {jobSummary ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Start Time</p>
+                      <p className="text-sm font-medium text-gray-900">{jobSummary.start_time || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">End Time</p>
+                      <p className="text-sm font-medium text-gray-900">{jobSummary.end_time || 'In Progress'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Progress</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {jobSummary.percent_complete !== null ? `${jobSummary.percent_complete}%` : 'Unknown'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Items</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {jobSummary.items_done}/{jobSummary.items_total || 'unknown'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-600">No job data yet.</p>
+                )}
 
-    // Robot Controls Card
-    React.createElement('div', { style: cardStyle },
-      React.createElement('h2', null, 'Robot Controls'),
-      // Job summary and scan controls
-      React.createElement('div', { style: { marginBottom: '10px' } },
-        React.createElement('h3', null, 'Job Summary'),
-        jobSummary ? React.createElement('div', null,
-          React.createElement('p', null, React.createElement('strong', null, 'Start: '), jobSummary.start_time || 'N/A'),
-          React.createElement('p', null, React.createElement('strong', null, 'End: '), jobSummary.end_time || 'N/A'),
-          React.createElement('p', null, React.createElement('strong', null, 'Progress: '), jobSummary.percent_complete !== null ? `${jobSummary.percent_complete}%` : 'Unknown'),
-          React.createElement('p', null, React.createElement('strong', null, 'Items processed: '), `${jobSummary.items_done}/${jobSummary.items_total || 'unknown'}`),
-          jobSummary.last_item ? React.createElement('div', { style: { fontSize: '12px', color: '#555' } },
-            React.createElement('strong', null, 'Last item: '), JSON.stringify(jobSummary.last_item)
-          ) : null
-        ) : React.createElement('p', null, 'No job data yet.'),
-
-        React.createElement('div', { style: { marginTop: '8px' } },
-          React.createElement('label', null, 'QR to trigger: '),
-          React.createElement('select', { value: selectedQR, onChange: (e: any) => setSelectedQR(e.target.value) },
-            React.createElement('option', { value: 'QR12345' }, 'QR12345 - Widget A'),
-            React.createElement('option', { value: 'QR67890' }, 'QR67890 - Gadget B'),
-            React.createElement('option', { value: 'QR00001' }, 'QR00001 - Box C'),
-            React.createElement('option', { value: 'QR_UNKNOWN' }, 'QR_UNKNOWN - Not found')
-          ),
-          React.createElement('button', { style: buttonStyle, onClick: async () => {
-            if (!robotData) { alert('No robot connected'); return; }
+                <div className="mt-4 flex items-center gap-3">
+                  <select
+                    value={selectedQR}
+                    onChange={(e) => setSelectedQR(e.target.value)}
+                    className="input-field flex-1"
+                  >
+                    <option value="QR12345">QR12345 - Widget A</option>
+                    <option value="QR67890">QR67890 - Gadget B</option>
+                    <option value="QR00001">QR00001 - Box C</option>
+                    <option value="QR_UNKNOWN">QR_UNKNOWN - Not found</option>
+                  </select>
+                  <button
+                    onClick={async () => {
+                      if (!robotData) {
+                        alert('No robot connected');
+                        return;
+                      }
             try {
               const res = await fetch('http://localhost:8000/api/robot-data/trigger-scan', {
                 method: 'POST',
@@ -302,63 +378,120 @@ const TonyPiApp: React.FC = () => {
               });
               if (res.ok) {
                 alert('Scan triggered');
-                // refresh job summary
                 const js = await fetch(`http://localhost:8000/api/robot-data/job-summary/${robotData.robot_id}`);
                 if (js.ok) setJobSummary(await js.json());
               } else {
                 alert('Failed to trigger scan');
               }
-            } catch (e: any) { alert('Error: '+String(e)); }
-          } }, 'Trigger Scan')
-        )
-      ),
-      React.createElement('div', { style: { marginBottom: '10px' } },
-        React.createElement('h3', null, 'Movement Controls:'),
-        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', maxWidth: '200px', margin: '10px 0' } },
-          React.createElement('div'),
-          React.createElement('button', { style: buttonStyle, onClick: () => moveRobot('forward') }, '↑'),
-          React.createElement('div'),
-          React.createElement('button', { style: buttonStyle, onClick: () => moveRobot('left') }, '←'),
-          React.createElement('button', { style: dangerButtonStyle, onClick: stopRobot }, 'STOP'),
-          React.createElement('button', { style: buttonStyle, onClick: () => moveRobot('right') }, '→'),
-          React.createElement('div'),
-          React.createElement('button', { style: buttonStyle, onClick: () => moveRobot('backward') }, '↓'),
-          React.createElement('div')
-        )
-      ),
-      React.createElement('div', { style: { marginBottom: '10px' } },
-        React.createElement('h3', null, 'System Controls:'),
-        React.createElement('button', { style: successButtonStyle, onClick: requestRobotStatus }, 'Refresh Status'),
-        React.createElement('button', { style: buttonStyle, onClick: () => {
+                      } catch (e: any) {
+                        alert('Error: ' + String(e));
+                      }
+                    }}
+                    className="btn-primary"
+                  >
+                    Trigger Scan
+                  </button>
+                </div>
+              </div>
+
+              {/* Movement Controls */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Movement Controls</h3>
+                <div className="flex justify-center">
+                  <div className="grid grid-cols-3 gap-2 max-w-[200px]">
+                    <div></div>
+                    <button
+                      onClick={() => moveRobot('forward')}
+                      className="btn-primary py-3"
+                    >
+                      ↑
+                    </button>
+                    <div></div>
+                    <button
+                      onClick={() => moveRobot('left')}
+                      className="btn-primary py-3"
+                    >
+                      ←
+                    </button>
+                    <button
+                      onClick={stopRobot}
+                      className="btn-danger py-3 font-bold"
+                    >
+                      STOP
+                    </button>
+                    <button
+                      onClick={() => moveRobot('right')}
+                      className="btn-primary py-3"
+                    >
+                      →
+                    </button>
+                    <div></div>
+                    <button
+                      onClick={() => moveRobot('backward')}
+                      className="btn-primary py-3"
+                    >
+                      ↓
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Controls */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">System Controls</h3>
+                <div className="flex gap-3">
+                  <button onClick={requestRobotStatus} className="btn-success flex-1">
+                    Refresh Status
+                  </button>
+                  <button
+                    onClick={() => {
           fetch('http://localhost:8000/api/health')
             .then(res => res.json())
             .then(data => alert('Backend Status: ' + JSON.stringify(data)))
             .catch(err => alert('Backend connection failed: ' + err.message));
-        }}, 'Test Backend')
-      ),
-      commandResponse && React.createElement('div', { style: { marginTop: '10px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px', fontSize: '12px' } },
-        React.createElement('strong', null, 'Last Command: '),
-        commandResponse
-      )
-    ),
+                    }}
+                    className="btn-secondary flex-1"
+                  >
+                    Test Backend
+                  </button>
+                </div>
+              </div>
 
-    // Instructions Card
-    React.createElement('div', { style: cardStyle },
-      React.createElement('h2', null, 'Getting Started'),
-      React.createElement('div', null,
-        React.createElement('h3', null, 'To connect your TonyPi robot:'),
-        React.createElement('ol', null,
-          React.createElement('li', null, 'Copy robot_client folder to your Raspberry Pi 5'),
-          React.createElement('li', null, 'Install dependencies: pip install -r requirements.txt'),
-          React.createElement('li', null, 'Run: python3 tonypi_client.py --broker YOUR_PC_IP'),
-          React.createElement('li', null, 'Or test with simulator: python3 simulator.py')
-        ),
-        React.createElement('p', { style: { fontSize: '14px', color: '#666' } },
-          'Replace YOUR_PC_IP with the IP address of this computer running the monitoring system.'
-        )
-      )
-    )
-    ) : null // End of Overview Tab Content
+              {commandResponse && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Last Command:</strong> {commandResponse}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Getting Started Card */}
+            <div className="card">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-green-600" />
+                Getting Started
+              </h2>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800">To connect your TonyPi robot:</h3>
+                <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                  <li>Copy robot_client folder to your Raspberry Pi 5</li>
+                  <li>Install dependencies: <code className="bg-gray-100 px-2 py-1 rounded">pip install -r requirements.txt</code></li>
+                  <li>Run: <code className="bg-gray-100 px-2 py-1 rounded">python3 tonypi_client.py --broker YOUR_PC_IP</code></li>
+                  <li>Or test with simulator: <code className="bg-gray-100 px-2 py-1 rounded">python3 simulator.py</code></li>
+                </ol>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    <strong>Note:</strong> Replace YOUR_PC_IP with the IP address of this computer running the monitoring system.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

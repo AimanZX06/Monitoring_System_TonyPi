@@ -240,3 +240,11 @@ docker compose restart frontend
 
 **Access:** `http://localhost:3001/monitoring` → Scroll to "Advanced Analytics (Grafana)"
 
+
+
+
+
+
+
+
+

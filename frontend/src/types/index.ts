@@ -21,6 +21,32 @@ export interface SensorData {
   sensor_type?: string;
 }
 
+export interface ServoData {
+  id: number;
+  name: string;
+  robot_id: string;
+  position?: number;
+  temperature?: number;
+  voltage?: number;
+  torque_enabled?: boolean;
+  offset?: number;
+  angle_min?: number;
+  angle_max?: number;
+  alert_level?: 'normal' | 'warning' | 'critical';
+  available?: boolean;
+  temp_warning?: boolean;
+  temp_critical?: boolean;
+  simulated?: boolean;
+  error?: string;
+}
+
+export interface ServoStatusResponse {
+  robot_id: string;
+  servos: { [servoName: string]: ServoData };
+  servo_count: number;
+  timestamp: string;
+}
+
 export interface Report {
   id: number;
   title: string;

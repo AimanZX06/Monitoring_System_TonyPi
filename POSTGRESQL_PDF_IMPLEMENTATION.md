@@ -372,3 +372,11 @@ curl http://localhost:8000/api/reports/1/pdf -o test_report.pdf
 
 **Status:** ✅ **COMPLETE AND READY TO USE**
 
+
+
+
+
+
+
+
+
