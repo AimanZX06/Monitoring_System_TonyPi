@@ -109,14 +109,6 @@ export const apiService = {
     });
     return response.data;
   },
-
-  // Servo Data
-  async getServoData(robotId: string, timeRange: string = '5m') {
-    const response = await api.get(`/api/robot-data/servos/${robotId}`, {
-      params: { time_range: timeRange }
-    });
-    return response.data;
-  },
 };
 
 export default apiService;

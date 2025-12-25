@@ -39,18 +39,27 @@ async def get_sensor_data(
         # Convert to response model
         result = []
         for item in data:
-            result.append(SensorData(
-                timestamp=item['time'],
-                measurement=item['measurement'],
-                field=item['field'],
-                value=item['value'],
-                robot_id=item.get('robot_id'),
-                sensor_type=item.get('sensor_type')
-            ))
+            try:
+                result.append(SensorData(
+                    timestamp=item.get('time'),
+                    measurement=item.get('measurement', measurement),
+                    field=item.get('field', ''),
+                    value=item.get('value', 0),
+                    robot_id=item.get('robot_id'),
+                    sensor_type=item.get('sensor_type')
+                ))
+            except Exception as e:
+                # Skip invalid items but continue processing
+                print(f"Warning: Skipping invalid sensor data item: {e}")
+                continue
         
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching sensor data: {str(e)}")
+        import traceback
+        error_detail = f"Error fetching sensor data: {str(e)}"
+        print(f"API Error: {error_detail}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @router.get("/robot-data/status", response_model=List[RobotStatus])
 async def get_robot_status():

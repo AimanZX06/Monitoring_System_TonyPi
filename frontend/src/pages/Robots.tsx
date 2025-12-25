@@ -69,119 +69,104 @@ const Robots: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Activity className="h-6 w-6 text-blue-600" />
-              Robot Management
-            </h1>
-            <p className="text-gray-600 mt-1">Manage and monitor all connected robots</p>
-          </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus size={20} />
-            Add Robot
-          </button>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">🤖 Robot Management</h1>
+          <p className="text-gray-600">Manage and monitor all connected robots</p>
         </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <Plus size={20} />
+          Add Robot
+        </button>
       </div>
 
       {/* Search Bar */}
-      <div className="card">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search robots by ID or name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-field pl-12"
-          />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+        <input
+          type="text"
+          placeholder="Search robots by ID or name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="metric-card fade-in">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-2">Total Robots</p>
-              <p className="text-3xl font-bold text-blue-600">{robots.length}</p>
+              <p className="text-sm text-gray-600">Total Robots</p>
+              <p className="text-2xl font-bold">{robots.length}</p>
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200">
-              <Activity className="text-blue-600" size={28} />
-            </div>
+            <Activity className="text-blue-600" size={32} />
           </div>
         </div>
-        <div className="metric-card fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-2">Online</p>
-              <p className="text-3xl font-bold text-green-600">
+              <p className="text-sm text-gray-600">Online</p>
+              <p className="text-2xl font-bold text-green-600">
                 {robots.filter(r => r.status === 'online').length}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-br from-green-100 to-green-200">
-              <Power className="text-green-600" size={28} />
-            </div>
+            <Power className="text-green-600" size={32} />
           </div>
         </div>
-        <div className="metric-card fade-in" style={{ animationDelay: '0.2s' }}>
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-2">Offline</p>
-              <p className="text-3xl font-bold text-red-600">
+              <p className="text-sm text-gray-600">Offline</p>
+              <p className="text-2xl font-bold text-red-600">
                 {robots.filter(r => r.status === 'offline').length}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-br from-red-100 to-red-200">
-              <Power className="text-red-600" size={28} />
-            </div>
+            <Power className="text-red-600" size={32} />
           </div>
         </div>
-        <div className="metric-card fade-in" style={{ animationDelay: '0.3s' }}>
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-2">Avg Battery</p>
-              <p className="text-3xl font-bold text-purple-600">
+              <p className="text-sm text-gray-600">Avg Battery</p>
+              <p className="text-2xl font-bold">
                 {robots.length > 0
                   ? Math.round(robots.reduce((sum, r) => sum + (r.battery_percentage || 0), 0) / robots.length)
                   : 0}%
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-gradient-to-br from-purple-100 to-purple-200">
-              <Battery className="text-purple-600" size={28} />
-            </div>
+            <Battery className="text-purple-600" size={32} />
           </div>
         </div>
       </div>
 
       {/* Robot Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRobots.map((robot, index) => (
+        {filteredRobots.map((robot) => (
           <div
             key={robot.robot_id}
-            className="card cursor-pointer fade-in hover:scale-105 transition-transform"
-            style={{ animationDelay: `${index * 0.05}s` }}
+            className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 cursor-pointer"
             onClick={() => setSelectedRobot(robot)}
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
-                  <Activity className="text-white" size={24} />
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Activity className="text-blue-600" size={24} />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{robot.name || robot.robot_id}</h3>
                   <p className="text-xs text-gray-500">ID: {robot.robot_id}</p>
                 </div>
               </div>
-              <div className={`status-${robot.status === 'online' ? 'online' : 'offline'}`}>
-                {robot.status}
+              <div className="flex items-center gap-1">
+                <div className={`w-3 h-3 rounded-full ${getStatusColor(robot.status)}`}></div>
+                <span className="text-xs font-medium text-gray-600 capitalize">{robot.status}</span>
               </div>
             </div>
 
@@ -228,7 +213,7 @@ const Robots: React.FC = () => {
                   e.stopPropagation();
                   setSelectedRobot(robot);
                 }}
-                className="btn-primary flex-1 text-sm"
+                className="flex-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 Details
               </button>
@@ -237,7 +222,7 @@ const Robots: React.FC = () => {
                   e.stopPropagation();
                   // Handle settings
                 }}
-                className="btn-secondary px-3 py-1.5 text-sm"
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50"
               >
                 <Settings size={16} />
               </button>
@@ -248,7 +233,7 @@ const Robots: React.FC = () => {
                     // Handle delete
                   }
                 }}
-                className="btn-danger px-3 py-1.5 text-sm"
+                className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded hover:bg-red-50"
               >
                 <Trash2 size={16} />
               </button>

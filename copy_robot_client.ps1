@@ -55,3 +55,6 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "   - You can SSH to the robot: ssh ${Username}@${RobotIP}" -ForegroundColor Yellow
     Write-Host "   - The robot IP is correct" -ForegroundColor Yellow
 }
+
+
+

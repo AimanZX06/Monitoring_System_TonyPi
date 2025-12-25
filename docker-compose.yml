@@ -53,7 +53,7 @@ services:
 
   # Grafana for Visualization
   grafana:
-    image: grafana/grafana:11.0.0
+    image: grafana/grafana:10.0.0
     container_name: tonypi_grafana
     restart: unless-stopped
     ports:
@@ -65,20 +65,11 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
-      # Anonymous access configuration
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
-      # Embedding and security
       - GF_SECURITY_ALLOW_EMBEDDING=true
-      - GF_SECURITY_COOKIE_SAMESITE=none
-      - GF_SECURITY_COOKIE_SECURE=false
-      # Server configuration
-      - GF_SERVER_ROOT_URL=http://localhost:3000
-      # Public dashboards (for embedding)
-      - GF_PUBLIC_DASHBOARDS_ENABLED=true
-      # Keep login form enabled for admin access
       - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_SECURITY_COOKIE_SAMESITE=none
     depends_on:
       - influxdb
       - postgres
@@ -128,11 +119,8 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:8000
       - REACT_APP_MQTT_BROKER_URL=ws://localhost:9001
-      - REACT_APP_GRAFANA_URL=${GRAFANA_URL:-http://localhost:3000}
-      - REACT_APP_GRAFANA_ENABLED=${GRAFANA_ENABLED:-true}
     depends_on:
       - backend
-      - grafana
     networks:
       - tonypi_network
 

@@ -3,18 +3,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
 import os
-import asyncio
-import time
 from dotenv import load_dotenv
-from sqlalchemy import text
 
 from database.database import engine, Base
 from database.influx_client import influx_client
 from mqtt.mqtt_client import mqtt_client
-from routers import health, robot_data, reports, management, robots_db, grafana_proxy, pi_perf
+from routers import health, robot_data, reports, management
+from routers import grafana_proxy, pi_perf
+from routers import grafana_proxy
 
 # Load environment variables
 load_dotenv()
+
+import asyncio
+import time
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from database.database import Base, engine
+from mqtt.mqtt_client import mqtt_client
+from routers import health, robot_data, reports, management, robots_db
+from sqlalchemy import text
 
 print("Starting TonyPi Monitoring System...")
 
@@ -23,7 +32,7 @@ def init_database():
     try:
         print("Initializing database tables...")
         # Import models to register them
-        from models import Job, Robot, SystemLog, Report
+        from models import Job, Robot, SystemLog
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully!")
     except Exception as e:

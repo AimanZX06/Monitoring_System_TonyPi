@@ -44,7 +44,7 @@ class InfluxClient:
         '''
         
         try:
-            result = self.query_api.query(query)
+            result = self.query_api.query(query, org=self.org)
             data = []
             for table in result:
                 for record in table.records:
@@ -57,8 +57,12 @@ class InfluxClient:
                     })
             return data
         except Exception as e:
-            print(f"Error querying from InfluxDB: {e}")
-            return []
+            error_msg = f"Error querying from InfluxDB: {e}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            # Re-raise the exception so the API can return proper error
+            raise Exception(f"InfluxDB query failed: {str(e)}")
 
     def close(self):
         """Close the InfluxDB client"""

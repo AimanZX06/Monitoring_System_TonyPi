@@ -28,3 +28,6 @@ fi
 # Start the client
 echo "Starting robot client..."
 python3 tonypi_client.py --broker $BROKER_IP --port $PORT
+
+
+

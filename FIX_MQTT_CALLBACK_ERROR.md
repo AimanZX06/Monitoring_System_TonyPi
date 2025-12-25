@@ -93,3 +93,6 @@ def on_connect(self, client, userdata, flags, rc, *args, **kwargs):
 ---
 
 **The error is now fixed! Copy the updated file and restart the robot client.**
+
+
+

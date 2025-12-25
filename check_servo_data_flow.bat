@@ -51,3 +51,6 @@ echo 3. If MQTT not receiving: Check robot client MQTT connection
 echo 4. If backend not storing: Check backend logs for errors
 echo.
 pause
+
+
+
