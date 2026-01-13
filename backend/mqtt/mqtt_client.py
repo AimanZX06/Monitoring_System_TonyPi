@@ -75,18 +75,29 @@ class MQTTClient:
 
     def handle_sensor_data(self, topic, payload):
         """Handle sensor data and store in InfluxDB"""
-        sensor_type = topic.split('/')[-1]  # Extract sensor type from topic
+        # Extract robot_id from topic (tonypi/sensors/{robot_id})
+        robot_id_from_topic = topic.split('/')[-1]
+        
+        # Get sensor_type from payload (the actual sensor type like "accelerometer_x")
+        sensor_type = payload.get("sensor_type", "unknown")
+        robot_id = payload.get("robot_id", robot_id_from_topic)
         
         # Prepare data for InfluxDB
         measurement = "sensors"
         tags = {
-            "robot_id": payload.get("robot_id", "tonypi_01"),
+            "robot_id": robot_id,
             "sensor_type": sensor_type
         }
+        
+        # Extract fields - exclude metadata keys
         fields = {
             key: value for key, value in payload.items() 
-            if key not in ["robot_id", "timestamp"]
+            if key not in ["robot_id", "timestamp", "sensor_type"]
         }
+        
+        # Ensure we have at least a value field
+        if not fields:
+            fields = {"value": 0}
         
         # Store in InfluxDB
         influx_client.write_sensor_data(measurement, tags, fields)
@@ -107,6 +118,12 @@ class MQTTClient:
             "status": payload.get("status", "unknown")
         }
         
+        # Add IP address and camera URL if present
+        if "ip_address" in payload:
+            fields["ip_address"] = payload.get("ip_address")
+        if "camera_url" in payload:
+            fields["camera_url"] = payload.get("camera_url")
+        
         # Add system_info fields if present
         if "system_info" in payload and isinstance(payload["system_info"], dict):
             for key, value in payload["system_info"].items():
@@ -115,8 +132,10 @@ class MQTTClient:
         
         influx_client.write_sensor_data(measurement, tags, fields)
         
-        # Update robot in PostgreSQL
-        self._update_robot_status(robot_id, payload.get("status", "online"))
+        # Update robot in PostgreSQL with IP and camera URL
+        ip_address = payload.get("ip_address")
+        camera_url = payload.get("camera_url")
+        self._update_robot_status(robot_id, payload.get("status", "online"), ip_address, camera_url)
 
     def handle_location_data(self, payload):
         """Handle robot location data"""
@@ -254,18 +273,22 @@ class MQTTClient:
         measurement = "servos"
         
         # Store each servo's data
-        for servo_name, servo_info in servos.items():
+        for servo_key, servo_info in servos.items():
+            # Get the human-readable name from servo_info, fallback to key
+            servo_name = servo_info.get("name", servo_key)
+            
             tags = {
                 "robot_id": robot_id,
                 "servo_id": str(servo_info.get("id", 0)),
-                "servo_name": servo_name,
+                "servo_name": servo_name,  # Use actual name like "Left Hip"
+                "servo_key": servo_key,    # Keep original key like "servo_1"
                 "alert_level": servo_info.get("alert_level", "normal")
             }
             
             fields = {
-                "position": servo_info.get("position", 0),
-                "temperature": servo_info.get("temperature", 0),
-                "voltage": servo_info.get("voltage", 0),
+                "position": float(servo_info.get("position", 0)),
+                "temperature": float(servo_info.get("temperature", 0)),
+                "voltage": float(servo_info.get("voltage", 0)),
                 "torque_enabled": 1 if servo_info.get("torque_enabled", False) else 0
             }
             
@@ -313,7 +336,7 @@ class MQTTClient:
             print(f"MQTT: Error publishing to {topic}: {e}")
             raise
     
-    def _update_robot_status(self, robot_id: str, status: str):
+    def _update_robot_status(self, robot_id: str, status: str, ip_address: str = None, camera_url: str = None):
         """Update or create robot in PostgreSQL"""
         db = SessionLocal()
         try:
@@ -333,6 +356,12 @@ class MQTTClient:
                 # Update existing robot
                 robot.status = status
                 robot.last_seen = datetime.utcnow()
+            
+            # Update IP address and camera URL if provided
+            if ip_address:
+                robot.ip_address = ip_address
+            if camera_url:
+                robot.camera_url = camera_url
             
             db.commit()
         except Exception as e:

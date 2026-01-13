@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { RobotData, SensorData, Report, Command, CommandResponse } from '../types';
+import { RobotData, SensorData, Report, Command, CommandResponse, Alert, AlertStats, AlertThreshold, LogEntry, LogStats } from '../types';
 import { API_BASE_URL, API_PREFIX, API_TIMEOUT } from './config';
 
 const api = axios.create({
@@ -193,6 +193,208 @@ export const apiService = {
       params: { include_ai: includeAI },
       responseType: 'blob'
     });
+    return response.data;
+  },
+
+  // ============================================
+  // ALERTS API
+  // ============================================
+  
+  async getAlerts(params: {
+    severity?: string;
+    robot_id?: string;
+    alert_type?: string;
+    time_range?: string;
+    acknowledged?: boolean;
+    resolved?: boolean;
+    limit?: number;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.severity) queryParams.append('severity', params.severity);
+    if (params.robot_id) queryParams.append('robot_id', params.robot_id);
+    if (params.alert_type) queryParams.append('alert_type', params.alert_type);
+    if (params.time_range) queryParams.append('time_range', params.time_range);
+    if (params.acknowledged !== undefined) queryParams.append('acknowledged', String(params.acknowledged));
+    if (params.resolved !== undefined) queryParams.append('resolved', String(params.resolved));
+    if (params.limit) queryParams.append('limit', String(params.limit));
+    
+    const response = await api.get(`${V1}/alerts?${queryParams}`);
+    return response.data as Alert[];
+  },
+
+  async getAlertStats(timeRange: string = '24h', robotId?: string) {
+    const params = new URLSearchParams({ time_range: timeRange });
+    if (robotId) params.append('robot_id', robotId);
+    
+    const response = await api.get(`${V1}/alerts/stats?${params}`);
+    return response.data as AlertStats;
+  },
+
+  async createAlert(alert: {
+    robot_id?: string;
+    alert_type: string;
+    severity: string;
+    title: string;
+    message: string;
+    source?: string;
+    value?: number;
+    threshold?: number;
+    details?: any;
+  }) {
+    const response = await api.post(`${V1}/alerts`, alert);
+    return response.data as Alert;
+  },
+
+  async acknowledgeAlert(alertId: number, acknowledgedBy: string = 'user') {
+    const response = await api.post(`${V1}/alerts/${alertId}/acknowledge?acknowledged_by=${acknowledgedBy}`);
+    return response.data;
+  },
+
+  async resolveAlert(alertId: number) {
+    const response = await api.post(`${V1}/alerts/${alertId}/resolve`);
+    return response.data;
+  },
+
+  async acknowledgeAllAlerts(robotId?: string, acknowledgedBy: string = 'user') {
+    const params = new URLSearchParams({ acknowledged_by: acknowledgedBy });
+    if (robotId) params.append('robot_id', robotId);
+    
+    const response = await api.post(`${V1}/alerts/acknowledge-all?${params}`);
+    return response.data;
+  },
+
+  async deleteAlert(alertId: number) {
+    const response = await api.delete(`${V1}/alerts/${alertId}`);
+    return response.data;
+  },
+
+  async getThresholds(robotId?: string) {
+    const params = robotId ? `?robot_id=${robotId}` : '';
+    const response = await api.get(`${V1}/alerts/thresholds${params}`);
+    return response.data as AlertThreshold[];
+  },
+
+  async getDefaultThresholds() {
+    const response = await api.get(`${V1}/alerts/thresholds/defaults`);
+    return response.data;
+  },
+
+  async createOrUpdateThreshold(threshold: {
+    robot_id?: string;
+    metric_type: string;
+    warning_threshold: number;
+    critical_threshold: number;
+    enabled?: boolean;
+  }) {
+    const response = await api.post(`${V1}/alerts/thresholds`, threshold);
+    return response.data as AlertThreshold;
+  },
+
+  async updateThreshold(thresholdId: number, update: {
+    warning_threshold?: number;
+    critical_threshold?: number;
+    enabled?: boolean;
+  }) {
+    const response = await api.put(`${V1}/alerts/thresholds/${thresholdId}`, update);
+    return response.data as AlertThreshold;
+  },
+
+  async deleteThreshold(thresholdId: number) {
+    const response = await api.delete(`${V1}/alerts/thresholds/${thresholdId}`);
+    return response.data;
+  },
+
+  // ============================================
+  // LOGS API
+  // ============================================
+  
+  async getLogs(params: {
+    level?: string;
+    category?: string;
+    robot_id?: string;
+    search?: string;
+    time_range?: string;
+    limit?: number;
+    offset?: number;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.level) queryParams.append('level', params.level);
+    if (params.category) queryParams.append('category', params.category);
+    if (params.robot_id) queryParams.append('robot_id', params.robot_id);
+    if (params.search) queryParams.append('search', params.search);
+    if (params.time_range) queryParams.append('time_range', params.time_range);
+    if (params.limit) queryParams.append('limit', String(params.limit));
+    if (params.offset) queryParams.append('offset', String(params.offset));
+    
+    const response = await api.get(`${V1}/logs?${queryParams}`);
+    return response.data as LogEntry[];
+  },
+
+  async getLogStats(timeRange: string = '24h', robotId?: string) {
+    const params = new URLSearchParams({ time_range: timeRange });
+    if (robotId) params.append('robot_id', robotId);
+    
+    const response = await api.get(`${V1}/logs/stats?${params}`);
+    return response.data as LogStats;
+  },
+
+  async createLog(log: {
+    level: string;
+    category: string;
+    message: string;
+    robot_id?: string;
+    details?: any;
+  }) {
+    const response = await api.post(`${V1}/logs`, log);
+    return response.data as LogEntry;
+  },
+
+  async getCommandHistory(robotId?: string, timeRange: string = '24h', limit: number = 50) {
+    const params = new URLSearchParams({ time_range: timeRange, limit: String(limit) });
+    if (robotId) params.append('robot_id', robotId);
+    
+    const response = await api.get(`${V1}/logs/commands?${params}`);
+    return response.data as LogEntry[];
+  },
+
+  async getErrorLogs(robotId?: string, timeRange: string = '24h', limit: number = 50) {
+    const params = new URLSearchParams({ time_range: timeRange, limit: String(limit) });
+    if (robotId) params.append('robot_id', robotId);
+    
+    const response = await api.get(`${V1}/logs/errors?${params}`);
+    return response.data as LogEntry[];
+  },
+
+  async clearOldLogs(days: number = 30) {
+    const response = await api.delete(`${V1}/logs/clear?days=${days}`);
+    return response.data;
+  },
+
+  async exportLogs(format: 'json' | 'csv', params: {
+    time_range?: string;
+    level?: string;
+    category?: string;
+    robot_id?: string;
+  } = {}): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params.time_range) queryParams.append('time_range', params.time_range);
+    if (params.level) queryParams.append('level', params.level);
+    if (params.category) queryParams.append('category', params.category);
+    if (params.robot_id) queryParams.append('robot_id', params.robot_id);
+    
+    const response = await api.get(`${V1}/logs/export/${format}?${queryParams}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  async getLogCategories() {
+    const response = await api.get(`${V1}/logs/categories`);
+    return response.data as string[];
+  },
+
+  async getLogLevels() {
+    const response = await api.get(`${V1}/logs/levels`);
     return response.data;
   },
 };

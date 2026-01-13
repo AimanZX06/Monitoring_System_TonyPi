@@ -486,6 +486,23 @@ async def generate_and_store_report(
             for servo_name, servo_info in servos.items():
                 cleaned_servos[servo_name] = {k: v for k, v in servo_info.items() if not k.endswith('_time')}
             
+            # Build servo data for AI analysis
+            servo_analysis_data = {
+                "servos": cleaned_servos,
+                "servo_count": len(cleaned_servos),
+                "robot_id": robot_id
+            }
+            
+            # Get AI analysis for maintenance report
+            ai_analysis = None
+            if GEMINI_AVAILABLE and gemini_analytics:
+                try:
+                    ai_analysis = await gemini_analytics.analyze_servo_data(servo_analysis_data)
+                    print(f"AI Analysis for maintenance: {ai_analysis}")
+                except Exception as e:
+                    print(f"AI analysis failed for maintenance report: {e}")
+                    ai_analysis = None
+            
             report_data = {
                 "title": f"Servo Maintenance Report - {robot_id}",
                 "description": f"Servo health and maintenance analysis ({time_range})",
@@ -495,7 +512,8 @@ async def generate_and_store_report(
                     "servos": cleaned_servos,
                     "servo_count": len(cleaned_servos),
                     "robot_id": robot_id,
-                    "period": time_range
+                    "period": time_range,
+                    "ai_analysis": ai_analysis  # Store AI analysis in the report data
                 }
             }
         
@@ -644,17 +662,23 @@ async def get_report_pdf(
         
         # Get AI analysis if available and requested
         ai_analysis = None
-        if include_ai and GEMINI_AVAILABLE and gemini_analytics:
-            try:
-                if report.report_type == "performance":
-                    ai_analysis = await gemini_analytics.analyze_performance_data(report.data or {})
-                elif report.report_type == "job":
-                    ai_analysis = await gemini_analytics.analyze_job_data(report.data or {})
-                elif report.report_type == "maintenance":
-                    ai_analysis = await gemini_analytics.analyze_servo_data(report.data or {})
-            except Exception as e:
-                print(f"AI analysis failed: {e}")
-                ai_analysis = None
+        if include_ai:
+            # First check if AI analysis is already stored in report data
+            if report.data and report.data.get('ai_analysis'):
+                ai_analysis = report.data.get('ai_analysis')
+                print(f"Using stored AI analysis for report {report_id}")
+            elif GEMINI_AVAILABLE and gemini_analytics:
+                # Generate fresh AI analysis if not stored
+                try:
+                    if report.report_type == "performance":
+                        ai_analysis = await gemini_analytics.analyze_performance_data(report.data or {})
+                    elif report.report_type == "job":
+                        ai_analysis = await gemini_analytics.analyze_job_data(report.data or {})
+                    elif report.report_type == "maintenance":
+                        ai_analysis = await gemini_analytics.analyze_servo_data(report.data or {})
+                except Exception as e:
+                    print(f"AI analysis failed: {e}")
+                    ai_analysis = None
         
         # Generate PDF
         report_dict = {

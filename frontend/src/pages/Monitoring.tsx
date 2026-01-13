@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Activity, Cpu, HardDrive, Thermometer, Clock, ExternalLink, TrendingUp } from 'lucide-react';
-import { apiService, handleApiError } from '../utils/api';
+import { apiService } from '../utils/api';
 import GrafanaPanel from '../components/GrafanaPanel';
 import { getGrafanaPanelUrl, getGrafanaDashboardUrl } from '../utils/config';
 
@@ -24,6 +24,7 @@ interface ChartDataPoint {
 
 const Monitoring: React.FC = () => {
   const [robotId, setRobotId] = useState('');
+  const [allRobots, setAllRobots] = useState<{robot_id: string, status: string}[]>([]);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,7 @@ const Monitoring: React.FC = () => {
       try {
         // Auto-detect robot ID from connected robots
         const robots = await apiService.getRobotStatus();
+        setAllRobots(robots.map(r => ({ robot_id: r.robot_id, status: r.status })));
         
         if (robots.length === 0) {
           setLoading(false);
@@ -194,17 +196,28 @@ const Monitoring: React.FC = () => {
               Real-time Raspberry Pi system metrics: CPU, Memory, Disk, and Temperature
             </p>
           </div>
-          {metrics && (
-            <div className="text-right">
+          <div className="flex flex-col items-end gap-2">
+            {/* Robot Selector */}
+            {allRobots.length > 0 && (
+              <select
+                value={robotId}
+                onChange={(e) => setRobotId(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {allRobots.map((robot) => (
+                  <option key={robot.robot_id} value={robot.robot_id}>
+                    {robot.robot_id} {robot.status === 'online' ? '(Online)' : '(Offline)'}
+                  </option>
+                ))}
+              </select>
+            )}
+            {metrics && (
               <div className="flex items-center gap-2 text-gray-600">
                 <Clock className="h-4 w-4" />
                 <span className="text-sm">Uptime: {formatUptime(metrics.uptime)}</span>
               </div>
-              <span className="text-xs text-gray-500 bg-blue-100 px-2 py-1 rounded">
-                {robotId}
-              </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -303,7 +316,7 @@ const Monitoring: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Advanced Analytics</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Advanced System Analytics</h3>
                 </div>
                 <a
                   href={getGrafanaDashboardUrl()}
@@ -318,79 +331,27 @@ const Monitoring: React.FC = () => {
               
               {/* CPU & Memory Panel */}
               <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">System Performance</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">System Performance (CPU & Memory)</h4>
                 <GrafanaPanel 
                   panelUrl={getGrafanaPanelUrl(1)}
                   height={350}
                 />
               </div>
 
-              {/* Gauges Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">CPU Temperature</h4>
-                  <GrafanaPanel 
-                    panelUrl={getGrafanaPanelUrl(2)}
-                    height={250}
-                  />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Battery Level</h4>
-                  <GrafanaPanel 
-                    panelUrl={getGrafanaPanelUrl(3)}
-                    height={250}
-                  />
-                </div>
-              </div>
-
-              {/* Sensor Data Panels */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Accelerometer (X, Y, Z)</h4>
-                  <GrafanaPanel 
-                    panelUrl={getGrafanaPanelUrl(4)}
-                    height={300}
-                  />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Gyroscope (X, Y, Z)</h4>
-                  <GrafanaPanel 
-                    panelUrl={getGrafanaPanelUrl(5)}
-                    height={300}
-                  />
-                </div>
-              </div>
-
-              {/* Additional Sensors */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Distance Sensor</h4>
-                  <GrafanaPanel 
-                    panelUrl={getGrafanaPanelUrl(6)}
-                    height={250}
-                  />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Light Level</h4>
-                  <GrafanaPanel 
-                    panelUrl={getGrafanaPanelUrl(7)}
-                    height={250}
-                  />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Servo Angle</h4>
-                  <GrafanaPanel 
-                    panelUrl={getGrafanaPanelUrl(8)}
-                    height={250}
-                  />
-                </div>
+              {/* CPU Temperature Gauge */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">CPU Temperature Gauge</h4>
+                <GrafanaPanel 
+                  panelUrl={getGrafanaPanelUrl(2)}
+                  height={250}
+                />
               </div>
 
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-gray-700">
-                  <span className="font-semibold">💡 Pro Tip:</span> These charts auto-refresh every 5 seconds. 
+                  <span className="font-semibold">Pro Tip:</span> These charts auto-refresh every 5 seconds. 
                   Click "Open Full Dashboard" to access all Grafana features including time range selection, 
-                  zoom, and custom queries.
+                  zoom, and custom queries. For sensor data, visit the <strong>Sensors</strong> tab.
                 </p>
               </div>
             </div>

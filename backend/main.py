@@ -20,7 +20,9 @@ from routers import (
     grafana_proxy,
     pi_perf,
     robots_db,
-    data_validation
+    data_validation,
+    alerts,
+    logs
 )
 
 # API Version
@@ -35,7 +37,7 @@ def init_database():
     try:
         print("Initializing database tables...")
         # Import models to register them
-        from models import Job, Robot, SystemLog
+        from models import Job, Robot, SystemLog, Alert, AlertThreshold
         Base.metadata.create_all(bind=engine)
         print("Database tables created successfully!")
     except Exception as e:
@@ -118,6 +120,8 @@ app.include_router(grafana_proxy.router, prefix=API_PREFIX, tags=["grafana"])
 app.include_router(pi_perf.router, prefix=API_PREFIX, tags=["pi-performance"])
 app.include_router(robots_db.router, prefix=API_PREFIX, tags=["robots-database"])
 app.include_router(data_validation.router, prefix=API_PREFIX, tags=["validation"])
+app.include_router(alerts.router, prefix=API_PREFIX, tags=["alerts"])
+app.include_router(logs.router, prefix=API_PREFIX, tags=["logs"])
 
 
 @app.get("/")

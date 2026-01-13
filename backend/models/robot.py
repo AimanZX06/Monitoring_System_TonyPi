@@ -16,6 +16,8 @@ class Robot(Base):
     description = Column(String, nullable=True)
     location = Column(String, nullable=True)
     status = Column(String, default='offline')  # online, offline, error, maintenance
+    ip_address = Column(String, nullable=True)  # Robot's IP address
+    camera_url = Column(String, nullable=True)  # Camera stream URL
     battery_threshold_low = Column(Float, default=20.0)
     battery_threshold_critical = Column(Float, default=10.0)
     temp_threshold_warning = Column(Float, default=70.0)
@@ -35,6 +37,8 @@ class Robot(Base):
             'description': self.description,
             'location': self.location,
             'status': self.status,
+            'ip_address': self.ip_address,
+            'camera_url': self.camera_url,
             'battery_threshold_low': self.battery_threshold_low,
             'battery_threshold_critical': self.battery_threshold_critical,
             'temp_threshold_warning': self.temp_threshold_warning,

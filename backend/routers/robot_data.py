@@ -21,6 +21,8 @@ class RobotStatus(BaseModel):
     last_seen: datetime
     battery_percentage: Optional[float] = None
     location: Optional[dict] = None
+    ip_address: Optional[str] = None
+    camera_url: Optional[str] = None
 
 @router.get("/robot-data/sensors", response_model=List[SensorData])
 async def get_sensor_data(
@@ -82,12 +84,18 @@ async def get_robot_status():
                     'status': 'unknown',
                     'last_seen': item['time'],
                     'battery_percentage': None,
-                    'location': None
+                    'location': None,
+                    'ip_address': None,
+                    'camera_url': None
                 }
             
             if item['field'] == 'status':
                 robots[robot_id]['status'] = item['value']
                 robots[robot_id]['last_seen'] = item['time']
+            elif item['field'] == 'ip_address':
+                robots[robot_id]['ip_address'] = item['value']
+            elif item['field'] == 'camera_url':
+                robots[robot_id]['camera_url'] = item['value']
         
         # Add battery data
         for item in battery_data:
@@ -206,6 +214,8 @@ async def get_servo_data(
             return {
                 "robot_id": robot_id,
                 "servos": {},
+                "servo_count": 0,
+                "timestamp": datetime.utcnow().isoformat(),
                 "message": "No servo data found"
             }
         
@@ -214,12 +224,16 @@ async def get_servo_data(
         for item in filtered_data:
             servo_name = item.get('servo_name', 'unknown')
             servo_id = item.get('servo_id', '0')
+            servo_key = item.get('servo_key', servo_name)  # Use key for grouping
+            alert_level = item.get('alert_level', 'normal')
             
-            if servo_name not in servos:
-                servos[servo_name] = {
-                    "id": int(servo_id),
+            if servo_key not in servos:
+                servos[servo_key] = {
+                    "id": int(servo_id) if servo_id else 0,
                     "name": servo_name,
-                    "robot_id": robot_id
+                    "robot_id": robot_id,
+                    "alert_level": alert_level,
+                    "torque_enabled": True  # Default
                 }
             
             # Update with latest value for each field
@@ -229,15 +243,21 @@ async def get_servo_data(
             
             # Keep latest value for each field
             if field:
-                if f"{field}_time" not in servos[servo_name] or timestamp > servos[servo_name][f"{field}_time"]:
-                    servos[servo_name][field] = value
-                    servos[servo_name][f"{field}_time"] = timestamp
+                if f"{field}_time" not in servos[servo_key] or timestamp > servos[servo_key][f"{field}_time"]:
+                    servos[servo_key][field] = value
+                    servos[servo_key][f"{field}_time"] = timestamp
+                    # Update alert_level from latest data
+                    if item.get('alert_level'):
+                        servos[servo_key]['alert_level'] = item.get('alert_level')
         
         # Clean up timestamp fields and format response
         result_servos = {}
-        for servo_name, servo_info in servos.items():
+        for servo_key, servo_info in servos.items():
             cleaned_info = {k: v for k, v in servo_info.items() if not k.endswith('_time')}
-            result_servos[servo_name] = cleaned_info
+            # Ensure torque_enabled is boolean
+            if 'torque_enabled' in cleaned_info:
+                cleaned_info['torque_enabled'] = bool(cleaned_info['torque_enabled'])
+            result_servos[servo_key] = cleaned_info
         
         return {
             "robot_id": robot_id,

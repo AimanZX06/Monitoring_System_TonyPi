@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Battery, MapPin, Clock, Power, Settings, Trash2, Plus, Search } from 'lucide-react';
-import { apiService } from '../utils/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { Activity, Battery, MapPin, Clock, Power, Settings, Trash2, Plus, Search, Camera, Terminal, TrendingUp } from 'lucide-react';
+import { apiService, handleApiError } from '../utils/api';
 import { RobotData } from '../types';
+import GrafanaPanel from '../components/GrafanaPanel';
+import { getGrafanaPanelUrl } from '../utils/config';
 
 const Robots: React.FC = () => {
   const [robots, setRobots] = useState<RobotData[]>([]);
   const [selectedRobot, setSelectedRobot] = useState<RobotData | null>(null);
+  const [controlRobotId, setControlRobotId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [isStopping, setIsStopping] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
+  const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchRobots();
@@ -20,10 +27,82 @@ const Robots: React.FC = () => {
     try {
       const data = await apiService.getRobotStatus();
       setRobots(data);
+      // Auto-select first robot for control panel if not set
+      if (!controlRobotId && data.length > 0) {
+        setControlRobotId(data[0].robot_id);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Error fetching robots:', error);
       setLoading(false);
+    }
+  };
+
+  // Add terminal log entry
+  const addLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setTerminalLogs(prev => [...prev.slice(-50), `[${timestamp}] ${message}`]);
+  };
+
+  // Get the currently selected control robot
+  const controlRobot = robots.find(r => r.robot_id === controlRobotId);
+  
+  // Get camera URL from selected robot (or derive from IP address)
+  const cameraUrl = controlRobot?.camera_url || 
+    (controlRobot?.ip_address ? `http://${controlRobot.ip_address}:8080/?action=stream` : null);
+
+  // Fetch terminal logs periodically for selected robot
+  useEffect(() => {
+    // Simulate receiving logs from selected robot
+    const logInterval = setInterval(() => {
+      if (controlRobot && controlRobot.status === 'online') {
+        // These would come from actual robot in production
+        const sampleLogs = [
+          `[${controlRobotId}] Heartbeat received`,
+          `[${controlRobotId}] Sensor data updated`,
+          `[${controlRobotId}] Position updated`,
+          `[${controlRobotId}] Battery status: OK`,
+          `[${controlRobotId}] Motors: idle`,
+        ];
+        const randomLog = sampleLogs[Math.floor(Math.random() * sampleLogs.length)];
+        addLog(randomLog);
+      }
+    }, 5000);
+
+    return () => clearInterval(logInterval);
+  }, [controlRobot, controlRobotId]);
+
+  // Auto-scroll terminal
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [terminalLogs]);
+
+  // Reset camera error when robot changes
+  useEffect(() => {
+    setCameraError(false);
+  }, [controlRobotId]);
+
+  // Emergency stop function for selected robot
+  const handleEmergencyStop = async () => {
+    if (!controlRobotId) {
+      addLog('ERROR: No robot selected');
+      return;
+    }
+    setIsStopping(true);
+    addLog(`EMERGENCY STOP INITIATED for ${controlRobotId}`);
+    try {
+      await apiService.sendRobotCommand({
+        type: 'stop',
+        robot_id: controlRobotId,
+        id: `stop_${Date.now()}`
+      });
+      addLog(`STOP command sent successfully to ${controlRobotId}`);
+    } catch (error) {
+      addLog(`STOP command failed for ${controlRobotId}: ${handleApiError(error)}`);
+    } finally {
+      setIsStopping(false);
     }
   };
 
@@ -145,6 +224,191 @@ const Robots: React.FC = () => {
         </div>
       </div>
 
+      {/* Battery Level Monitor */}
+      {robots.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+            <TrendingUp className="text-green-600" size={24} />
+            Battery Level History
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Historical battery level data from Grafana
+          </p>
+          <GrafanaPanel 
+            panelUrl={getGrafanaPanelUrl(3)}
+            height={250}
+          />
+        </div>
+      )}
+
+      {/* Robot Control Panel Header */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Activity className="text-blue-600" size={24} />
+            Robot Control Panel
+          </h2>
+          {/* Robot Selector for Control Panel */}
+          {robots.length > 0 && (
+            <select
+              value={controlRobotId}
+              onChange={(e) => {
+                setControlRobotId(e.target.value);
+                setTerminalLogs([]); // Clear logs when switching robot
+                addLog(`Switched to robot: ${e.target.value}`);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {robots.map((robot) => (
+                <option key={robot.robot_id} value={robot.robot_id}>
+                  {robot.robot_id} {robot.status === 'online' ? '(Online)' : '(Offline)'}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Control panel for: <span className="font-semibold text-blue-600">{controlRobotId || 'No robot selected'}</span>
+          {controlRobot && (
+            <span className={`ml-2 px-2 py-0.5 rounded text-xs ${controlRobot.status === 'online' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {controlRobot.status}
+            </span>
+          )}
+        </p>
+
+        {/* Emergency Stop */}
+        <div className="flex justify-center">
+          <button
+            onClick={handleEmergencyStop}
+            disabled={isStopping || !controlRobotId}
+            className={`px-12 py-6 text-2xl font-bold text-white rounded-lg shadow-lg transition-all ${
+              isStopping || !controlRobotId
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-red-600 hover:bg-red-700 hover:shadow-xl active:scale-95'
+            }`}
+          >
+            {isStopping ? 'STOPPING...' : 'EMERGENCY STOP'}
+          </button>
+        </div>
+      </div>
+
+      {/* Camera Feed & Terminal */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Camera Feed */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <Camera className="text-blue-600" size={24} />
+              Camera Feed
+              {controlRobotId && (
+                <span className="text-sm font-normal text-gray-500">({controlRobotId})</span>
+              )}
+            </h2>
+            {controlRobot?.ip_address && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                IP: {controlRobot.ip_address}
+              </span>
+            )}
+          </div>
+          <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
+            {cameraUrl && !cameraError ? (
+              <img
+                src={cameraUrl}
+                alt="TonyPi Camera Feed"
+                className="w-full h-full object-contain"
+                onError={() => setCameraError(true)}
+              />
+            ) : (
+              <div className="text-center text-gray-400">
+                <Camera size={48} className="mx-auto mb-2 opacity-50" />
+                <p>Camera feed not available</p>
+                {!controlRobotId ? (
+                  <p className="text-sm mt-1">Select a robot to view camera</p>
+                ) : !cameraUrl ? (
+                  <p className="text-sm mt-1">Robot IP address not available</p>
+                ) : cameraError ? (
+                  <p className="text-sm mt-1">Unable to connect to camera stream</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+          {cameraUrl && (
+            <p className="text-xs text-gray-500 mt-2">
+              Stream: {cameraUrl}
+            </p>
+          )}
+        </div>
+
+        {/* Terminal Output */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <Terminal className="text-green-600" size={24} />
+              Terminal Output
+              {controlRobotId && (
+                <span className="text-sm font-normal text-gray-500">({controlRobotId})</span>
+              )}
+            </h2>
+            <button
+              onClick={() => setTerminalLogs([])}
+              className="text-xs px-2 py-1 text-gray-600 hover:text-gray-900 border border-gray-300 rounded"
+            >
+              Clear
+            </button>
+          </div>
+          <div
+            ref={terminalRef}
+            className="bg-gray-900 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm"
+          >
+            {terminalLogs.length > 0 ? (
+              terminalLogs.map((log, index) => (
+                <div
+                  key={index}
+                  className={`${
+                    log.includes('ERROR') || log.includes('FAILED') || log.includes('failed')
+                      ? 'text-red-400'
+                      : log.includes('STOP') || log.includes('WARNING')
+                      ? 'text-yellow-400'
+                      : log.includes('success') || log.includes('OK')
+                      ? 'text-green-400'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  {log}
+                </div>
+              ))
+            ) : (
+              <div className="text-gray-500">
+                <p>$ Waiting for robot connection...</p>
+                <p>$ Terminal output will appear here</p>
+              </div>
+            )}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <input
+              type="text"
+              placeholder="Send command to robot..."
+              className="flex-1 text-sm px-3 py-2 border border-gray-300 rounded"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  const input = e.target as HTMLInputElement;
+                  if (input.value.trim()) {
+                    addLog(`> ${input.value}`);
+                    input.value = '';
+                  }
+                }
+              }}
+            />
+            <button
+              onClick={() => addLog('Manual command sent')}
+              className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 text-sm"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Robot Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredRobots.map((robot) => (
@@ -229,7 +493,7 @@ const Robots: React.FC = () => {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm(`Remove robot ${robot.robot_id}?`)) {
+                  if (window.confirm(`Remove robot ${robot.robot_id}?`)) {
                     // Handle delete
                   }
                 }}

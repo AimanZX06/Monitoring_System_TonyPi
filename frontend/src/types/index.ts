@@ -12,6 +12,8 @@ export interface RobotData {
     heading?: number;
   };
   sensors?: { [key: string]: number };
+  ip_address?: string;
+  camera_url?: string;
 }
 
 export interface SensorData {
@@ -50,4 +52,60 @@ export interface MqttMessage {
   topic: string;
   payload: any;
   timestamp: Date;
+}
+
+export interface Alert {
+  id: number;
+  robot_id: string | null;
+  alert_type: string;
+  severity: string;
+  title: string;
+  message: string;
+  source: string | null;
+  value: number | null;
+  threshold: number | null;
+  acknowledged: boolean;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  resolved: boolean;
+  resolved_at: string | null;
+  details: any;
+  created_at: string;
+}
+
+export interface AlertStats {
+  total: number;
+  critical: number;
+  warning: number;
+  info: number;
+  unacknowledged: number;
+  unresolved: number;
+}
+
+export interface AlertThreshold {
+  id: number;
+  robot_id: string | null;
+  metric_type: string;
+  warning_threshold: number;
+  critical_threshold: number;
+  enabled: boolean;
+}
+
+export interface LogEntry {
+  id: number;
+  level: string;
+  category: string;
+  message: string;
+  robot_id: string | null;
+  details: any;
+  timestamp: string;
+}
+
+export interface LogStats {
+  total: number;
+  info: number;
+  warning: number;
+  error: number;
+  critical: number;
+  by_category: Record<string, number>;
 }

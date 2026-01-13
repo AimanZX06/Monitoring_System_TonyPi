@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Thermometer, Zap, Settings, AlertCircle, RefreshCw } from 'lucide-react';
+import { Activity, Thermometer, Zap, Settings, AlertCircle, RefreshCw, TrendingUp } from 'lucide-react';
 import { apiService, handleApiError } from '../utils/api';
 import { useNotification } from '../contexts/NotificationContext';
+import GrafanaPanel from '../components/GrafanaPanel';
+import { getGrafanaPanelUrl } from '../utils/config';
 
 interface ServoData {
   id: number;
@@ -284,6 +286,21 @@ const Servos: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Servo Angle Grafana Panel */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              Servo Angle History
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Historical servo position data from Grafana
+            </p>
+            <GrafanaPanel 
+              panelUrl={getGrafanaPanelUrl(8)}
+              height={300}
+            />
           </div>
 
           {/* Last Update */}

@@ -4,11 +4,13 @@ import Jobs from './pages/Jobs';
 import Robots from './pages/Robots';
 import Servos from './pages/Servos';
 import Reports from './pages/Reports';
-import Dashboard from './pages/Dashboard';
-import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, LayoutDashboard } from 'lucide-react';
-import { NotificationProvider, useNotification } from './contexts/NotificationContext';
+import Sensors from './pages/Sensors';
+import Alerts from './pages/Alerts';
+import Logs from './pages/Logs';
+import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, BookOpen, CheckCircle, HelpCircle, X, Compass, Bell, FileText } from 'lucide-react';
+import { NotificationProvider } from './contexts/NotificationContext';
 import ToastContainer from './components/Toast';
-import { apiService, handleApiError } from './utils/api';
+import { apiService } from './utils/api';
 
 interface RobotData {
   robot_id: string;
@@ -29,16 +31,18 @@ interface SensorReading {
 // Inner component that uses notifications
 const TonyPiAppContent: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [systemStatus, setSystemStatus] = useState<string>('Online');
+  const [systemStatus] = useState<string>('Online');
   const [robotData, setRobotData] = useState<RobotData | null>(null);
+  const [allRobots, setAllRobots] = useState<RobotData[]>([]);
   const [recentSensors, setRecentSensors] = useState<SensorReading[]>([]);
-  const [jobSummary, setJobSummary] = useState<any>(null);
-  const [selectedTab, setSelectedTab] = useState<string>('dashboard');
-  const [selectedQR, setSelectedQR] = useState<string>('QR12345');
+  const [jobStats, setJobStats] = useState<any>({ activeJobs: 0, completedToday: 0, totalItems: 0 });
+  const [selectedTab, setSelectedTab] = useState<string>('overview');
+  const [selectedRobotId, setSelectedRobotId] = useState<string>('');
   const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [commandResponse, setCommandResponse] = useState<string>('');
+  const [systemServices, setSystemServices] = useState<any>(null);
+  const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   
-  const { success, error, warning, info } = useNotification();
+  // useNotification available if needed for future features
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -51,16 +55,54 @@ const TonyPiAppContent: React.FC = () => {
   useEffect(() => {
     const fetchRobotData = async () => {
       try {
-        const robots = await apiService.getRobotStatus();
+        const [robots, status] = await Promise.all([
+          apiService.getRobotStatus(),
+          apiService.getSystemStatus()
+        ]);
+        
+        setAllRobots(robots as any);
+        if (status?.services) {
+          setSystemServices(status.services);
+        }
+        
         if (robots.length > 0) {
-          setRobotData(robots[0] as any);
-          setIsConnected(true);
-          try {
-            const jdata = await apiService.getJobSummary(robots[0].robot_id);
-            setJobSummary(jdata);
-          } catch (e) {
-            // Job summary might not exist yet
+          // Use selected robot or default to first robot
+          const targetRobot = selectedRobotId 
+            ? robots.find(r => r.robot_id === selectedRobotId) 
+            : robots[0];
+          
+          if (targetRobot) {
+            setRobotData(targetRobot as any);
+            // Auto-set selected robot if not set
+            if (!selectedRobotId) {
+              setSelectedRobotId(targetRobot.robot_id);
+            }
           }
+          setIsConnected(true);
+          
+          // Fetch job statistics
+          let activeCount = 0;
+          let completedCount = 0;
+          let totalItemsProcessed = 0;
+          
+          for (const robot of robots) {
+            try {
+              const jobData = await apiService.getJobSummary(robot.robot_id);
+              if (jobData.start_time && !jobData.end_time) {
+                activeCount++;
+              } else if (jobData.end_time) {
+                const today = new Date().toDateString();
+                const endDate = new Date(jobData.end_time).toDateString();
+                if (today === endDate) {
+                  completedCount++;
+                }
+              }
+              totalItemsProcessed += jobData.items_done || 0;
+            } catch (e) {
+              // Job summary might not exist yet
+            }
+          }
+          setJobStats({ activeJobs: activeCount, completedToday: completedCount, totalItems: totalItemsProcessed });
         } else {
           setIsConnected(false);
         }
@@ -76,52 +118,17 @@ const TonyPiAppContent: React.FC = () => {
     fetchRobotData();
     const interval = setInterval(fetchRobotData, 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  const sendRobotCommand = async (command: any) => {
-    try {
-      await apiService.sendRobotCommand(command);
-      success('Command Sent', `${command.type} command executed successfully`);
-      setCommandResponse(`Command sent: ${command.type}`);
-      setTimeout(() => setCommandResponse(''), 3000);
-    } catch (err) {
-      const errorMsg = handleApiError(err);
-      error('Command Failed', errorMsg);
-      setCommandResponse(`Command failed: ${errorMsg}`);
-    }
-  };
-
-  const moveRobot = (direction: string, distance: number = 1.0) => {
-    sendRobotCommand({
-      type: 'move',
-      direction: direction,
-      distance: distance,
-      speed: 0.5,
-      id: `cmd_${Date.now()}`
-    });
-  };
-
-  const requestRobotStatus = () => {
-    sendRobotCommand({
-      type: 'status_request',
-      id: `status_${Date.now()}`
-    });
-  };
-
-  const stopRobot = () => {
-    sendRobotCommand({
-      type: 'stop',
-      id: `stop_${Date.now()}`
-    });
-  };
+  }, [selectedRobotId]);
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'performance', label: 'Performance', icon: Activity },
-    { id: 'jobs', label: 'Jobs', icon: Zap },
+    { id: 'sensors', label: 'Sensors', icon: Compass },
     { id: 'robots', label: 'Robots', icon: Activity },
     { id: 'servos', label: 'Servos', icon: Zap },
+    { id: 'jobs', label: 'Jobs', icon: Zap },
+    { id: 'alerts', label: 'Alerts', icon: Bell },
+    { id: 'logs', label: 'Logs', icon: FileText },
     { id: 'reports', label: 'Reports', icon: AlertCircle }
   ];
 
@@ -151,6 +158,14 @@ const TonyPiAppContent: React.FC = () => {
                 {isConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
                 <span className="text-sm font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </div>
+              <button
+                onClick={() => setShowHelpModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                title="Getting Started Guide"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">Help</span>
+              </button>
             </div>
           </div>
         </div>
@@ -177,13 +192,6 @@ const TonyPiAppContent: React.FC = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Dashboard Tab */}
-        {selectedTab === 'dashboard' && (
-          <div className="fade-in">
-            <Dashboard />
-          </div>
-        )}
-
         {/* Performance Tab */}
         {selectedTab === 'performance' && (
           <div className="fade-in">
@@ -219,9 +227,78 @@ const TonyPiAppContent: React.FC = () => {
           </div>
         )}
 
+        {/* Alerts Tab */}
+        {selectedTab === 'alerts' && (
+          <div className="fade-in">
+            <Alerts />
+          </div>
+        )}
+
+        {/* Logs Tab */}
+        {selectedTab === 'logs' && (
+          <div className="fade-in">
+            <Logs />
+          </div>
+        )}
+
+        {/* Sensors Tab */}
+        {selectedTab === 'sensors' && (
+          <div className="fade-in">
+            <Sensors />
+          </div>
+        )}
+
         {/* Overview Tab */}
         {selectedTab === 'overview' && (
           <div className="space-y-6 fade-in">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-primary-50">
+                    <Activity className="h-6 w-6 text-primary-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Active Robots</p>
+                    <p className="text-2xl font-bold text-gray-900">{allRobots.filter(r => r.status === 'online').length}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-blue-50">
+                    <Activity className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Active Jobs</p>
+                    <p className="text-2xl font-bold text-gray-900">{jobStats.activeJobs}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-green-50">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Completed Today</p>
+                    <p className="text-2xl font-bold text-gray-900">{jobStats.completedToday}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-purple-50">
+                    <CheckCircle className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Items Processed</p>
+                    <p className="text-2xl font-bold text-gray-900">{jobStats.totalItems}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* System Status Card */}
             <div className="card">
               <div className="flex items-center justify-between mb-4">
@@ -255,10 +332,25 @@ const TonyPiAppContent: React.FC = () => {
 
             {/* Robot Status Card */}
             <div className="card">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-yellow-500" />
-                Robot Status
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-yellow-500" />
+                  Robot Status
+                </h2>
+                {allRobots.length > 0 && (
+                  <select
+                    value={selectedRobotId}
+                    onChange={(e) => setSelectedRobotId(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {allRobots.map((robot) => (
+                      <option key={robot.robot_id} value={robot.robot_id}>
+                        {robot.robot_id} {robot.status === 'online' ? '(Online)' : '(Offline)'}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
               {robotData ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
@@ -294,12 +386,45 @@ const TonyPiAppContent: React.FC = () => {
               )}
             </div>
 
+            {/* System Services Status */}
+            {systemServices && Object.keys(systemServices).length > 0 && (
+              <div className="card">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">System Services</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(systemServices).map(([service, status]) => (
+                    <div key={service} className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        status === 'running' ? 'bg-green-400' : 'bg-red-400'
+                      }`}></div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 capitalize">
+                          {service.replace('_', ' ')}
+                        </p>
+                        <p className={`text-xs ${
+                          status === 'running' ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {String(status)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Sensor Data Card */}
             <div className="card">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Activity className="h-5 w-5 text-purple-600" />
-                Recent Sensor Data
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-purple-600" />
+                  Recent Sensor Data
+                </h2>
+                {selectedRobotId && (
+                  <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                    {selectedRobotId}
+                  </span>
+                )}
+              </div>
               {recentSensors.length > 0 ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
                   {recentSensors.slice(-6).map((sensor, index) => (
@@ -323,176 +448,130 @@ const TonyPiAppContent: React.FC = () => {
                 <p className="text-gray-600 text-center py-8">No sensor data available. Start robot to see live data.</p>
               )}
             </div>
-
-            {/* Robot Controls Card */}
-            <div className="card">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-blue-600" />
-                Robot Controls
-              </h2>
-
-              {/* Job Summary */}
-              <div className="mb-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Job Summary</h3>
-                {jobSummary ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Start Time</p>
-                      <p className="text-sm font-medium text-gray-900">{jobSummary.start_time || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">End Time</p>
-                      <p className="text-sm font-medium text-gray-900">{jobSummary.end_time || 'In Progress'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Progress</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {jobSummary.percent_complete !== null ? `${jobSummary.percent_complete}%` : 'Unknown'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Items</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {jobSummary.items_done}/{jobSummary.items_total || 'unknown'}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-gray-600">No job data yet.</p>
-                )}
-
-                <div className="mt-4 flex items-center gap-3">
-                  <select
-                    value={selectedQR}
-                    onChange={(e) => setSelectedQR(e.target.value)}
-                    className="input-field flex-1"
-                  >
-                    <option value="QR12345">QR12345 - Widget A</option>
-                    <option value="QR67890">QR67890 - Gadget B</option>
-                    <option value="QR00001">QR00001 - Box C</option>
-                    <option value="QR_UNKNOWN">QR_UNKNOWN - Not found</option>
-                  </select>
-                  <button
-                    onClick={async () => {
-                      if (!robotData) {
-                        warning('No Robot', 'No robot connected');
-                        return;
-                      }
-                      try {
-                        await apiService.triggerScan(robotData.robot_id, selectedQR);
-                        success('Scan Triggered', `QR code ${selectedQR} scan initiated`);
-                        const jdata = await apiService.getJobSummary(robotData.robot_id);
-                        setJobSummary(jdata);
-                      } catch (e: any) {
-                        error('Scan Failed', handleApiError(e));
-                      }
-                    }}
-                    className="btn-primary"
-                  >
-                    Trigger Scan
-                  </button>
-                </div>
-              </div>
-
-              {/* Movement Controls */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Movement Controls</h3>
-                <div className="flex justify-center">
-                  <div className="grid grid-cols-3 gap-2 max-w-[200px]">
-                    <div></div>
-                    <button
-                      onClick={() => moveRobot('forward')}
-                      className="btn-primary py-3"
-                    >
-                      ↑
-                    </button>
-                    <div></div>
-                    <button
-                      onClick={() => moveRobot('left')}
-                      className="btn-primary py-3"
-                    >
-                      ←
-                    </button>
-                    <button
-                      onClick={stopRobot}
-                      className="btn-danger py-3 font-bold"
-                    >
-                      STOP
-                    </button>
-                    <button
-                      onClick={() => moveRobot('right')}
-                      className="btn-primary py-3"
-                    >
-                      →
-                    </button>
-                    <div></div>
-                    <button
-                      onClick={() => moveRobot('backward')}
-                      className="btn-primary py-3"
-                    >
-                      ↓
-                    </button>
-                    <div></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* System Controls */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">System Controls</h3>
-                <div className="flex gap-3">
-                  <button onClick={requestRobotStatus} className="btn-success flex-1">
-                    Refresh Status
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const data = await apiService.healthCheck();
-                        success('Backend Online', `Status: ${data.status || 'OK'}`);
-                      } catch (err) {
-                        error('Backend Offline', handleApiError(err));
-                      }
-                    }}
-                    className="btn-secondary flex-1"
-                  >
-                    Test Backend
-                  </button>
-                </div>
-              </div>
-
-              {commandResponse && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Last Command:</strong> {commandResponse}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Getting Started Card */}
-            <div className="card">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-green-600" />
-                Getting Started
-              </h2>
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800">To connect your TonyPi robot:</h3>
-                <ol className="list-decimal list-inside space-y-2 text-gray-700">
-                  <li>Copy robot_client folder to your Raspberry Pi 5</li>
-                  <li>Install dependencies: <code className="bg-gray-100 px-2 py-1 rounded">pip install -r requirements.txt</code></li>
-                  <li>Run: <code className="bg-gray-100 px-2 py-1 rounded">python3 tonypi_client.py --broker YOUR_PC_IP</code></li>
-                  <li>Or test with simulator: <code className="bg-gray-100 px-2 py-1 rounded">python3 simulator.py</code></li>
-                </ol>
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    <strong>Note:</strong> Replace YOUR_PC_IP with the IP address of this computer running the monitoring system.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
+
       </div>
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowHelpModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-green-600" />
+                Getting Started with TonyPi Robot
+              </h2>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Connect Your TonyPi Robot</h3>
+                <ol className="list-decimal list-inside space-y-3 text-gray-700">
+                  <li className="pl-2">
+                    <span className="font-medium">Copy robot_client folder</span> to your Raspberry Pi 5
+                  </li>
+                  <li className="pl-2">
+                    <span className="font-medium">Install dependencies:</span>
+                    <code className="ml-2 bg-gray-100 px-3 py-1 rounded text-sm">pip install -r requirements.txt</code>
+                  </li>
+                  <li className="pl-2">
+                    <span className="font-medium">Run the client:</span>
+                    <code className="ml-2 bg-gray-100 px-3 py-1 rounded text-sm">python3 tonypi_client.py --broker YOUR_PC_IP</code>
+                  </li>
+                  <li className="pl-2">
+                    <span className="font-medium">Or test with simulator:</span>
+                    <code className="ml-2 bg-gray-100 px-3 py-1 rounded text-sm">python3 simulator.py</code>
+                  </li>
+                </ol>
+              </div>
+
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  <strong>Note:</strong> Replace YOUR_PC_IP with the IP address of this computer running the monitoring system.
+                </p>
+              </div>
+
+                <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Tab Guide</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">Overview</h4>
+                    <p className="text-sm text-gray-600">System status and robot summary</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">Performance</h4>
+                    <p className="text-sm text-gray-600">CPU, Memory, Disk metrics</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">Sensors</h4>
+                    <p className="text-sm text-gray-600">IMU & environmental sensor data</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">Robots</h4>
+                    <p className="text-sm text-gray-600">Robot management & control</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">Servos</h4>
+                    <p className="text-sm text-gray-600">Servo motor monitoring</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">Jobs</h4>
+                    <p className="text-sm text-gray-600">Task tracking & progress</p>
+                  </div>
+                  <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                    <h4 className="font-medium text-gray-900">Alerts</h4>
+                    <p className="text-sm text-gray-600">Real-time alerts & thresholds</p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <h4 className="font-medium text-gray-900">Logs</h4>
+                    <p className="text-sm text-gray-600">System logs & activity history</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">Reports</h4>
+                    <p className="text-sm text-gray-600">Generate PDF reports with AI</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Quick Links</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-gray-900 mb-2">Documentation</h4>
+                    <p className="text-sm text-gray-600">Check the GETTING_STARTED_WITH_TONYPI_ROBOT.md file for detailed setup instructions.</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                    <h4 className="font-medium text-gray-900 mb-2">Simulator</h4>
+                    <p className="text-sm text-gray-600">Use the simulator to test the system without a physical robot.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

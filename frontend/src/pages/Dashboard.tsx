@@ -3,7 +3,6 @@ import {
   Activity, 
   Battery, 
   MapPin, 
-  AlertTriangle,
   CheckCircle,
   Clock
 } from 'lucide-react';
@@ -159,7 +158,7 @@ const Dashboard: React.FC = () => {
                   <Battery className="h-4 w-4 text-gray-500" />
                   <span className="text-sm text-gray-600">Battery</span>
                 </div>
-                <span className={`text-sm font-medium ${getBatteryColor(robot.battery_percentage)}`}>
+                <span className={`text-sm font-medium ${getBatteryColor(robot.battery_percentage ?? 0)}`}>
                   {robot.battery_percentage?.toFixed(1) || 'N/A'}%
                 </span>
               </div>
