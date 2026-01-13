@@ -207,6 +207,16 @@
     @apply bg-gray-300 rounded-full hover:bg-gray-400;
   }
 
+  /* Hide Scrollbar for Tab Navigation */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Text Gradient */
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600;
@@ -221,14 +231,34 @@
 /* Responsive Design Enhancements */
 @media (max-width: 768px) {
   .card {
-    @apply p-4;
+    @apply p-3 sm:p-4;
+    margin-bottom: 12px;
   }
 
   .btn-primary,
   .btn-secondary,
   .btn-danger,
   .btn-success {
-    @apply px-4 py-2 text-sm;
+    @apply px-3 py-2 text-sm;
+  }
+
+  .tab-button {
+    @apply px-3 py-2 text-xs;
+  }
+
+  .tab-button-active {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .card {
+    @apply p-3;
+    border-radius: 8px;
+  }
+
+  .card:hover {
+    transform: none;
   }
 }
 
