@@ -40,6 +40,8 @@ The **TonyPi Robot Monitoring System** is a comprehensive, full-stack IoT monito
 - Containerized microservices architecture
 - RESTful API with comprehensive documentation
 - Modern responsive web interface
+- AI-powered analytics using Google Gemini for intelligent insights
+- Data validation system for ensuring data integrity
 
 **Technology Foundation:**
 - Frontend: React 18.2.0 with TypeScript
@@ -47,6 +49,7 @@ The **TonyPi Robot Monitoring System** is a comprehensive, full-stack IoT monito
 - Databases: InfluxDB 2.7 (time-series) + PostgreSQL 15 (relational)
 - Message Broker: Eclipse Mosquitto 2.0 (MQTT)
 - Visualization: Grafana 10.0.0
+- AI Analytics: Google Gemini 1.5 Flash (Free Tier)
 - Deployment: Docker Compose
 
 ---
@@ -280,6 +283,10 @@ backend → mqtt_client → mosquitto
 | **Axios** | 1.5.0 | HTTP client |
 | **MQTT.js** | 5.3.0 | MQTT WebSocket client |
 | **React Router** | 6.16.0 | Client-side routing |
+| **Lucide React** | 0.400.0 | Icon library |
+| **Headless UI** | 1.7.17 | Accessible UI components |
+| **jsPDF** | 3.0.4 | Client-side PDF generation |
+| **html2canvas** | 1.4.1 | Screenshot capture |
 
 ### 5.2 Backend Technologies
 
@@ -292,7 +299,11 @@ backend → mqtt_client → mosquitto
 | **Paho-MQTT** | 1.6.1 | MQTT client |
 | **InfluxDB Client** | 1.38.0 | InfluxDB Python client |
 | **Psycopg2** | 2.9.9 | PostgreSQL adapter |
-| **ReportLab** | 4.0.7 | PDF generation |
+| **ReportLab** | 4.0.8 | PDF generation |
+| **Google Generative AI** | 0.8.3 | Gemini AI integration |
+| **HTTPX** | 0.25.2 | Async HTTP client |
+| **Python-Jose** | 3.3.0 | JWT handling |
+| **Alembic** | 1.12.1 | Database migrations |
 
 ### 5.3 Infrastructure Technologies
 
@@ -335,25 +346,30 @@ backend → mqtt_client → mosquitto
 
 2. **Monitoring (`Monitoring.tsx`)**
    - Performance metrics (Task Manager style)
-   - Real-time charts
-   - System health indicators
-   - Grafana embedded panels
+   - Real-time charts with CPU, Memory, Disk, Temperature
+   - System health indicators with color-coded thresholds
+   - Grafana embedded panels for advanced analytics
 
 3. **Jobs (`Jobs.tsx`)**
    - Job tracking dashboard
-   - Progress visualization
-   - Job history
-   - Statistics
+   - Progress visualization with animated progress bars
+   - Job history with timestamps
+   - Duration calculation and statistics
 
 4. **Robots (`Robots.tsx`)**
    - Multi-robot grid view
-   - Robot details
+   - Robot details with battery and position
    - Status indicators
    - Management controls
 
+5. **Servos (`Servos.tsx`)**
+   - Servo motor monitoring
+   - Angle position tracking
+   - Real-time servo data visualization
+
 **Components:**
 - `Layout.tsx`: Application layout wrapper
-- `GrafanaPanel.tsx`: Grafana iframe wrapper
+- `GrafanaPanel.tsx`: Grafana iframe wrapper for embedded dashboards
 
 ### 6.2 Backend Components
 
@@ -373,6 +389,8 @@ backend → mqtt_client → mosquitto
    - Sensor data queries
    - Robot status endpoints
    - Latest data retrieval
+   - Job summary endpoints
+   - QR scan trigger
 
 3. **Performance Router** (`pi_perf.py`)
    - Raspberry Pi performance metrics
@@ -384,9 +402,10 @@ backend → mqtt_client → mosquitto
    - Emergency controls
 
 5. **Reports Router** (`reports.py`)
-   - Report generation
-   - PDF export
+   - Report generation with AI analysis
+   - PDF export with Gemini-powered insights
    - Report storage
+   - CSV and JSON export
 
 6. **Robots DB Router** (`robots_db.py`)
    - Robot database operations
@@ -397,11 +416,18 @@ backend → mqtt_client → mosquitto
    - Grafana panel rendering
    - Server-side rendering
 
+8. **Data Validation Router** (`data_validation.py`)
+   - Robot data integrity validation
+   - Data source verification (PostgreSQL + InfluxDB)
+   - Expected data format documentation
+   - All-robots health status
+
 **Services:**
-- **MQTT Client** (`mqtt/mqtt_client.py`): MQTT message handling
+- **MQTT Client** (`mqtt/mqtt_client.py`): MQTT message handling with QR scan and job events
 - **InfluxDB Client** (`database/influx_client.py`): Time-series data operations
 - **Database** (`database/database.py`): PostgreSQL connection management
 - **Job Store** (`job_store.py`): Job tracking logic
+- **Gemini Analytics** (`services/gemini_analytics.py`): AI-powered data analysis using Google Gemini 1.5 Flash
 
 **Models:**
 - `Job`: Job tracking model
@@ -750,12 +776,21 @@ CREATE INDEX idx_logs_created_at ON system_logs(created_at);
 - `POST /api/reports` - Create new report
 - `GET /api/reports/{id}` - Get specific report
 - `POST /api/reports/generate` - Generate report from data
-- `GET /api/reports/{id}/pdf` - Download PDF report
+- `GET /api/reports/{id}/pdf` - Download PDF report with optional AI analysis
+- `GET /api/reports/ai-status` - Check AI analysis availability
+- `GET /api/reports/export/csv` - Export data as CSV
+- `GET /api/reports/export/json` - Export data as JSON
 
 #### Robots Database
 - `GET /api/robots-db/robots` - List robots from database
 - `GET /api/robots-db/stats` - System statistics
 - `GET /api/robots-db/jobs/history` - Job history
+
+#### Data Validation
+- `GET /api/validate/robot/{robot_id}` - Validate robot data from all sources
+- `GET /api/validate/data-sample/{robot_id}` - Get raw data samples from InfluxDB
+- `GET /api/validate/expected-format` - Get expected MQTT data format
+- `GET /api/validate/all-robots` - Quick validation status for all robots
 
 ### 9.3 API Documentation
 
@@ -774,14 +809,21 @@ CREATE INDEX idx_logs_created_at ON system_logs(created_at);
 
 ```
 TonyPiApp.tsx (Root)
-├── Layout.tsx
-│   ├── Navigation
-│   └── Content Area
-│       ├── Dashboard.tsx
-│       ├── Monitoring.tsx
-│       ├── Jobs.tsx
-│       └── Robots.tsx
-└── GrafanaPanel.tsx (Reusable)
+├── Header (with connection status)
+├── Tab Navigation (5 tabs)
+└── Content Area
+    ├── Overview Tab (inline dashboard)
+    ├── Monitoring.tsx (Performance metrics)
+    ├── Jobs.tsx (Job tracking)
+    ├── Robots.tsx (Robot management)
+    └── Servos.tsx (Servo monitoring)
+components/
+├── Layout.tsx (Application wrapper)
+└── GrafanaPanel.tsx (Embedded Grafana)
+utils/
+├── api.ts (API service functions)
+├── useMqtt.ts (MQTT hook)
+└── helpers.ts (Utility functions)
 ```
 
 ### 10.2 State Management
@@ -801,11 +843,12 @@ TonyPiApp.tsx (Root)
 
 ### 10.3 Routing
 
-**React Router Configuration:**
-- `/` - Dashboard (default)
-- `/monitoring` - Performance monitoring
-- `/jobs` - Job tracking
-- `/robots` - Robot management
+**Tab-Based Navigation (TonyPiApp.tsx):**
+- `overview` - Dashboard with system overview (default)
+- `performance` - Task Manager-style performance monitoring
+- `jobs` - Job tracking and progress
+- `robots` - Robot management
+- `servos` - Servo motor monitoring
 
 ### 10.4 Styling
 
@@ -911,11 +954,49 @@ TonyPiApp.tsx (Root)
    - Event logs
 
 **Export Formats:**
-- PDF (professional formatting)
+- PDF (professional formatting with AI insights)
 - JSON (structured data)
 - CSV (spreadsheet compatible)
 
-### 11.6 Remote Control
+### 11.6 AI-Powered Analytics
+
+**Gemini AI Integration:**
+The system integrates Google Gemini 1.5 Flash (free tier) for intelligent data analysis and insights generation.
+
+**Capabilities:**
+- **Performance Analysis**: Analyzes CPU, memory, and temperature data to identify health concerns
+- **Job Efficiency Analysis**: Evaluates job completion rates and processing efficiency
+- **Automated Recommendations**: Generates actionable recommendations for optimization
+- **Executive Summaries**: Creates professional summaries for PDF reports
+
+**Implementation:**
+- Located in `services/gemini_analytics.py`
+- Uses async functions for non-blocking API calls
+- Graceful fallback when API key not configured
+- JSON-structured responses for easy integration
+
+**API Endpoints:**
+- `GET /api/reports/ai-status` - Check if Gemini AI is available
+- `GET /api/reports/{id}/pdf?include_ai=true` - Generate PDF with AI analysis
+
+### 11.7 Data Validation
+
+**Validation System:**
+A dedicated data validation router (`data_validation.py`) provides comprehensive data integrity checks.
+
+**Features:**
+- Validate robot registration in PostgreSQL
+- Verify sensor data presence in InfluxDB
+- Check data value ranges (CPU 0-100%, Temperature -10 to 100°C)
+- Monitor robot activity status
+- Provide expected data format documentation
+
+**Health Status Levels:**
+- `HEALTHY`: All data sources active and values in range
+- `PARTIAL`: Some data sources missing or values out of range
+- `NO_DATA`: No data received from robot
+
+### 11.8 Remote Control
 
 **Available Commands:**
 - Movement: forward, backward, left, right
@@ -941,15 +1022,16 @@ TonyPiApp.tsx (Root)
 **Topic Structure:**
 ```
 tonypi/
-├── sensors/{robot_id}          # Sensor data
-├── status/{robot_id}            # Robot status
-├── battery/{robot_id}           # Battery status
-├── location/{robot_id}          # Position data
+├── sensors/{robot_id}          # Sensor data (every 2 seconds)
+├── status/{robot_id}            # Robot status with system_info
+├── battery                      # Battery status (every 30 seconds)
+├── location                     # Position data (every 5 seconds)
 ├── commands/{robot_id}          # Commands to robot
+├── commands/broadcast          # Broadcast commands to all robots
 ├── commands/response           # Command responses
-├── scan/{robot_id}              # QR scan events
-├── job/{robot_id}               # Job progress
-└── items/{robot_id}             # Item information
+├── scan/{robot_id}              # QR scan events (triggers job update)
+├── job/{robot_id}               # Job progress events
+└── items/{robot_id}             # Item information responses
 ```
 
 **Message Format:**
@@ -1218,10 +1300,10 @@ tonypi/
    - No user management
    - No role-based access
 
-2. **Limited AI Analytics:**
-   - No OpenAI integration
-   - No predictive maintenance
-   - Basic analytics only
+2. **AI Analytics (Partially Implemented):**
+   - Gemini AI integration complete (free tier)
+   - No predictive maintenance yet
+   - Analysis available for reports only
 
 3. **No Mobile App:**
    - Web-only interface
@@ -1233,18 +1315,22 @@ tonypi/
    - No load balancing
    - Limited horizontal scaling
 
+5. **Servo Monitoring (Partial):**
+   - Servo page created but functionality limited
+   - Requires HiWonder SDK integration on robot
+
 ### 17.2 Future Enhancements
 
 **Short-term (1-3 months):**
 1. **Authentication System:**
    - User accounts
-   - JWT tokens
+   - JWT tokens (library already included)
    - Role-based access
 
-2. **OpenAI Integration:**
-   - Sensor data analysis
-   - Maintenance predictions
-   - Automated insights
+2. **Enhanced AI Analytics:**
+   - Real-time anomaly detection
+   - Predictive maintenance alerts
+   - Historical trend analysis with AI
 
 3. **Enhanced Alerts:**
    - Email notifications
@@ -1317,9 +1403,11 @@ The TonyPi Robot Monitoring System successfully addresses the challenges of moni
 ✅ **Multi-Robot Support:** Fully functional  
 ✅ **Job Tracking:** Complete implementation  
 ✅ **Data Visualization:** Advanced charts and dashboards  
-✅ **Reporting System:** PDF export working  
+✅ **Reporting System:** PDF export with AI-powered analysis  
 ✅ **Remote Control:** Command system operational  
 ✅ **Scalable Architecture:** Ready for expansion  
+✅ **AI Integration:** Gemini-powered analytics for reports  
+✅ **Data Validation:** Comprehensive data integrity checks  
 
 ### 18.3 Impact
 
@@ -1365,6 +1453,13 @@ See `http://localhost:8000/docs` for interactive API documentation.
 - `backend/requirements.txt`: Python dependencies
 - `frontend/package.json`: Node.js dependencies
 
+**Key Environment Variables:**
+- `GEMINI_API_KEY`: Google Gemini API key for AI analytics (optional)
+- `INFLUXDB_TOKEN`: InfluxDB authentication token
+- `POSTGRES_USER/PASSWORD`: PostgreSQL credentials
+- `MQTT_BROKER_HOST/PORT`: MQTT broker connection settings
+- `GRAFANA_BASE_URL`: Grafana server URL
+
 ### Appendix D: Database Schemas
 
 See Section 8 (Database Design) for complete schema definitions.
@@ -1375,14 +1470,19 @@ See Section 12.1 (MQTT Communication) for complete topic structure.
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** December 2025  
+**Document Version:** 1.1  
+**Last Updated:** December 29, 2025  
 **Author:** System Documentation  
-**Status:** Complete
+**Status:** Complete (Updated with AI Analytics)
 
 ---
 
 *This document provides a comprehensive overview of the TonyPi Robot Monitoring System for academic thesis purposes. All technical details, architecture decisions, and implementation specifics are documented for reference and validation.*
+
+
+
+
+
 
 
 

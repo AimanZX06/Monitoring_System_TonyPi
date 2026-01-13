@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Activity, Cpu, HardDrive, Thermometer, Clock, ExternalLink, TrendingUp } from 'lucide-react';
-import { apiService } from '../utils/api';
+import { apiService, handleApiError } from '../utils/api';
 import GrafanaPanel from '../components/GrafanaPanel';
+import { getGrafanaPanelUrl, getGrafanaDashboardUrl } from '../utils/config';
 
 interface SystemMetrics {
   cpu_percent: number;
@@ -305,7 +306,7 @@ const Monitoring: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Advanced Analytics</h3>
                 </div>
                 <a
-                  href="http://localhost:3000/d/tonypi-robot-monitoring"
+                  href={getGrafanaDashboardUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 transition-colors"
@@ -319,7 +320,7 @@ const Monitoring: React.FC = () => {
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">System Performance</h4>
                 <GrafanaPanel 
-                  panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=1"
+                  panelUrl={getGrafanaPanelUrl(1)}
                   height={350}
                 />
               </div>
@@ -329,14 +330,14 @@ const Monitoring: React.FC = () => {
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">CPU Temperature</h4>
                   <GrafanaPanel 
-                    panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=2"
+                    panelUrl={getGrafanaPanelUrl(2)}
                     height={250}
                   />
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Battery Level</h4>
                   <GrafanaPanel 
-                    panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=3"
+                    panelUrl={getGrafanaPanelUrl(3)}
                     height={250}
                   />
                 </div>
@@ -347,14 +348,14 @@ const Monitoring: React.FC = () => {
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Accelerometer (X, Y, Z)</h4>
                   <GrafanaPanel 
-                    panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=4"
+                    panelUrl={getGrafanaPanelUrl(4)}
                     height={300}
                   />
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Gyroscope (X, Y, Z)</h4>
                   <GrafanaPanel 
-                    panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=5"
+                    panelUrl={getGrafanaPanelUrl(5)}
                     height={300}
                   />
                 </div>
@@ -365,21 +366,21 @@ const Monitoring: React.FC = () => {
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Distance Sensor</h4>
                   <GrafanaPanel 
-                    panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=6"
+                    panelUrl={getGrafanaPanelUrl(6)}
                     height={250}
                   />
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Light Level</h4>
                   <GrafanaPanel 
-                    panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=7"
+                    panelUrl={getGrafanaPanelUrl(7)}
                     height={250}
                   />
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Servo Angle</h4>
                   <GrafanaPanel 
-                    panelUrl="http://localhost:3000/d-solo/tonypi-robot-monitoring/tonypi-robot-monitoring?orgId=1&refresh=5s&theme=light&panelId=8"
+                    panelUrl={getGrafanaPanelUrl(8)}
                     height={250}
                   />
                 </div>

@@ -7,7 +7,7 @@ import {
   CheckCircle,
   Clock
 } from 'lucide-react';
-import { apiService } from '../utils/api';
+import { apiService, handleApiError } from '../utils/api';
 import { RobotData } from '../types';
 
 // Simple utility functions instead of importing
@@ -40,22 +40,19 @@ const Dashboard: React.FC = () => {
           
           for (const robot of robots) {
             try {
-              const response = await fetch(`/api/robot-data/job-summary/${robot.robot_id}`);
-              if (response.ok) {
-                const jobData = await response.json();
-                if (jobData.start_time && !jobData.end_time) {
-                  activeCount++;
-                } else if (jobData.end_time) {
-                  const today = new Date().toDateString();
-                  const endDate = new Date(jobData.end_time).toDateString();
-                  if (today === endDate) {
-                    completedCount++;
-                  }
+              const jobData = await apiService.getJobSummary(robot.robot_id);
+              if (jobData.start_time && !jobData.end_time) {
+                activeCount++;
+              } else if (jobData.end_time) {
+                const today = new Date().toDateString();
+                const endDate = new Date(jobData.end_time).toDateString();
+                if (today === endDate) {
+                  completedCount++;
                 }
-                totalItemsProcessed += jobData.items_done || 0;
               }
+              totalItemsProcessed += jobData.items_done || 0;
             } catch (e) {
-              console.error(`Error fetching job for ${robot.robot_id}:`, e);
+              console.error(`Error fetching job for ${robot.robot_id}:`, handleApiError(e));
             }
           }
           

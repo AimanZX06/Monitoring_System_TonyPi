@@ -64,6 +64,43 @@ class InfluxClient:
             # Re-raise the exception so the API can return proper error
             raise Exception(f"InfluxDB query failed: {str(e)}")
 
+    def query_data(self, measurement: str, time_range: str = "1h", filters: dict = None):
+        """Query data from InfluxDB with optional filters"""
+        # Build filter string
+        filter_str = f'r._measurement == "{measurement}"'
+        if filters:
+            for key, value in filters.items():
+                filter_str += f' and r.{key} == "{value}"'
+        
+        query = f'''
+        from(bucket: "{self.bucket}")
+          |> range(start: -{time_range})
+          |> filter(fn: (r) => {filter_str})
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+        '''
+        
+        try:
+            result = self.query_api.query(query, org=self.org)
+            data = []
+            for table in result:
+                for record in table.records:
+                    row = {
+                        "time": record.get_time(),
+                        "measurement": record.get_measurement(),
+                    }
+                    # Add all values from the record
+                    for key, value in record.values.items():
+                        if not key.startswith('_') and key not in ['result', 'table']:
+                            row[key] = value
+                    data.append(row)
+            return data
+        except Exception as e:
+            error_msg = f"Error querying from InfluxDB: {e}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            return []  # Return empty list on error for report generation
+
     def close(self):
         """Close the InfluxDB client"""
         if self.client:

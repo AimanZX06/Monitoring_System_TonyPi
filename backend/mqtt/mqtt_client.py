@@ -32,7 +32,8 @@ class MQTTClient:
             "tonypi/battery",    # Battery status
             "tonypi/commands/response",  # Command responses
             "tonypi/scan/+",     # QR scan events from robots
-            "tonypi/job/+"       # Job/progress events
+            "tonypi/job/+",      # Job/progress events
+            "tonypi/servos/+"    # Servo status data
         ]
 
     def on_connect(self, client, userdata, flags, rc):
@@ -64,6 +65,8 @@ class MQTTClient:
                 self.handle_scan(topic, payload)
             elif topic.startswith("tonypi/job/"):
                 self.handle_job_event(topic, payload)
+            elif topic.startswith("tonypi/servos/"):
+                self.handle_servo_data(topic, payload)
             elif topic == "tonypi/commands/response":
                 self.handle_command_response(payload)
                 
@@ -242,6 +245,34 @@ class MQTTClient:
                         job_store.finish_job(robot_id)
         except Exception as e:
             print(f"JobStore: Error handling job event: {e}")
+
+    def handle_servo_data(self, topic, payload):
+        """Handle servo status data and store in InfluxDB"""
+        robot_id = payload.get("robot_id", topic.split('/')[-1])
+        servos = payload.get("servos", {})
+        
+        measurement = "servos"
+        
+        # Store each servo's data
+        for servo_name, servo_info in servos.items():
+            tags = {
+                "robot_id": robot_id,
+                "servo_id": str(servo_info.get("id", 0)),
+                "servo_name": servo_name,
+                "alert_level": servo_info.get("alert_level", "normal")
+            }
+            
+            fields = {
+                "position": servo_info.get("position", 0),
+                "temperature": servo_info.get("temperature", 0),
+                "voltage": servo_info.get("voltage", 0),
+                "torque_enabled": 1 if servo_info.get("torque_enabled", False) else 0
+            }
+            
+            # Store in InfluxDB
+            influx_client.write_sensor_data(measurement, tags, fields)
+        
+        print(f"MQTT: Stored servo data for {len(servos)} servos from {robot_id}")
 
     def on_disconnect(self, client, userdata, rc):
         print("MQTT: Disconnected from broker")

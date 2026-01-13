@@ -1,31 +1,34 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import uvicorn
-import os
-from dotenv import load_dotenv
+"""
+TonyPi Robot Monitoring System - Backend API
 
-from database.database import engine, Base
-from database.influx_client import influx_client
-from mqtt.mqtt_client import mqtt_client
-from routers import health, robot_data, reports, management
-from routers import grafana_proxy, pi_perf
-from routers import grafana_proxy
-
-# Load environment variables
-load_dotenv()
-
-import asyncio
+A comprehensive monitoring and management system for HiWonder TonyPi robots.
+"""
 import time
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database.database import Base, engine
-from mqtt.mqtt_client import mqtt_client
-from routers import health, robot_data, reports, management, robots_db
 from sqlalchemy import text
 
+from database.database import Base, engine
+from mqtt.mqtt_client import mqtt_client
+from routers import (
+    health,
+    robot_data,
+    reports,
+    management,
+    grafana_proxy,
+    pi_perf,
+    robots_db,
+    data_validation
+)
+
+# API Version
+API_VERSION = "v1"
+API_PREFIX = f"/api/{API_VERSION}"
+
 print("Starting TonyPi Monitoring System...")
+
 
 def init_database():
     """Initialize database tables"""
@@ -34,10 +37,11 @@ def init_database():
         # Import models to register them
         from models import Job, Robot, SystemLog
         Base.metadata.create_all(bind=engine)
-        print("✅ Database tables created successfully!")
+        print("Database tables created successfully!")
     except Exception as e:
-        print(f"❌ Error initializing database: {e}")
+        print(f"Error initializing database: {e}")
         raise
+
 
 def wait_for_db(max_retries=30, delay=2):
     """Wait for database to be ready with retries"""
@@ -56,8 +60,10 @@ def wait_for_db(max_retries=30, delay=2):
                 raise
     return False
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Application lifespan handler for startup and shutdown events"""
     # Startup - Wait for database and create tables
     wait_for_db()
     init_database()
@@ -65,6 +71,7 @@ async def lifespan(app: FastAPI):
     # Start MQTT client
     try:
         await mqtt_client.start()
+        print("MQTT client started successfully!")
     except Exception as e:
         print(f"MQTT client startup failed: {e}")
     
@@ -73,38 +80,68 @@ async def lifespan(app: FastAPI):
     # Shutdown - Stop MQTT client
     try:
         await mqtt_client.stop()
+        print("MQTT client stopped successfully!")
     except Exception as e:
         print(f"MQTT client shutdown failed: {e}")
+
 
 # Create FastAPI app
 app = FastAPI(
     title="TonyPi Robot Monitoring System",
     description="A comprehensive monitoring and management system for HiWonder TonyPi robot",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url=f"{API_PREFIX}/docs",
+    redoc_url=f"{API_PREFIX}/redoc",
+    openapi_url=f"{API_PREFIX}/openapi.json"
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001", "http://frontend:3000"],
+    allow_origins=[
+        "http://localhost:3001",
+        "http://frontend:3000",
+        "http://localhost:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(health.router, prefix="/api", tags=["health"])
-app.include_router(robot_data.router, prefix="/api", tags=["robot-data"])
-app.include_router(reports.router, prefix="/api", tags=["reports"])
-app.include_router(management.router, prefix="/api", tags=["management"])
-app.include_router(grafana_proxy.router, prefix="/api", tags=["grafana"])
-app.include_router(pi_perf.router, prefix="/api", tags=["pi"])
-app.include_router(robots_db.router, tags=["robots-database"])
+# Include routers with API versioning prefix
+app.include_router(health.router, prefix=API_PREFIX, tags=["health"])
+app.include_router(robot_data.router, prefix=API_PREFIX, tags=["robot-data"])
+app.include_router(reports.router, prefix=API_PREFIX, tags=["reports"])
+app.include_router(management.router, prefix=API_PREFIX, tags=["management"])
+app.include_router(grafana_proxy.router, prefix=API_PREFIX, tags=["grafana"])
+app.include_router(pi_perf.router, prefix=API_PREFIX, tags=["pi-performance"])
+app.include_router(robots_db.router, prefix=API_PREFIX, tags=["robots-database"])
+app.include_router(data_validation.router, prefix=API_PREFIX, tags=["validation"])
+
 
 @app.get("/")
 async def root():
-    return {"message": "TonyPi Robot Monitoring System API"}
+    """Root endpoint with API information"""
+    return {
+        "message": "TonyPi Robot Monitoring System API",
+        "version": "1.0.0",
+        "api_version": API_VERSION,
+        "docs": f"{API_PREFIX}/docs",
+        "health": f"{API_PREFIX}/health"
+    }
+
+
+@app.get("/api")
+async def api_info():
+    """API version information"""
+    return {
+        "current_version": API_VERSION,
+        "supported_versions": [API_VERSION],
+        "base_url": API_PREFIX
+    }
+
 
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

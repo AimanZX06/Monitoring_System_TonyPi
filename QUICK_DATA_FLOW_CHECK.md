@@ -94,3 +94,11 @@ copy_robot_client.bat YOUR_PI_IP
 
 
 
+
+
+
+
+
+
+
+

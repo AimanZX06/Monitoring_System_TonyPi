@@ -7,7 +7,7 @@ import {
   Calendar,
   TrendingUp
 } from 'lucide-react';
-import { apiService } from '../utils/api';
+import { apiService, handleApiError } from '../utils/api';
 
 interface JobSummary {
   robot_id: string;
@@ -37,17 +37,16 @@ const Jobs: React.FC = () => {
         const summaries: {[key: string]: JobSummary} = {};
         for (const robotId of robotIds) {
           try {
-            const response = await fetch(`http://localhost:8000/api/robot-data/job-summary/${robotId}`);
-            if (response.ok) {
-              summaries[robotId] = await response.json();
-            }
-          } catch (error) {
-            console.error(`Error fetching job for ${robotId}:`, error);
+            const jobData = await apiService.getJobSummary(robotId);
+            summaries[robotId] = jobData;
+          } catch (err) {
+            // Job might not exist for this robot
+            console.error(`Error fetching job for ${robotId}:`, handleApiError(err));
           }
         }
         setJobSummaries(summaries);
-      } catch (error) {
-        console.error('Error fetching jobs:', error);
+      } catch (err) {
+        console.error('Error fetching jobs:', handleApiError(err));
       } finally {
         setLoading(false);
       }

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import GrafanaPanel from './components/GrafanaPanel';
 import Monitoring from './pages/Monitoring';
 import Jobs from './pages/Jobs';
 import Robots from './pages/Robots';
 import Servos from './pages/Servos';
-import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle } from 'lucide-react';
+import Reports from './pages/Reports';
+import Dashboard from './pages/Dashboard';
+import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, LayoutDashboard } from 'lucide-react';
+import { NotificationProvider, useNotification } from './contexts/NotificationContext';
+import ToastContainer from './components/Toast';
+import { apiService, handleApiError } from './utils/api';
 
 interface RobotData {
   robot_id: string;
@@ -22,16 +26,19 @@ interface SensorReading {
   unit: string;
 }
 
-const TonyPiApp: React.FC = () => {
+// Inner component that uses notifications
+const TonyPiAppContent: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [systemStatus, setSystemStatus] = useState<string>('Online');
   const [robotData, setRobotData] = useState<RobotData | null>(null);
   const [recentSensors, setRecentSensors] = useState<SensorReading[]>([]);
   const [jobSummary, setJobSummary] = useState<any>(null);
-  const [selectedTab, setSelectedTab] = useState<string>('overview');
+  const [selectedTab, setSelectedTab] = useState<string>('dashboard');
   const [selectedQR, setSelectedQR] = useState<string>('QR12345');
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [commandResponse, setCommandResponse] = useState<string>('');
+  
+  const { success, error, warning, info } = useNotification();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,33 +51,24 @@ const TonyPiApp: React.FC = () => {
   useEffect(() => {
     const fetchRobotData = async () => {
       try {
-        const statusResponse = await fetch('http://localhost:8000/api/robot-data/status');
-        if (statusResponse.ok) {
-          const robots = await statusResponse.json();
-          if (robots.length > 0) {
-            setRobotData(robots[0]);
-            setIsConnected(true);
-            try {
-              const js = await fetch(`http://localhost:8000/api/robot-data/job-summary/${robots[0].robot_id}`);
-              if (js.ok) {
-                const jdata = await js.json();
-                setJobSummary(jdata);
-              }
-            } catch (e) {
-              // ignore
-            }
-          } else {
-            setIsConnected(false);
+        const robots = await apiService.getRobotStatus();
+        if (robots.length > 0) {
+          setRobotData(robots[0] as any);
+          setIsConnected(true);
+          try {
+            const jdata = await apiService.getJobSummary(robots[0].robot_id);
+            setJobSummary(jdata);
+          } catch (e) {
+            // Job summary might not exist yet
           }
+        } else {
+          setIsConnected(false);
         }
 
-        const sensorsResponse = await fetch('http://localhost:8000/api/robot-data/sensors?measurement=sensors&time_range=1m');
-        if (sensorsResponse.ok) {
-          const sensors = await sensorsResponse.json();
-          setRecentSensors(sensors.slice(-10));
-        }
-      } catch (error) {
-        console.error('Error fetching robot data:', error);
+        const sensors = await apiService.getSensorData('sensors', '1m');
+        setRecentSensors(sensors.slice(-10) as any);
+      } catch (err) {
+        console.error('Error fetching robot data:', err);
         setIsConnected(false);
       }
     };
@@ -82,20 +80,14 @@ const TonyPiApp: React.FC = () => {
 
   const sendRobotCommand = async (command: any) => {
     try {
-      const response = await fetch('http://localhost:8000/api/robot-data/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(command)
-      });
-      
-      if (response.ok) {
-        setCommandResponse(`Command sent: ${command.type}`);
-        setTimeout(() => setCommandResponse(''), 3000);
-      } else {
-        setCommandResponse(`Command failed: ${response.statusText}`);
-      }
-    } catch (error) {
-      setCommandResponse(`Command error: ${error}`);
+      await apiService.sendRobotCommand(command);
+      success('Command Sent', `${command.type} command executed successfully`);
+      setCommandResponse(`Command sent: ${command.type}`);
+      setTimeout(() => setCommandResponse(''), 3000);
+    } catch (err) {
+      const errorMsg = handleApiError(err);
+      error('Command Failed', errorMsg);
+      setCommandResponse(`Command failed: ${errorMsg}`);
     }
   };
 
@@ -124,11 +116,13 @@ const TonyPiApp: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'performance', label: 'Performance' },
-    { id: 'jobs', label: 'Jobs' },
-    { id: 'robots', label: 'Robots' },
-    { id: 'servos', label: 'Servos' }
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'performance', label: 'Performance', icon: Activity },
+    { id: 'jobs', label: 'Jobs', icon: Zap },
+    { id: 'robots', label: 'Robots', icon: Activity },
+    { id: 'servos', label: 'Servos', icon: Zap },
+    { id: 'reports', label: 'Reports', icon: AlertCircle }
   ];
 
   return (
@@ -183,6 +177,13 @@ const TonyPiApp: React.FC = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Dashboard Tab */}
+        {selectedTab === 'dashboard' && (
+          <div className="fade-in">
+            <Dashboard />
+          </div>
+        )}
+
         {/* Performance Tab */}
         {selectedTab === 'performance' && (
           <div className="fade-in">
@@ -208,6 +209,13 @@ const TonyPiApp: React.FC = () => {
         {selectedTab === 'servos' && (
           <div className="fade-in">
             <Servos />
+          </div>
+        )}
+
+        {/* Reports Tab */}
+        {selectedTab === 'reports' && (
+          <div className="fade-in">
+            <Reports />
           </div>
         )}
 
@@ -367,24 +375,16 @@ const TonyPiApp: React.FC = () => {
                   <button
                     onClick={async () => {
                       if (!robotData) {
-                        alert('No robot connected');
+                        warning('No Robot', 'No robot connected');
                         return;
                       }
-            try {
-              const res = await fetch('http://localhost:8000/api/robot-data/trigger-scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ robot_id: robotData.robot_id, qr: selectedQR })
-              });
-              if (res.ok) {
-                alert('Scan triggered');
-                const js = await fetch(`http://localhost:8000/api/robot-data/job-summary/${robotData.robot_id}`);
-                if (js.ok) setJobSummary(await js.json());
-              } else {
-                alert('Failed to trigger scan');
-              }
+                      try {
+                        await apiService.triggerScan(robotData.robot_id, selectedQR);
+                        success('Scan Triggered', `QR code ${selectedQR} scan initiated`);
+                        const jdata = await apiService.getJobSummary(robotData.robot_id);
+                        setJobSummary(jdata);
                       } catch (e: any) {
-                        alert('Error: ' + String(e));
+                        error('Scan Failed', handleApiError(e));
                       }
                     }}
                     className="btn-primary"
@@ -445,11 +445,13 @@ const TonyPiApp: React.FC = () => {
                     Refresh Status
                   </button>
                   <button
-                    onClick={() => {
-          fetch('http://localhost:8000/api/health')
-            .then(res => res.json())
-            .then(data => alert('Backend Status: ' + JSON.stringify(data)))
-            .catch(err => alert('Backend connection failed: ' + err.message));
+                    onClick={async () => {
+                      try {
+                        const data = await apiService.healthCheck();
+                        success('Backend Online', `Status: ${data.status || 'OK'}`);
+                      } catch (err) {
+                        error('Backend Offline', handleApiError(err));
+                      }
                     }}
                     className="btn-secondary flex-1"
                   >
@@ -492,6 +494,16 @@ const TonyPiApp: React.FC = () => {
         )}
       </div>
     </div>
+  );
+};
+
+// Main component wrapped with NotificationProvider
+const TonyPiApp: React.FC = () => {
+  return (
+    <NotificationProvider>
+      <TonyPiAppContent />
+      <ToastContainer />
+    </NotificationProvider>
   );
 };
 

@@ -1,15 +1,17 @@
 export interface RobotData {
   robot_id: string;
-  name: string;
-  status: 'online' | 'offline' | 'maintenance';
-  battery_percentage: number;
-  last_seen: Date;
+  name?: string;
+  status: string;
+  battery_percentage?: number;
+  battery_level?: number;
+  last_seen: string;
   location?: {
     x: number;
     y: number;
     z: number;
-    heading: number;
+    heading?: number;
   };
+  sensors?: { [key: string]: number };
 }
 
 export interface SensorData {
@@ -24,11 +26,12 @@ export interface SensorData {
 export interface Report {
   id: number;
   title: string;
-  description: string;
-  robot_id: string;
+  description: string | null;
+  robot_id: string | null;
   report_type: string;
-  created_at: Date;
+  created_at: string;
   data?: Record<string, any>;
+  created_by?: string | null;
 }
 
 export interface Command {

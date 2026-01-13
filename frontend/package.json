@@ -25,6 +25,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
+    "test:ci": "react-scripts test --watchAll=false --ci",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -46,8 +48,29 @@
     ]
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/jest": "^29.5.11",
     "autoprefixer": "^10.4.16",
+    "msw": "^2.0.11",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.0"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/index.tsx",
+      "!src/reportWebVitals.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 50,
+        "functions": 50,
+        "lines": 50,
+        "statements": 50
+      }
+    }
   }
 }

@@ -17,6 +17,7 @@ import logging
 import random
 import math
 import time
+import json
 from datetime import datetime
 from typing import Dict, Any
 
@@ -183,8 +184,65 @@ class TonyPiSimulator(TonyPiRobotClient):
                 "message": f"Movement simulation failed: {str(e)}"
             }
 
+    def get_servo_status(self) -> Dict[str, Any]:
+        """Simulate servo status data"""
+        import random
+        servo_data = {}
+        
+        # Simulate 6 servos
+        servo_names = [
+            "servo_1_left_front",
+            "servo_2_left_rear", 
+            "servo_3_right_front",
+            "servo_4_right_rear",
+            "servo_5_head_pan",
+            "servo_6_head_tilt"
+        ]
+        
+        for idx, servo_name in enumerate(servo_names, 1):
+            temp = random.uniform(35.0, 65.0)
+            alert_level = "normal"
+            if temp > 70:
+                alert_level = "critical"
+            elif temp > 60:
+                alert_level = "warning"
+            
+            servo_data[servo_name] = {
+                "id": idx,
+                "name": servo_name,
+                "position": round(random.uniform(-90, 90), 1),
+                "temperature": round(temp, 1),
+                "voltage": round(random.uniform(4.8, 5.2), 2),
+                "torque_enabled": random.choice([True, True, True, False]),  # Mostly enabled
+                "alert_level": alert_level
+            }
+        
+        return servo_data
+    
+    def send_servo_status(self):
+        """Send servo status to MQTT"""
+        if not self.is_connected:
+            return
+        
+        try:
+            servo_data = self.get_servo_status()
+            servo_topic = f"tonypi/servos/{self.robot_id}"
+            
+            payload = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "servos": servo_data
+            }
+            
+            self.client.publish(servo_topic, json.dumps(payload))
+            logger.info(f"Sent servo status: {len(servo_data)} servos to {servo_topic}")
+            
+        except Exception as e:
+            logger.error(f"Error sending servo status: {e}")
+
     async def run(self):
         """Enhanced main loop with realistic behavior"""
+        self.running = True  # IMPORTANT: Set running flag
         logger.info(f"Starting TonyPi Robot Simulator - ID: {self.robot_id}")
         logger.info(f"Connecting to MQTT broker at {self.mqtt_broker}:{self.mqtt_port}")
         
@@ -204,9 +262,79 @@ class TonyPiSimulator(TonyPiRobotClient):
         movement_task = asyncio.create_task(stop_movement_after_delay())
         
         try:
-            await super().run()
+            # Connect first
+            await self.connect()
+            
+            # Wait for connection
+            timeout = 10
+            while not self.is_connected and timeout > 0:
+                await asyncio.sleep(0.5)
+                timeout -= 0.5
+            
+            if not self.is_connected:
+                raise Exception("Failed to connect to MQTT broker")
+            
+            logger.info("✅ Successfully connected to MQTT broker")
+            print("✅ Successfully connected to MQTT broker")
+            
+            # Send initial status update immediately
+            self.send_status_update()
+            print("📡 Sending initial status...")
+            
+            # Main loop with data sending
+            last_sensor_time = 0
+            last_battery_time = 0
+            last_location_time = 0
+            last_status_time = time.time()  # Just sent status
+            last_servo_time = 0
+            
+            print("🔄 Starting main data loop...")
+            loop_count = 0
+            
+            while self.running:
+                current_time = time.time()
+                loop_count += 1
+                
+                # Send sensor data every 2 seconds
+                if current_time - last_sensor_time >= 2:
+                    self.send_sensor_data()
+                    last_sensor_time = current_time
+                    print(f"📊 Sent sensor data (loop #{loop_count})")
+                
+                # Send battery status every 30 seconds
+                if current_time - last_battery_time >= 30:
+                    self.send_battery_status()
+                    last_battery_time = current_time
+                
+                # Send location every 5 seconds
+                if current_time - last_location_time >= 5:
+                    self.send_location_update()
+                    last_location_time = current_time
+                
+                # Send status every 60 seconds
+                if current_time - last_status_time >= 60:
+                    self.send_status_update()
+                    last_status_time = current_time
+                
+                # Send servo status every 5 seconds
+                if current_time - last_servo_time >= 5:
+                    self.send_servo_status()
+                    last_servo_time = current_time
+                    print(f"🔧 Sent servo data")
+                
+                # Simulate battery drain
+                if self.battery_level > 0:
+                    self.battery_level = max(0, self.battery_level - 0.001)
+                
+                await asyncio.sleep(0.1)
+                
+        except KeyboardInterrupt:
+            logger.info("Received interrupt signal")
+        except Exception as e:
+            logger.error(f"Error in simulator loop: {e}")
         finally:
             movement_task.cancel()
+            await self.disconnect()
 
 def main():
     """Main entry point for simulator"""
