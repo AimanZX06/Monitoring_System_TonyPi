@@ -6,7 +6,9 @@ import Servos from './pages/Servos';
 import Reports from './pages/Reports';
 import Sensors from './pages/Sensors';
 import Login from './pages/Login';
-import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, BookOpen, CheckCircle, HelpCircle, X, Compass, LogOut, User, Menu, Sun, Moon } from 'lucide-react';
+import Alerts from './pages/Alerts';
+import Logs from './pages/Logs';
+import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, BookOpen, CheckCircle, HelpCircle, X, Compass, LogOut, User, Menu, Sun, Moon, Bell, FileText } from 'lucide-react';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -144,6 +146,8 @@ const TonyPiAppContent: React.FC = () => {
     { id: 'robots', label: 'Robots', icon: Activity },
     { id: 'servos', label: 'Servos', icon: Zap },
     { id: 'jobs', label: 'Jobs', icon: Zap },
+    { id: 'alerts', label: 'Alerts', icon: Bell },
+    { id: 'logs', label: 'Logs', icon: FileText },
     { id: 'reports', label: 'Reports', icon: AlertCircle }
   ];
 
@@ -390,6 +394,20 @@ const TonyPiAppContent: React.FC = () => {
         {selectedTab === 'reports' && (
           <div className="fade-in">
             <Reports />
+          </div>
+        )}
+
+        {/* Alerts Tab */}
+        {selectedTab === 'alerts' && (
+          <div className="fade-in">
+            <Alerts />
+          </div>
+        )}
+
+        {/* Logs Tab */}
+        {selectedTab === 'logs' && (
+          <div className="fade-in">
+            <Logs />
           </div>
         )}
 
@@ -666,6 +684,8 @@ const TonyPiAppContent: React.FC = () => {
                     { title: 'Robots', desc: 'Robot management & control' },
                     { title: 'Servos', desc: 'Servo motor monitoring' },
                     { title: 'Jobs', desc: 'Task tracking & progress' },
+                    { title: 'Alerts', desc: 'System alerts & notifications' },
+                    { title: 'Logs', desc: 'Activity history & error logs' },
                     { title: 'Reports', desc: 'Generate PDF reports with AI' },
                   ].map((item) => (
                     <div key={item.title} className={`p-3 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
