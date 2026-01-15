@@ -25,10 +25,14 @@ async def get_pi_performance(host: str, time_range: str = Query("5m")):
             for d in status_data:
                 # match on robot_id tag
                 if d.get('robot_id') == host or d.get('robot_id') == f"{host}" or d.get('robot_id', '').startswith(host):
-                    # if the field contains json-like system_info, include it
-                    extracted.append(d)
+                    # Only include system_* fields (performance metrics)
+                    field = d.get('field', '')
+                    if field.startswith('system_') or field in ['status', 'ip_address', 'camera_url']:
+                        extracted.append(d)
             filtered = extracted
 
-        return filtered[-100:]
+        # Return more records to ensure all fields are included
+        # InfluxDB returns each field as separate record, so we need enough to cover all fields
+        return filtered[-500:]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching pi performance: {e}")

@@ -9,6 +9,10 @@ import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Try to import google generativeai
 try:
@@ -29,20 +33,59 @@ class GeminiAnalytics:
         self.api_key = os.getenv("GEMINI_API_KEY")
         self.model = None
         
+        # Debug logging
+        if self.api_key:
+            # Mask the API key for security (show first 10 and last 4 chars)
+            masked_key = f"{self.api_key[:10]}...{self.api_key[-4:]}" if len(self.api_key) > 14 else "***"
+            print(f"Gemini AI: API key found (length: {len(self.api_key)}, masked: {masked_key})")
+        else:
+            print("Gemini AI: API key not found in environment variables")
+            print(f"Gemini AI: Checking GEMINI_API_KEY env var: {os.getenv('GEMINI_API_KEY')}")
+        
         if GEMINI_AVAILABLE and self.api_key:
             try:
                 genai.configure(api_key=self.api_key)
-                # Use gemini-1.5-flash for free tier (faster, lower cost)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
-                print("Gemini AI: Initialized successfully")
+                # Try multiple model names in order of preference
+                model_names = [
+                    'gemini-2.0-flash',      # Latest flash model
+                    'gemini-1.5-flash',      # Previous flash model
+                    'gemini-1.5-pro',        # Pro model
+                    'gemini-pro',            # Legacy model
+                ]
+                
+                self.model = None
+                for model_name in model_names:
+                    try:
+                        test_model = genai.GenerativeModel(model_name)
+                        # Quick test to verify model works
+                        test_response = test_model.generate_content("Say 'ok'")
+                        if test_response:
+                            self.model = test_model
+                            print(f"Gemini AI: Initialized successfully with model '{model_name}'")
+                            break
+                    except Exception as model_error:
+                        print(f"Gemini AI: Model '{model_name}' not available - {model_error}")
+                        continue
+                
+                if not self.model:
+                    print("Gemini AI: No working model found. Trying to list available models...")
+                    try:
+                        available = list(genai.list_models())
+                        print(f"Gemini AI: Available models: {[m.name for m in available[:5]]}")
+                    except:
+                        pass
+                        
             except Exception as e:
                 print(f"Gemini AI: Failed to initialize - {e}")
+                import traceback
+                traceback.print_exc()
                 self.model = None
         else:
             if not GEMINI_AVAILABLE:
                 print("Gemini AI: Library not installed")
             if not self.api_key:
                 print("Gemini AI: API key not configured (set GEMINI_API_KEY in environment)")
+                print("Gemini AI: Make sure GEMINI_API_KEY is set in .env file or docker-compose.yml")
     
     def is_available(self) -> bool:
         """Check if Gemini is available and configured"""

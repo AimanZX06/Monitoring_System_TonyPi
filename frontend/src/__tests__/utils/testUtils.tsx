@@ -39,7 +39,7 @@ export const createMockRobot = (overrides = {}) => ({
   robot_id: 'test_robot_001',
   name: 'Test Robot',
   status: 'online',
-  battery_level: 85.5,
+  battery_percentage: 85.5,
   location: { x: 1.0, y: 2.0, z: 0.0 },
   last_seen: new Date().toISOString(),
   ...overrides,

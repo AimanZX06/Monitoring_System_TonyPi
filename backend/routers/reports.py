@@ -403,6 +403,23 @@ async def generate_and_store_report(
             avg_mem = sum(mem_values) / len(mem_values) if mem_values else 0
             avg_temp = sum(temp_values) / len(temp_values) if temp_values else 0
             
+            # Get AI analysis for performance report
+            ai_analysis = None
+            if GEMINI_AVAILABLE and gemini_analytics:
+                try:
+                    perf_analysis_data = {
+                        "avg_cpu_percent": round(avg_cpu, 2),
+                        "avg_memory_percent": round(avg_mem, 2),
+                        "avg_temperature": round(avg_temp, 2),
+                        "data_points": len(perf_data),
+                        "period": time_range
+                    }
+                    ai_analysis = await gemini_analytics.analyze_performance_data(perf_analysis_data)
+                    print(f"AI Analysis for performance: {ai_analysis}")
+                except Exception as e:
+                    print(f"AI analysis failed for performance report: {e}")
+                    ai_analysis = None
+            
             report_data = {
                 "title": f"Performance Report - {robot_id or 'All Robots'}",
                 "description": f"{time_range} performance summary",
@@ -413,7 +430,8 @@ async def generate_and_store_report(
                     "avg_memory_percent": round(avg_mem, 2),
                     "avg_temperature": round(avg_temp, 2),
                     "data_points": len(perf_data),
-                    "period": time_range
+                    "period": time_range,
+                    "ai_analysis": ai_analysis  # Store AI analysis in the report data
                 }
             }
             
@@ -430,6 +448,24 @@ async def generate_and_store_report(
             if not job:
                 raise HTTPException(status_code=404, detail="No job data found")
             
+            # Get AI analysis for job report
+            ai_analysis = None
+            if GEMINI_AVAILABLE and gemini_analytics:
+                try:
+                    job_analysis_data = {
+                        "start_time": job.start_time.isoformat() if job.start_time else None,
+                        "end_time": job.end_time.isoformat() if job.end_time else None,
+                        "items_processed": job.items_done,
+                        "items_total": job.items_total,
+                        "percent_complete": job.percent_complete,
+                        "status": job.status
+                    }
+                    ai_analysis = await gemini_analytics.analyze_job_data(job_analysis_data)
+                    print(f"AI Analysis for job: {ai_analysis}")
+                except Exception as e:
+                    print(f"AI analysis failed for job report: {e}")
+                    ai_analysis = None
+            
             report_data = {
                 "title": f"Job Report - {robot_id}",
                 "description": "Job completion summary",
@@ -441,7 +477,8 @@ async def generate_and_store_report(
                     "items_processed": job.items_done,
                     "items_total": job.items_total,
                     "percent_complete": job.percent_complete,
-                    "status": job.status
+                    "status": job.status,
+                    "ai_analysis": ai_analysis  # Store AI analysis in the report data
                 }
             }
         
@@ -450,7 +487,8 @@ async def generate_and_store_report(
             if not robot_id:
                 raise HTTPException(status_code=400, detail="robot_id required for maintenance reports")
             
-            servo_data = influx_client.query_recent_data("servos", time_range)
+            # Note: measurement name must match what influx_client.write_servo_data writes to
+            servo_data = influx_client.query_recent_data("servo_data", time_range)
             
             # Filter by robot_id
             filtered_data = [d for d in servo_data if d.get('robot_id') == robot_id]

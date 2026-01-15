@@ -33,7 +33,9 @@ class MQTTClient:
             "tonypi/commands/response",  # Command responses
             "tonypi/scan/+",     # QR scan events from robots
             "tonypi/job/+",      # Job/progress events
-            "tonypi/servos/+"    # Servo status data
+            "tonypi/servos/+",   # Servo status data
+            "tonypi/vision/+",   # Vision detection data
+            "tonypi/logs/+"      # Robot terminal logs
         ]
 
     def on_connect(self, client, userdata, flags, rc):
@@ -67,6 +69,10 @@ class MQTTClient:
                 self.handle_job_event(topic, payload)
             elif topic.startswith("tonypi/servos/"):
                 self.handle_servo_data(topic, payload)
+            elif topic.startswith("tonypi/vision/"):
+                self.handle_vision_data(topic, payload)
+            elif topic.startswith("tonypi/logs/"):
+                self.handle_log_data(topic, payload)
             elif topic == "tonypi/commands/response":
                 self.handle_command_response(payload)
                 
@@ -74,33 +80,48 @@ class MQTTClient:
             print(f"MQTT: Error processing message: {e}")
 
     def handle_sensor_data(self, topic, payload):
-        """Handle sensor data and store in InfluxDB"""
+        """Handle sensor data and store in InfluxDB with validation"""
         # Extract robot_id from topic (tonypi/sensors/{robot_id})
         robot_id_from_topic = topic.split('/')[-1]
         
         # Get sensor_type from payload (the actual sensor type like "accelerometer_x")
         sensor_type = payload.get("sensor_type", "unknown")
         robot_id = payload.get("robot_id", robot_id_from_topic)
+        value = payload.get("value")
+        unit = payload.get("unit")
+        timestamp = payload.get("timestamp")
         
-        # Prepare data for InfluxDB
-        measurement = "sensors"
-        tags = {
-            "robot_id": robot_id,
-            "sensor_type": sensor_type
-        }
-        
-        # Extract fields - exclude metadata keys
-        fields = {
-            key: value for key, value in payload.items() 
-            if key not in ["robot_id", "timestamp", "sensor_type"]
-        }
-        
-        # Ensure we have at least a value field
-        if not fields:
-            fields = {"value": 0}
-        
-        # Store in InfluxDB
-        influx_client.write_sensor_data(measurement, tags, fields)
+        # Use validated sensor write for known sensor types
+        if value is not None:
+            success = influx_client.write_validated_sensor(
+                robot_id=robot_id,
+                sensor_type=sensor_type,
+                value=value,
+                timestamp=timestamp,
+                unit=unit
+            )
+            if success:
+                print(f"MQTT: Sensor {sensor_type} = {value} from {robot_id}")
+        else:
+            # Fallback for legacy format without explicit value field
+            measurement = "sensors"
+            tags = {
+                "robot_id": robot_id,
+                "sensor_type": sensor_type
+            }
+            
+            # Extract fields - exclude metadata keys
+            fields = {
+                key: value for key, value in payload.items() 
+                if key not in ["robot_id", "timestamp", "sensor_type"]
+            }
+            
+            # Ensure we have at least a value field
+            if not fields:
+                fields = {"value": 0}
+            
+            # Store in InfluxDB
+            influx_client.write_sensor_data(measurement, tags, fields)
 
     def handle_status_data(self, topic, payload):
         """Handle robot status data"""
@@ -124,12 +145,15 @@ class MQTTClient:
         if "camera_url" in payload:
             fields["camera_url"] = payload.get("camera_url")
         
-        # Add system_info fields if present
+        # Add system_info fields if present (including booleans)
         if "system_info" in payload and isinstance(payload["system_info"], dict):
             for key, value in payload["system_info"].items():
-                if isinstance(value, (int, float, str)):
+                if isinstance(value, (int, float, str, bool)):
                     fields[f"system_{key}"] = value
+            # Debug: print all system_info fields being stored
+            print(f"MQTT: Status system_info fields: {list(payload['system_info'].keys())}")
         
+        print(f"MQTT: Writing status fields: {list(fields.keys())}")
         influx_client.write_sensor_data(measurement, tags, fields)
         
         # Update robot in PostgreSQL with IP and camera URL
@@ -138,34 +162,40 @@ class MQTTClient:
         self._update_robot_status(robot_id, payload.get("status", "online"), ip_address, camera_url)
 
     def handle_location_data(self, payload):
-        """Handle robot location data"""
-        measurement = "location"
-        tags = {
-            "robot_id": payload.get("robot_id", "tonypi_01")
-        }
-        fields = {
-            "x": payload.get("x", 0),
-            "y": payload.get("y", 0),
-            "z": payload.get("z", 0),
-            "heading": payload.get("heading", 0)
-        }
+        """Handle robot location data with validation"""
+        robot_id = payload.get("robot_id", "tonypi_01")
+        x = payload.get("x", 0)
+        y = payload.get("y", 0)
+        z = payload.get("z", 0)
         
-        influx_client.write_sensor_data(measurement, tags, fields)
+        # Use validated location write
+        success = influx_client.write_location(
+            robot_id=robot_id,
+            x=x,
+            y=y,
+            z=z
+        )
+        
+        if success:
+            print(f"MQTT: Location ({x:.2f}, {y:.2f}, {z:.2f}) from {robot_id}")
 
     def handle_battery_data(self, payload):
-        """Handle battery status data"""
-        measurement = "battery"
-        tags = {
-            "robot_id": payload.get("robot_id", "tonypi_01")
-        }
-        fields = {
-            "voltage": payload.get("voltage", 0),
-            "current": payload.get("current", 0),
-            "percentage": payload.get("percentage", 0),
-            "temperature": payload.get("temperature", 0)
-        }
+        """Handle battery status data with validation"""
+        robot_id = payload.get("robot_id", "tonypi_01")
+        percentage = payload.get("percentage", 0)
+        voltage = payload.get("voltage", 0)
+        charging = payload.get("charging", False)
         
-        influx_client.write_sensor_data(measurement, tags, fields)
+        # Use validated battery write
+        success = influx_client.write_battery_status(
+            robot_id=robot_id,
+            percentage=percentage,
+            voltage=voltage,
+            charging=charging
+        )
+        
+        if success:
+            print(f"MQTT: Battery {percentage:.1f}% ({voltage:.2f}V) from {robot_id}")
 
     def handle_command_response(self, payload):
         """Handle command responses"""
@@ -266,36 +296,97 @@ class MQTTClient:
             print(f"JobStore: Error handling job event: {e}")
 
     def handle_servo_data(self, topic, payload):
-        """Handle servo status data and store in InfluxDB"""
+        """Handle servo status data and store in InfluxDB with validation"""
         robot_id = payload.get("robot_id", topic.split('/')[-1])
         servos = payload.get("servos", {})
         
-        measurement = "servos"
-        
-        # Store each servo's data
+        # Store each servo's data using validated method
         for servo_key, servo_info in servos.items():
-            # Get the human-readable name from servo_info, fallback to key
+            servo_id = servo_info.get("id", 0)
             servo_name = servo_info.get("name", servo_key)
+            position = servo_info.get("position", 0)
+            temperature = servo_info.get("temperature", 0)
+            voltage = servo_info.get("voltage", 0)
+            torque_enabled = servo_info.get("torque_enabled", False)
+            alert_level = servo_info.get("alert_level", "normal")
             
-            tags = {
-                "robot_id": robot_id,
-                "servo_id": str(servo_info.get("id", 0)),
-                "servo_name": servo_name,  # Use actual name like "Left Hip"
-                "servo_key": servo_key,    # Keep original key like "servo_1"
-                "alert_level": servo_info.get("alert_level", "normal")
-            }
-            
-            fields = {
-                "position": float(servo_info.get("position", 0)),
-                "temperature": float(servo_info.get("temperature", 0)),
-                "voltage": float(servo_info.get("voltage", 0)),
-                "torque_enabled": 1 if servo_info.get("torque_enabled", False) else 0
-            }
-            
-            # Store in InfluxDB
-            influx_client.write_sensor_data(measurement, tags, fields)
+            # Use validated servo write
+            influx_client.write_servo_data(
+                robot_id=robot_id,
+                servo_id=servo_id,
+                servo_name=servo_name,
+                position=position,
+                temperature=temperature,
+                voltage=voltage,
+                torque_enabled=torque_enabled,
+                alert_level=alert_level
+            )
         
         print(f"MQTT: Stored servo data for {len(servos)} servos from {robot_id}")
+
+    def handle_vision_data(self, topic, payload):
+        """Handle vision detection data and store in InfluxDB"""
+        robot_id = payload.get("robot_id", topic.split('/')[-1])
+        
+        # Extract vision data
+        detection = payload.get("detection", False)
+        state = payload.get("state", "UNKNOWN")
+        label = payload.get("label")
+        confidence = payload.get("confidence")
+        bbox = payload.get("bbox")  # dict with x1, y1, x2, y2
+        center_x = payload.get("center_x")
+        nav_cmd = payload.get("navigation_command")
+        error = payload.get("error")
+        is_locked = payload.get("is_locked", False)
+        
+        # Use the new validated method from influx_client
+        success = influx_client.write_vision_data(
+            robot_id=robot_id,
+            detection=detection,
+            state=state,
+            label=label,
+            confidence=confidence,
+            bbox=bbox,
+            center_x=center_x,
+            nav_cmd=nav_cmd,
+            error=error,
+            is_locked=is_locked
+        )
+        
+        if detection and label:
+            print(f"MQTT: Vision detection from {robot_id}: {label} ({confidence:.2f if confidence else 0:.2f}) - {nav_cmd}")
+        
+    def handle_log_data(self, topic, payload):
+        """Handle robot terminal log data and store in InfluxDB"""
+        robot_id = payload.get("robot_id", topic.split('/')[-1])
+        
+        # Extract log data
+        level = payload.get("level", "INFO")
+        message = payload.get("message", "")
+        source = payload.get("source", "main")
+        timestamp = payload.get("timestamp")
+        
+        # Use the new validated method from influx_client
+        success = influx_client.write_log_entry(
+            robot_id=robot_id,
+            level=level,
+            message=message,
+            source=source,
+            timestamp=timestamp
+        )
+        
+        # Also store in PostgreSQL for searchable logs
+        self._log_system_event(
+            level=level,
+            category=f"robot_{source}",
+            message=message,
+            robot_id=robot_id,
+            details={"source": source, "timestamp": timestamp}
+        )
+        
+        # Print important logs
+        if level in ["WARNING", "ERROR", "CRITICAL"]:
+            print(f"MQTT: Robot log [{level}] from {robot_id}/{source}: {message}")
 
     def on_disconnect(self, client, userdata, rc):
         print("MQTT: Disconnected from broker")

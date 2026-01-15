@@ -71,6 +71,58 @@ except Exception as e:
     logger.warning(f"Hardware initialization failed: {e}")
     logger.info("Running in simulation mode")
 
+# Try to import GPIO for light sensor
+LIGHT_SENSOR_AVAILABLE = False
+light_sensor_gpio = None
+try:
+    import RPi.GPIO as GPIO
+    LIGHT_SENSOR_AVAILABLE = True
+    logger.info("RPi.GPIO available for light sensor")
+except ImportError:
+    logger.warning("RPi.GPIO not available - light sensor will be simulated")
+
+
+class LightSensor:
+    """Light sensor class for reading ambient light via GPIO."""
+    
+    def __init__(self, pin=24):
+        self.pin = pin
+        self.initialized = False
+        if LIGHT_SENSOR_AVAILABLE:
+            try:
+                GPIO.setwarnings(False)
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setup(self.pin, GPIO.IN)
+                self.initialized = True
+                logger.info(f"Light sensor initialized on GPIO pin {pin}")
+            except Exception as e:
+                logger.error(f"Failed to initialize light sensor: {e}")
+    
+    def is_dark(self) -> bool:
+        """Returns True if sensor detects darkness (blocked/low light)."""
+        if self.initialized and LIGHT_SENSOR_AVAILABLE:
+            try:
+                return GPIO.input(self.pin) == 1
+            except Exception as e:
+                logger.error(f"Error reading light sensor: {e}")
+                return False
+        # Simulation mode - randomly simulate light conditions
+        return random.random() < 0.1  # 10% chance of being dark
+    
+    def get_light_level(self) -> int:
+        """Returns light level: 0 = dark, 100 = bright."""
+        if self.is_dark():
+            return random.randint(0, 20)  # Low light
+        return random.randint(60, 100)  # Normal/bright light
+    
+    def cleanup(self):
+        """Clean up GPIO resources."""
+        if self.initialized and LIGHT_SENSOR_AVAILABLE:
+            try:
+                GPIO.cleanup(self.pin)
+            except Exception as e:
+                logger.error(f"Error cleaning up light sensor: {e}")
+
 
 class TonyPiRobotClient:
     """
@@ -123,8 +175,12 @@ class TonyPiRobotClient:
         # Hardware availability
         self.hardware_available = HARDWARE_AVAILABLE
         
+        # Light sensor
+        self.light_sensor = LightSensor(pin=24)
+        
         # Robot state
         self.battery_level = 100.0
+        self._last_battery_voltage = 12.6  # Store last read voltage for reporting
         self.location = {"x": 0.0, "y": 0.0, "z": 0.0}
         self.sensors = {}
         self.status = "online"
@@ -138,7 +194,9 @@ class TonyPiRobotClient:
             "battery": f"tonypi/battery",
             "commands": f"tonypi/commands/{self.robot_id}",
             "response": f"tonypi/commands/response",
-            "servos": f"tonypi/servos/{self.robot_id}"
+            "servos": f"tonypi/servos/{self.robot_id}",
+            "vision": f"tonypi/vision/{self.robot_id}",
+            "logs": f"tonypi/logs/{self.robot_id}"
         }
         
         # Additional topics
@@ -415,16 +473,22 @@ class TonyPiRobotClient:
         }
 
     def get_system_info(self) -> Dict[str, Any]:
-        """Get system information from Raspberry Pi."""
+        """Get system information from Raspberry Pi (Task Manager metrics)."""
         try:
+            cpu_temp = self.get_cpu_temperature()
+            # Use interval=None to get instant reading (non-blocking)
+            # This returns the CPU usage since last call
+            cpu_percent = psutil.cpu_percent(interval=None)
             return {
                 "platform": platform.platform(),
-                "cpu_percent": psutil.cpu_percent(interval=1),
+                "cpu_percent": cpu_percent,
                 "memory_percent": psutil.virtual_memory().percent,
                 "disk_usage": psutil.disk_usage('/').percent,
-                "temperature": self.get_cpu_temperature(),
+                "temperature": cpu_temp,           # Legacy field
+                "cpu_temperature": cpu_temp,       # New field for frontend
                 "uptime": time.time() - psutil.boot_time(),
-                "hardware_mode": self.hardware_available
+                "hardware_mode": self.hardware_available,
+                "hardware_sdk": self.hardware_available
             }
         except Exception as e:
             logger.error(f"Error getting system info: {e}")
@@ -462,21 +526,80 @@ class TonyPiRobotClient:
     def get_battery_percentage(self) -> float:
         """
         Get battery percentage from hardware or simulation.
-        TonyPi battery: 10V = 0%, 12.6V = 100%
+        
+        TonyPi uses a 3S LiPo battery:
+        - Full charge: 12.6V (4.2V per cell)
+        - Nominal: 11.1V (3.7V per cell)
+        - Empty (safe cutoff): 9.0V (3.0V per cell)
+        
+        Uses a non-linear voltage curve for more accurate percentage:
+        - Above 11.4V: 70-100% (slow discharge region)
+        - 10.5V - 11.4V: 30-70% (nominal region)
+        - Below 10.5V: 0-30% (fast discharge region)
         """
         if self.hardware_available and board:
             try:
                 voltage_mv = board.get_battery()
                 if voltage_mv:
                     voltage_v = voltage_mv / 1000.0
-                    # Convert voltage to percentage (10V = 0%, 12.6V = 100%)
-                    percentage = ((voltage_v - 10.0) / 2.6) * 100
+                    percentage = self._voltage_to_percentage(voltage_v)
                     self.battery_level = max(0, min(100, percentage))
+                    self._last_battery_voltage = voltage_v  # Store for reporting
                     return self.battery_level
             except Exception as e:
                 logger.error(f"Error reading battery: {e}")
         
         return self.battery_level
+    
+    def _voltage_to_percentage(self, voltage: float) -> float:
+        """
+        Convert battery voltage to percentage using a realistic LiPo discharge curve.
+        
+        For 3S LiPo (9.0V - 12.6V range):
+        - Uses piecewise linear approximation of actual discharge curve
+        - More accurate than simple linear mapping
+        
+        Args:
+            voltage: Battery voltage in Volts
+            
+        Returns:
+            Battery percentage (0-100)
+        """
+        # Battery configuration for 3S LiPo
+        BATTERY_MIN_V = 9.0    # 3.0V per cell - empty
+        BATTERY_MAX_V = 12.6   # 4.2V per cell - full
+        
+        # Clamp voltage to valid range
+        voltage = max(BATTERY_MIN_V, min(BATTERY_MAX_V, voltage))
+        
+        # Piecewise linear approximation of LiPo discharge curve
+        # These breakpoints are based on typical 3S LiPo discharge characteristics
+        breakpoints = [
+            (9.0, 0),      # Empty
+            (9.6, 5),      # Critical low
+            (10.2, 15),    # Low
+            (10.5, 25),    # Start of nominal region
+            (10.8, 40),    
+            (11.1, 50),    # Nominal voltage
+            (11.4, 65),    
+            (11.7, 80),    # Good charge
+            (12.0, 90),    
+            (12.3, 95),    
+            (12.6, 100),   # Full
+        ]
+        
+        # Find the segment containing the voltage
+        for i in range(len(breakpoints) - 1):
+            v1, p1 = breakpoints[i]
+            v2, p2 = breakpoints[i + 1]
+            
+            if v1 <= voltage <= v2:
+                # Linear interpolation within segment
+                ratio = (voltage - v1) / (v2 - v1)
+                return p1 + ratio * (p2 - p1)
+        
+        # Fallback (shouldn't reach here due to clamping)
+        return 0 if voltage < BATTERY_MIN_V else 100
 
     def read_sensors(self) -> Dict[str, float]:
         """Read sensor data from hardware or simulation."""
@@ -519,9 +642,13 @@ class TonyPiRobotClient:
         # Add CPU temperature (always available)
         sensors["cpu_temperature"] = self.get_cpu_temperature()
         
-        # Add camera light level (simulated ambient light)
-        # In real hardware, this could come from camera brightness analysis
-        sensors["camera_light_level"] = round(random.uniform(40.0, 80.0), 1)
+        # Light sensor data (real hardware or simulated)
+        is_dark = self.light_sensor.is_dark()
+        sensors["light_sensor_dark"] = 1 if is_dark else 0
+        sensors["light_level"] = self.light_sensor.get_light_level()
+        
+        # Light sensor status for monitoring
+        sensors["light_status"] = "dark" if is_dark else "bright"
         
         self.sensors = sensors
         return sensors
@@ -605,19 +732,27 @@ class TonyPiRobotClient:
             "gyroscope_z": "deg/s",
             "ultrasonic_distance": "cm",
             "cpu_temperature": "C",
-            "camera_light_level": "%"
+            "light_sensor_dark": "bool",
+            "light_level": "%",
+            "light_status": "status"
         }
         return unit_map.get(sensor_name, "")
 
     def send_sensor_data(self):
         """Send sensor data to monitoring system."""
         if not self.is_connected:
+            logger.warning("Not connected - skipping sensor data send")
             return
         
         try:
             sensors = self.read_sensors()
+            sent_count = 0
             
             for sensor_name, value in sensors.items():
+                # Skip non-numeric values for certain sensors
+                if sensor_name == "light_status":
+                    continue  # This is a string, skip it
+                    
                 data = {
                     "robot_id": self.robot_id,
                     "sensor_type": sensor_name,
@@ -625,9 +760,11 @@ class TonyPiRobotClient:
                     "timestamp": datetime.now().isoformat(),
                     "unit": self.get_sensor_unit(sensor_name)
                 }
-                self.client.publish(self.topics["sensors"], json.dumps(data))
+                result = self.client.publish(self.topics["sensors"], json.dumps(data))
+                if result.rc == 0:
+                    sent_count += 1
             
-            logger.debug(f"Sent sensor data: {len(sensors)} sensors")
+            logger.info(f"Sent {sent_count}/{len(sensors)} sensor readings to {self.topics['sensors']}")
             
         except Exception as e:
             logger.error(f"Error sending sensor data: {e}")
@@ -635,6 +772,7 @@ class TonyPiRobotClient:
     def send_servo_data(self):
         """Send servo status data to monitoring system."""
         if not self.is_connected:
+            logger.warning("Not connected - skipping servo data send")
             return
         
         try:
@@ -647,29 +785,41 @@ class TonyPiRobotClient:
                 "timestamp": datetime.now().isoformat()
             }
             
-            self.client.publish(self.topics["servos"], json.dumps(data))
-            logger.debug(f"Sent servo data: {len(servo_data)} servos")
+            result = self.client.publish(self.topics["servos"], json.dumps(data))
+            if result.rc == 0:
+                logger.info(f"Sent servo data: {len(servo_data)} servos to {self.topics['servos']}")
+            else:
+                logger.error(f"Failed to send servo data: rc={result.rc}")
             
         except Exception as e:
             logger.error(f"Error sending servo data: {e}")
 
     def send_battery_status(self):
-        """Send battery status."""
+        """Send battery status with actual voltage reading."""
         if not self.is_connected:
             return
         
         try:
             battery = self.get_battery_percentage()
+            
+            # Use actual voltage if available, otherwise estimate from percentage
+            if hasattr(self, '_last_battery_voltage'):
+                voltage = self._last_battery_voltage
+            else:
+                # Fallback: estimate voltage from percentage (for simulation mode)
+                # 3S LiPo: 9.0V (0%) to 12.6V (100%)
+                voltage = 9.0 + (battery / 100.0) * 3.6
+            
             data = {
                 "robot_id": self.robot_id,
-                "percentage": battery,
-                "voltage": 12.0 * (battery / 100.0),
+                "percentage": round(battery, 1),
+                "voltage": round(voltage, 2),
                 "charging": False,
                 "timestamp": datetime.now().isoformat()
             }
             
             self.client.publish(self.topics["battery"], json.dumps(data))
-            logger.debug(f"Sent battery status: {battery:.1f}%")
+            logger.debug(f"Sent battery status: {battery:.1f}% ({voltage:.2f}V)")
             
         except Exception as e:
             logger.error(f"Error sending battery status: {e}")
@@ -695,29 +845,98 @@ class TonyPiRobotClient:
             logger.error(f"Error sending location: {e}")
 
     def send_status_update(self):
-        """Send robot status update."""
+        """Send robot status update with full Task Manager metrics."""
         if not self.is_connected:
+            logger.warning("Not connected - skipping status update send")
             return
         
         try:
             ip_address = self.get_local_ip()
-            camera_url = f"http://{ip_address}:8080/?action=stream"
+            camera_url = f"http://{ip_address}:8081/?action=stream"
+            system_info = self.get_system_info()
             
             data = {
                 "robot_id": self.robot_id,
                 "status": self.status,
                 "timestamp": datetime.now().isoformat(),
-                "system_info": self.get_system_info(),
+                "system_info": system_info,
                 "hardware_available": self.hardware_available,
                 "ip_address": ip_address,
                 "camera_url": camera_url
             }
             
-            self.client.publish(self.topics["status"], json.dumps(data))
-            logger.debug(f"Sent status update: {self.status} (IP: {ip_address})")
+            result = self.client.publish(self.topics["status"], json.dumps(data))
+            if result.rc == 0:
+                logger.info(f"Sent status to {self.topics['status']}: CPU={system_info.get('cpu_percent')}%, MEM={system_info.get('memory_percent')}%, TEMP={system_info.get('cpu_temperature')}°C")
+            else:
+                logger.error(f"Failed to send status: rc={result.rc}")
             
         except Exception as e:
             logger.error(f"Error sending status: {e}")
+
+    def send_vision_data(self, detection_result: Dict[str, Any]):
+        """
+        Send vision detection results to monitoring system.
+        
+        Args:
+            detection_result: Dictionary containing detection data:
+                - label: Detected object class name
+                - confidence: Detection confidence (0-1)
+                - bbox: Bounding box (x1, y1, x2, y2)
+                - center_x: Center X coordinate
+                - frame_width: Original frame width
+                - state: Current robot state (IDLE, SEARCHING, ACTING)
+        """
+        if not self.is_connected:
+            return
+        
+        try:
+            data = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "detection": detection_result.get("detection"),
+                "label": detection_result.get("label"),
+                "confidence": detection_result.get("confidence"),
+                "bbox": detection_result.get("bbox"),
+                "center_x": detection_result.get("center_x"),
+                "frame_width": detection_result.get("frame_width", 640),
+                "state": detection_result.get("state", "UNKNOWN"),
+                "is_locked": detection_result.get("is_locked", False),
+                "navigation_command": detection_result.get("nav_cmd"),
+                "error": detection_result.get("error")
+            }
+            
+            self.client.publish(self.topics["vision"], json.dumps(data))
+            logger.debug(f"Sent vision data: {detection_result.get('label')} ({detection_result.get('confidence', 0):.2f})")
+            
+        except Exception as e:
+            logger.error(f"Error sending vision data: {e}")
+
+    def send_log_message(self, level: str, message: str, source: str = "main"):
+        """
+        Send terminal/log message to monitoring system.
+        
+        Args:
+            level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            message: Log message content
+            source: Source module/file name
+        """
+        if not self.is_connected:
+            return
+        
+        try:
+            data = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "level": level.upper(),
+                "message": message,
+                "source": source
+            }
+            
+            self.client.publish(self.topics["logs"], json.dumps(data))
+            
+        except Exception as e:
+            logger.error(f"Error sending log message: {e}")
 
     async def connect(self):
         """Connect to MQTT broker."""
@@ -746,6 +965,10 @@ class TonyPiRobotClient:
             self.status = "offline"
             self.send_status_update()
             await asyncio.sleep(1)
+        
+        # Cleanup light sensor GPIO
+        if hasattr(self, 'light_sensor'):
+            self.light_sensor.cleanup()
             
         self.client.loop_stop()
         self.client.disconnect()
@@ -754,70 +977,165 @@ class TonyPiRobotClient:
     async def run(self):
         """Main loop for the robot client."""
         self.running = True
-        logger.info(f"Starting TonyPi Robot Client - ID: {self.robot_id}")
-        logger.info(f"Hardware mode: {self.hardware_available}")
+        print("=" * 60)
+        print("   TONYPI ROBOT CLIENT - MONITORING TELEMETRY")
+        print("=" * 60)
+        print(f"   Robot ID: {self.robot_id}")
+        print(f"   MQTT Broker: {self.mqtt_broker}:{self.mqtt_port}")
+        print(f"   Hardware Mode: {self.hardware_available}")
+        print("=" * 60)
         
         try:
             await self.connect()
+            
+            # Send initial data immediately
+            print("\n📡 Sending initial telemetry...")
+            self.send_status_update()
+            self.send_battery_status()
+            self.send_sensor_data()
+            self.send_servo_data()
+            self.send_location_update()
+            self.send_log_message("INFO", "Robot client started and connected", "main")
+            print("✅ Initial telemetry sent!")
+            
+            print("\n" + "=" * 60)
+            print("✅ ROBOT CLIENT RUNNING - Sending telemetry data")
+            print("=" * 60)
+            print("Data being sent:")
+            print("  • Sensors:  every 2 seconds (IMU, temp, light, ultrasonic)")
+            print("  • Servos:   every 3 seconds (position, temp, voltage)")
+            print("  • Status:   every 10 seconds (CPU, memory, disk, uptime)")
+            print("  • Battery:  every 30 seconds")
+            print("  • Location: every 5 seconds")
+            print("  • Logs:     real-time")
+            print("=" * 60)
+            print("\nPress Ctrl+C to stop\n")
             
             last_sensor_time = 0
             last_servo_time = 0
             last_battery_time = 0
             last_location_time = 0
             last_status_time = 0
+            last_log_time = 0
+            cycle_count = 0
             
             while self.running:
-                current_time = time.time()
-                
-                # Send sensor data every 2 seconds
-                if current_time - last_sensor_time >= 2:
-                    self.send_sensor_data()
-                    last_sensor_time = current_time
-                
-                # Send servo data every 3 seconds
-                if current_time - last_servo_time >= 3:
-                    self.send_servo_data()
-                    last_servo_time = current_time
-                
-                # Send battery status every 30 seconds
-                if current_time - last_battery_time >= 30:
-                    self.send_battery_status()
-                    last_battery_time = current_time
-                
-                # Send location every 5 seconds
-                if current_time - last_location_time >= 5:
-                    self.send_location_update()
-                    last_location_time = current_time
-                
-                # Send status every 60 seconds
-                if current_time - last_status_time >= 60:
-                    self.send_status_update()
-                    last_status_time = current_time
-                
-                # Simulate battery drain (very slow)
-                if not self.hardware_available and self.battery_level > 0:
-                    self.battery_level = max(0, self.battery_level - 0.001)
+                try:
+                    current_time = time.time()
+                    cycle_count += 1
+                    
+                    # Check MQTT connection status
+                    if not self.is_connected:
+                        print("⚠️  MQTT disconnected, attempting reconnect...")
+                        sys.stdout.flush()
+                        try:
+                            self.client.reconnect()
+                            await asyncio.sleep(2)
+                        except Exception as e:
+                            logger.error(f"Reconnect failed: {e}")
+                            await asyncio.sleep(5)
+                            continue
+                    
+                    # Send sensor data every 2 seconds
+                    if current_time - last_sensor_time >= 2:
+                        self.send_sensor_data()
+                        sensors = self.sensors
+                        cpu_temp = sensors.get('cpu_temperature', 0)
+                        print(f"📊 Sensors: CPU={cpu_temp:.1f}°C, Accel=({sensors.get('accelerometer_x', 0):.2f}, {sensors.get('accelerometer_y', 0):.2f}, {sensors.get('accelerometer_z', 0):.2f})")
+                        sys.stdout.flush()
+                        last_sensor_time = current_time
+                    
+                    # Send servo data every 3 seconds
+                    if current_time - last_servo_time >= 3:
+                        self.send_servo_data()
+                        print(f"🔧 Servos: {len(self.servo_data)} servos sent")
+                        sys.stdout.flush()
+                        last_servo_time = current_time
+                    
+                    # Send battery status every 30 seconds
+                    if current_time - last_battery_time >= 30:
+                        self.send_battery_status()
+                        print(f"🔋 Battery: {self.battery_level:.1f}%")
+                        sys.stdout.flush()
+                        last_battery_time = current_time
+                    
+                    # Send location every 5 seconds
+                    if current_time - last_location_time >= 5:
+                        self.send_location_update()
+                        last_location_time = current_time
+                    
+                    # Send status every 10 seconds (more frequent for Task Manager)
+                    if current_time - last_status_time >= 10:
+                        self.send_status_update()
+                        sys_info = self.get_system_info()
+                        print(f"💻 Status: CPU={sys_info.get('cpu_percent', 0):.1f}%, MEM={sys_info.get('memory_percent', 0):.1f}%, DISK={sys_info.get('disk_usage', 0):.1f}%, TEMP={sys_info.get('cpu_temperature', 0):.1f}°C")
+                        sys.stdout.flush()
+                        last_status_time = current_time
+                    
+                    # Send periodic log message every 30 seconds
+                    if current_time - last_log_time >= 30:
+                        self.send_log_message("INFO", f"Robot running normally. Cycle: {cycle_count}", "telemetry")
+                        last_log_time = current_time
+                    
+                    # Simulate battery drain (very slow)
+                    if not self.hardware_available and self.battery_level > 0:
+                        self.battery_level = max(0, self.battery_level - 0.001)
+                    
+                except Exception as loop_error:
+                    logger.error(f"Error in telemetry loop: {loop_error}")
+                    print(f"⚠️  Loop error: {loop_error}")
+                    sys.stdout.flush()
                 
                 await asyncio.sleep(0.1)
                 
         except KeyboardInterrupt:
-            logger.info("Received interrupt signal")
+            print("\n🛑 Stopping robot client...")
+            self.send_log_message("INFO", "Robot client stopped by user", "main")
         except Exception as e:
             logger.error(f"Error in main loop: {e}")
+            self.send_log_message("ERROR", f"Robot client error: {e}", "main")
         finally:
             await self.disconnect()
+            print("✅ Disconnected from monitoring system")
 
 
 def main():
     """Main entry point."""
     import argparse
     
-    parser = argparse.ArgumentParser(description="TonyPi Robot Client")
-    parser.add_argument("--broker", default="localhost", help="MQTT broker address")
-    parser.add_argument("--port", type=int, default=1883, help="MQTT broker port")
-    parser.add_argument("--robot-id", default=None, help="Robot ID (default: tonypi_<hostname>)")
+    # Get default broker from environment or use localhost
+    default_broker = os.getenv("MQTT_BROKER", "localhost")
+    default_port = int(os.getenv("MQTT_PORT", 1883))
+    default_robot_id = os.getenv("ROBOT_ID", None)
+    
+    parser = argparse.ArgumentParser(
+        description="TonyPi Robot Client - Sends telemetry to monitoring system",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python tonypi_client.py --broker 192.168.1.100
+  python tonypi_client.py --broker 192.168.1.100 --robot-id tonypi_test
+  
+Environment Variables:
+  MQTT_BROKER  - MQTT broker address (default: localhost)
+  MQTT_PORT    - MQTT broker port (default: 1883)
+  ROBOT_ID     - Robot identifier (default: tonypi_<hostname>)
+        """
+    )
+    parser.add_argument("--broker", default=default_broker, 
+                        help=f"MQTT broker address (default: {default_broker})")
+    parser.add_argument("--port", type=int, default=default_port, 
+                        help=f"MQTT broker port (default: {default_port})")
+    parser.add_argument("--robot-id", default=default_robot_id, 
+                        help="Robot ID (default: tonypi_<hostname>)")
     
     args = parser.parse_args()
+    
+    print("\n🤖 TonyPi Robot Client - Monitoring Telemetry")
+    print(f"   Connecting to MQTT broker: {args.broker}:{args.port}")
+    if args.robot_id:
+        print(f"   Robot ID: {args.robot_id}")
+    print()
     
     robot = TonyPiRobotClient(
         mqtt_broker=args.broker,
@@ -828,8 +1146,9 @@ def main():
     try:
         asyncio.run(robot.run())
     except KeyboardInterrupt:
-        logger.info("Robot client stopped by user")
+        print("\n👋 Robot client stopped by user")
     except Exception as e:
+        print(f"\n❌ Robot client error: {e}")
         logger.error(f"Robot client error: {e}")
 
 

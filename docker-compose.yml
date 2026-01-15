@@ -87,9 +87,7 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_AUTH_DISABLE_LOGIN_FORM=false
-      - GF_SECURITY_COOKIE_SAMESITE=disabled
-      - GF_SECURITY_COOKIE_SECURE=false
-      - GF_SECURITY_X_FRAME_OPTIONS=
+      - GF_SECURITY_COOKIE_SAMESITE=none
     depends_on:
       influxdb:
         condition: service_healthy

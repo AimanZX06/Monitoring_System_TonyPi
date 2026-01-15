@@ -10,6 +10,53 @@ const api = axios.create({
 // API version prefix for all endpoints
 const V1 = API_PREFIX;
 
+// Token management
+const TOKEN_KEY = 'tonypi_access_token';
+
+export const tokenService = {
+  getToken(): string | null {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+  
+  setToken(token: string): void {
+    localStorage.setItem(TOKEN_KEY, token);
+  },
+  
+  removeToken(): void {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+};
+
+// Add request interceptor to include auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = tokenService.getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid, clear it
+      tokenService.removeToken();
+      // Optionally redirect to login
+      if (window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Error handler helper
 export const handleApiError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
@@ -395,6 +442,65 @@ export const apiService = {
 
   async getLogLevels() {
     const response = await api.get(`${V1}/logs/levels`);
+    return response.data;
+  },
+
+  // ============================================
+  // AUTHENTICATION API
+  // ============================================
+  
+  async login(username: string, password: string) {
+    const response = await api.post(`${V1}/auth/login`, { username, password });
+    const { access_token, user } = response.data;
+    tokenService.setToken(access_token);
+    return { access_token, user };
+  },
+
+  async getCurrentUser() {
+    const response = await api.get(`${V1}/auth/me`);
+    return response.data;
+  },
+
+  logout() {
+    tokenService.removeToken();
+  },
+
+  // ============================================
+  // USER MANAGEMENT API (Admin only)
+  // ============================================
+  
+  async getUsers() {
+    const response = await api.get(`${V1}/users`);
+    return response.data;
+  },
+
+  async getUser(userId: string) {
+    const response = await api.get(`${V1}/users/${userId}`);
+    return response.data;
+  },
+
+  async createUser(userData: {
+    username: string;
+    email: string;
+    password: string;
+    role: 'admin' | 'operator' | 'viewer';
+  }) {
+    const response = await api.post(`${V1}/users`, userData);
+    return response.data;
+  },
+
+  async updateUser(userId: string, userData: {
+    email?: string;
+    password?: string;
+    role?: 'admin' | 'operator' | 'viewer';
+    is_active?: boolean;
+  }) {
+    const response = await api.put(`${V1}/users/${userId}`, userData);
+    return response.data;
+  },
+
+  async deleteUser(userId: string) {
+    const response = await api.delete(`${V1}/users/${userId}`);
     return response.data;
   },
 };

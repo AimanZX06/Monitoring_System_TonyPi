@@ -4,7 +4,13 @@ TonyPi Robot Monitoring System - Backend API
 A comprehensive monitoring and management system for HiWonder TonyPi robots.
 """
 import time
+import os
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (for local development)
+# In Docker, environment variables are passed via docker-compose.yml
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,7 +28,8 @@ from routers import (
     robots_db,
     data_validation,
     alerts,
-    logs
+    logs,
+    users
 )
 
 # API Version
@@ -37,9 +44,16 @@ def init_database():
     try:
         print("Initializing database tables...")
         # Import models to register them
-        from models import Job, Robot, SystemLog, Alert, AlertThreshold
+        from models import Job, Robot, SystemLog, Alert, AlertThreshold, User
         Base.metadata.create_all(bind=engine)
         print("Database tables created successfully!")
+        
+        # Initialize default users if they don't exist
+        try:
+            from scripts.init_users import init_default_users
+            init_default_users()
+        except Exception as e:
+            print(f"Warning: Could not initialize default users: {e}")
     except Exception as e:
         print(f"Error initializing database: {e}")
         raise
@@ -122,6 +136,7 @@ app.include_router(robots_db.router, prefix=API_PREFIX, tags=["robots-database"]
 app.include_router(data_validation.router, prefix=API_PREFIX, tags=["validation"])
 app.include_router(alerts.router, prefix=API_PREFIX, tags=["alerts"])
 app.include_router(logs.router, prefix=API_PREFIX, tags=["logs"])
+app.include_router(users.router, prefix=API_PREFIX, tags=["users"])
 
 
 @app.get("/")

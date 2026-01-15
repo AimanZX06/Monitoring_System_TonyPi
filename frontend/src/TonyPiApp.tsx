@@ -8,28 +8,14 @@ import Sensors from './pages/Sensors';
 import Login from './pages/Login';
 import Alerts from './pages/Alerts';
 import Logs from './pages/Logs';
-import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, BookOpen, CheckCircle, HelpCircle, X, Compass, LogOut, User, Menu, Sun, Moon, Bell, FileText } from 'lucide-react';
+import Users from './pages/Users';
+import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, BookOpen, CheckCircle, HelpCircle, X, Compass, LogOut, User, Menu, Sun, Moon, Bell, FileText, Users as UsersIcon } from 'lucide-react';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import ToastContainer from './components/Toast';
 import { apiService } from './utils/api';
-
-interface RobotData {
-  robot_id: string;
-  battery_level: number;
-  location: { x: number; y: number; z: number };
-  sensors: { [key: string]: number };
-  status: string;
-  last_seen: string;
-}
-
-interface SensorReading {
-  timestamp: string;
-  sensor_type: string;
-  value: number;
-  unit: string;
-}
+import { RobotData, SensorData } from './types';
 
 // Inner component that uses notifications and authentication
 const TonyPiAppContent: React.FC = () => {
@@ -39,7 +25,7 @@ const TonyPiAppContent: React.FC = () => {
   const [systemStatus] = useState<string>('Online');
   const [robotData, setRobotData] = useState<RobotData | null>(null);
   const [allRobots, setAllRobots] = useState<RobotData[]>([]);
-  const [recentSensors, setRecentSensors] = useState<SensorReading[]>([]);
+  const [recentSensors, setRecentSensors] = useState<SensorData[]>([]);
   const [jobStats, setJobStats] = useState<any>({ activeJobs: 0, completedToday: 0, totalItems: 0 });
   const [selectedTab, setSelectedTab] = useState<string>('overview');
   const [selectedRobotId, setSelectedRobotId] = useState<string>('');
@@ -69,7 +55,7 @@ const TonyPiAppContent: React.FC = () => {
           apiService.getSystemStatus()
         ]);
         
-        setAllRobots(robots as any);
+        setAllRobots(robots);
         if (status?.services) {
           setSystemServices(status.services);
         }
@@ -81,7 +67,7 @@ const TonyPiAppContent: React.FC = () => {
             : robots[0];
           
           if (targetRobot) {
-            setRobotData(targetRobot as any);
+            setRobotData(targetRobot);
             // Auto-set selected robot if not set
             if (!selectedRobotId) {
               setSelectedRobotId(targetRobot.robot_id);
@@ -117,7 +103,7 @@ const TonyPiAppContent: React.FC = () => {
         }
 
         const sensors = await apiService.getSensorData('sensors', '1m');
-        setRecentSensors(sensors.slice(-10) as any);
+        setRecentSensors(sensors.slice(-10));
       } catch (err) {
         console.error('Error fetching robot data:', err);
         setIsConnected(false);
@@ -148,7 +134,8 @@ const TonyPiAppContent: React.FC = () => {
     { id: 'jobs', label: 'Jobs', icon: Zap },
     { id: 'alerts', label: 'Alerts', icon: Bell },
     { id: 'logs', label: 'Logs', icon: FileText },
-    { id: 'reports', label: 'Reports', icon: AlertCircle }
+    { id: 'reports', label: 'Reports', icon: AlertCircle },
+    ...(user?.role === 'admin' ? [{ id: 'users', label: 'Users', icon: UsersIcon }] : [])
   ];
 
   // Show loading spinner while checking authentication
@@ -418,6 +405,13 @@ const TonyPiAppContent: React.FC = () => {
           </div>
         )}
 
+        {/* Users Tab (Admin only) */}
+        {selectedTab === 'users' && user?.role === 'admin' && (
+          <div className="fade-in">
+            <Users />
+          </div>
+        )}
+
         {/* Overview Tab */}
         {selectedTab === 'overview' && (
           <div className="space-y-6 fade-in">
@@ -534,7 +528,7 @@ const TonyPiAppContent: React.FC = () => {
                     </div>
                     <div className={`p-4 rounded-lg border ${isDark ? 'bg-yellow-900/30 border-yellow-800' : 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200'}`}>
                       <p className={`text-sm mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Battery Level</p>
-                      <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{robotData.battery_level?.toFixed(1) || 'N/A'}%</p>
+                      <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{robotData.battery_percentage?.toFixed(1) || 'N/A'}%</p>
                     </div>
                   </div>
                   <div className="space-y-3">

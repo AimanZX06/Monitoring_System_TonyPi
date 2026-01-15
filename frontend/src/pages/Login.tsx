@@ -24,10 +24,15 @@ const Login: React.FC = () => {
     try {
       const success = await login(username, password);
       if (!success) {
-        setError('Invalid username or password');
+        setError('Invalid username or password. Please check your credentials or ensure the backend is running.');
       }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      if (err.message?.includes('Network') || err.code === 'ECONNABORTED') {
+        setError('Cannot connect to server. Please ensure the backend is running.');
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

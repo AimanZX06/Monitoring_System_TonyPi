@@ -3,7 +3,6 @@ export interface RobotData {
   name?: string;
   status: string;
   battery_percentage?: number;
-  battery_level?: number;
   last_seen: string;
   location?: {
     x: number;
@@ -20,9 +19,10 @@ export interface SensorData {
   timestamp: Date;
   measurement: string;
   field: string;
-  value: number;
+  value: number | string | boolean;
   robot_id?: string;
   sensor_type?: string;
+  unit?: string;
 }
 
 export interface Report {

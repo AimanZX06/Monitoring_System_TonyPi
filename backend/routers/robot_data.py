@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List
+from typing import Optional, List, Union
 from pydantic import BaseModel
 from datetime import datetime
 from database.influx_client import influx_client
@@ -7,13 +7,33 @@ from job_store import job_store
 
 router = APIRouter()
 
+# Measurement name aliases for backward compatibility
+# Frontend may request "sensors" but data is stored as "sensor_data"
+MEASUREMENT_ALIASES = {
+    "sensors": "sensor_data",
+    "servos": "servo_data", 
+    "battery": "battery_status",
+    "location": "robot_location",
+    # These are correct as-is
+    "sensor_data": "sensor_data",
+    "servo_data": "servo_data",
+    "battery_status": "battery_status",
+    "robot_location": "robot_location",
+    "robot_status": "robot_status",
+}
+
+def resolve_measurement_name(measurement: str) -> str:
+    """Resolve measurement alias to actual InfluxDB measurement name."""
+    return MEASUREMENT_ALIASES.get(measurement, measurement)
+
 class SensorData(BaseModel):
     timestamp: datetime
     measurement: str
     field: str
-    value: float
+    value: Union[float, int, str, bool]  # Allow multiple types since unit is a string
     robot_id: Optional[str] = None
     sensor_type: Optional[str] = None
+    unit: Optional[str] = None  # Unit for the sensor value
 
 class RobotStatus(BaseModel):
     robot_id: str
@@ -26,34 +46,73 @@ class RobotStatus(BaseModel):
 
 @router.get("/robot-data/sensors", response_model=List[SensorData])
 async def get_sensor_data(
-    measurement: str = Query(..., description="Measurement type (e.g., sensors, battery, location)"),
+    measurement: str = Query(..., description="Measurement type (e.g., sensors, sensor_data, battery, battery_status)"),
     time_range: str = Query("1h", description="Time range (e.g., 1h, 24h, 7d)"),
     robot_id: Optional[str] = Query(None, description="Filter by robot ID")
 ):
-    """Get sensor data from InfluxDB"""
+    """Get sensor data from InfluxDB - returns combined value/unit records for frontend"""
     try:
-        data = influx_client.query_recent_data(measurement, time_range)
+        # Resolve measurement alias (e.g., "sensors" -> "sensor_data")
+        actual_measurement = resolve_measurement_name(measurement)
+        data = influx_client.query_recent_data(actual_measurement, time_range)
         
         # Filter by robot_id if provided
         if robot_id:
             data = [d for d in data if d.get('robot_id') == robot_id]
         
-        # Convert to response model
-        result = []
+        # Group by timestamp and sensor_type to combine value and unit
+        # Key: (timestamp_str, sensor_type, robot_id) -> {value: X, unit: Y}
+        grouped = {}
         for item in data:
-            try:
-                result.append(SensorData(
-                    timestamp=item.get('time'),
-                    measurement=item.get('measurement', measurement),
-                    field=item.get('field', ''),
-                    value=item.get('value', 0),
-                    robot_id=item.get('robot_id'),
-                    sensor_type=item.get('sensor_type')
-                ))
-            except Exception as e:
-                # Skip invalid items but continue processing
-                print(f"Warning: Skipping invalid sensor data item: {e}")
+            time_val = item.get('time')
+            sensor_type = item.get('sensor_type')
+            rid = item.get('robot_id')
+            field = item.get('field', '')
+            value = item.get('value')
+            
+            if not sensor_type or not time_val:
                 continue
+            
+            # Create a key based on timestamp (rounded to second), sensor_type, and robot_id
+            time_str = str(time_val)[:19] if time_val else ''  # Truncate to second
+            key = (time_str, sensor_type, rid)
+            
+            if key not in grouped:
+                grouped[key] = {
+                    'timestamp': time_val,
+                    'sensor_type': sensor_type,
+                    'robot_id': rid,
+                    'measurement': item.get('measurement', measurement),
+                    'value': None,
+                    'unit': ''
+                }
+            
+            # Store value or unit
+            if field == 'value':
+                grouped[key]['value'] = value
+            elif field == 'unit':
+                grouped[key]['unit'] = str(value) if value else ''
+        
+        # Convert to response model - only include records with actual values
+        result = []
+        for key, item in grouped.items():
+            if item['value'] is not None:
+                try:
+                    result.append(SensorData(
+                        timestamp=item['timestamp'],
+                        measurement=item['measurement'],
+                        field='value',  # Always 'value' for combined records
+                        value=item['value'],
+                        robot_id=item['robot_id'],
+                        sensor_type=item['sensor_type'],
+                        unit=item['unit']  # Include unit in response
+                    ))
+                except Exception as e:
+                    print(f"Warning: Skipping invalid sensor data item: {e}")
+                    continue
+        
+        # Sort by timestamp descending
+        result.sort(key=lambda x: x.timestamp, reverse=True)
         
         return result
     except Exception as e:
@@ -68,9 +127,10 @@ async def get_robot_status():
     """Get current robot status"""
     try:
         # Get recent status data
+        # Note: measurement names must match what influx_client writes to
         status_data = influx_client.query_recent_data("robot_status", "5m")
-        battery_data = influx_client.query_recent_data("battery", "5m")
-        location_data = influx_client.query_recent_data("location", "5m")
+        battery_data = influx_client.query_recent_data("battery_status", "5m")
+        location_data = influx_client.query_recent_data("robot_location", "5m")
         
         # Process and combine data
         robots = {}
@@ -121,9 +181,10 @@ async def get_latest_data(robot_id: str):
     """Get latest data for a specific robot"""
     try:
         # Get latest data from different measurements
-        sensor_data = influx_client.query_recent_data("sensors", "5m")
-        battery_data = influx_client.query_recent_data("battery", "5m")
-        location_data = influx_client.query_recent_data("location", "5m")
+        # Note: measurement names must match what influx_client writes to
+        sensor_data = influx_client.query_recent_data("sensor_data", "5m")
+        battery_data = influx_client.query_recent_data("battery_status", "5m")
+        location_data = influx_client.query_recent_data("robot_location", "5m")
         status_data = influx_client.query_recent_data("robot_status", "5m")
         
         # Filter by robot_id and get latest values
@@ -205,7 +266,8 @@ async def get_servo_data(
     """Get latest servo data for a specific robot"""
     try:
         # Get servo data from InfluxDB
-        servo_data = influx_client.query_recent_data("servos", time_range)
+        # Note: measurement name must match what influx_client.write_servo_data writes to
+        servo_data = influx_client.query_recent_data("servo_data", time_range)
         
         # Filter by robot_id
         filtered_data = [d for d in servo_data if d.get('robot_id') == robot_id]

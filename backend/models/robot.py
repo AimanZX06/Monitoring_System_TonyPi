@@ -14,7 +14,7 @@ class Robot(Base):
     robot_id = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=True)
     description = Column(String, nullable=True)
-    location = Column(String, nullable=True)
+    location = Column(JSON, nullable=True)  # JSON object: {x: float, y: float, z: float}
     status = Column(String, default='offline')  # online, offline, error, maintenance
     ip_address = Column(String, nullable=True)  # Robot's IP address
     camera_url = Column(String, nullable=True)  # Camera stream URL
@@ -35,7 +35,7 @@ class Robot(Base):
             'robot_id': self.robot_id,
             'name': self.name,
             'description': self.description,
-            'location': self.location,
+            'location': self.location,  # Already JSON, returns as dict {x, y, z}
             'status': self.status,
             'ip_address': self.ip_address,
             'camera_url': self.camera_url,

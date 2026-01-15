@@ -48,8 +48,9 @@ const Robots: React.FC = () => {
   const controlRobot = robots.find(r => r.robot_id === controlRobotId);
   
   // Get camera URL from selected robot (or derive from IP address)
+  // Camera stream runs on port 8081
   const cameraUrl = controlRobot?.camera_url || 
-    (controlRobot?.ip_address ? `http://${controlRobot.ip_address}:8080/?action=stream` : null);
+    (controlRobot?.ip_address ? `http://${controlRobot.ip_address}:8081/?action=stream` : null);
 
   // Fetch terminal logs periodically for selected robot
   useEffect(() => {
