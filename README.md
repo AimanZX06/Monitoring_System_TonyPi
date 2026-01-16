@@ -2,7 +2,6 @@
 
 A comprehensive full-stack monitoring, analytics, and management system for HiWonder TonyPi robots (Raspberry Pi 5). Real-time data collection, AI-powered insights, and a modern web interface.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![React](https://img.shields.io/badge/react-18-blue.svg)
@@ -392,12 +391,6 @@ Monitoring_System_TonyPi/
 ├── docker-compose.yml     # Docker orchestration
 └── .env                   # Environment config
 ```
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
