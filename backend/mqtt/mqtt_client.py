@@ -26,8 +26,8 @@ class MQTTClient:
     def __init__(self):
         self.broker_host = os.getenv("MQTT_BROKER_HOST", "localhost")
         self.broker_port = int(os.getenv("MQTT_BROKER_PORT", 1883))
-        self.username = os.getenv("MQTT_USERNAME", "tonypi")
-        self.password = os.getenv("MQTT_PASSWORD", "tonypi123")
+        self.username = os.getenv("MQTT_USERNAME")
+        self.password = os.getenv("MQTT_PASSWORD")
         
         self.client = mqtt.Client()
         self.client.username_pw_set(self.username, self.password)

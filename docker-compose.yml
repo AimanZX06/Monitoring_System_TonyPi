@@ -88,6 +88,13 @@ services:
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_AUTH_DISABLE_LOGIN_FORM=false
       - GF_SECURITY_COOKIE_SAMESITE=none
+      # Pass credentials for datasource provisioning
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
       influxdb:
         condition: service_healthy

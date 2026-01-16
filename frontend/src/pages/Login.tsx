@@ -162,48 +162,6 @@ const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 sm:mt-8 pt-6 border-t border-white/10">
-            <p className="text-center text-gray-400 text-sm mb-4">Demo Credentials</p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => { setUsername('admin'); setPassword('admin123'); }}
-                className="p-2 sm:p-3 rounded-lg transition-colors hover:bg-white/10"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <p className="text-xs sm:text-sm text-gray-300 font-medium">Admin</p>
-                <p className="text-xs text-gray-500 mt-1 hidden sm:block">admin123</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setUsername('operator'); setPassword('operator123'); }}
-                className="p-2 sm:p-3 rounded-lg transition-colors hover:bg-white/10"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <p className="text-xs sm:text-sm text-gray-300 font-medium">Operator</p>
-                <p className="text-xs text-gray-500 mt-1 hidden sm:block">operator123</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setUsername('viewer'); setPassword('viewer123'); }}
-                className="p-2 sm:p-3 rounded-lg transition-colors hover:bg-white/10"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <p className="text-xs sm:text-sm text-gray-300 font-medium">Viewer</p>
-                <p className="text-xs text-gray-500 mt-1 hidden sm:block">viewer123</p>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
