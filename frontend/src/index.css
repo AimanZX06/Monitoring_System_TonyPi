@@ -24,11 +24,16 @@
 }
 
 @layer components {
-  /* Enhanced Card Component */
+  /* Enhanced Card Component - Light Mode */
   .card {
     @apply bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(10px);
+  }
+
+  /* Enhanced Card Component - Dark Mode */
+  .dark .card {
+    @apply bg-gray-800 border-gray-700 shadow-gray-900/50;
   }
 
   .card:hover {
@@ -49,6 +54,10 @@
     @apply font-semibold shadow-sm transition-all duration-200;
     @apply hover:bg-gray-200 hover:shadow-md;
     @apply active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+  }
+
+  .dark .btn-secondary {
+    @apply bg-gray-700 text-gray-200 hover:bg-gray-600;
   }
 
   .btn-danger {
@@ -101,7 +110,11 @@
   .input-field {
     @apply w-full px-4 py-3 rounded-lg border border-gray-300;
     @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
-    @apply transition-all duration-200 bg-white;
+    @apply transition-all duration-200 bg-white text-gray-900;
+  }
+
+  .dark .input-field {
+    @apply bg-gray-700 border-gray-600 text-white placeholder-gray-400;
   }
 
   .input-field:focus {
@@ -262,7 +275,15 @@
   }
 }
 
-/* Dark Mode Support (Future) */
-@media (prefers-color-scheme: dark) {
-  /* Can be implemented later */
+/* Dark Mode Support */
+.dark body {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-600 hover:bg-gray-500;
 }

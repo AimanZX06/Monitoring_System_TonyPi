@@ -4,6 +4,7 @@ import { Activity, Cpu, HardDrive, Thermometer, Clock, ExternalLink, TrendingUp 
 import { apiService } from '../utils/api';
 import GrafanaPanel from '../components/GrafanaPanel';
 import { getGrafanaPanelUrl, getGrafanaDashboardUrl } from '../utils/config';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SystemMetrics {
   cpu_percent: number;
@@ -23,6 +24,7 @@ interface ChartDataPoint {
 }
 
 const Monitoring: React.FC = () => {
+  const { isDark } = useTheme();
   const [robotId, setRobotId] = useState('');
   const [allRobots, setAllRobots] = useState<{robot_id: string, status: string}[]>([]);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
@@ -32,7 +34,6 @@ const Monitoring: React.FC = () => {
   useEffect(() => {
     const fetchPerformanceData = async () => {
       try {
-        // Auto-detect robot ID from connected robots
         const robots = await apiService.getRobotStatus();
         setAllRobots(robots.map(r => ({ robot_id: r.robot_id, status: r.status })));
         
@@ -41,30 +42,26 @@ const Monitoring: React.FC = () => {
           return;
         }
         
-        // Use first robot or the one matching robotId
         const targetRobot = robotId ? robots.find(r => r.robot_id === robotId) : robots[0];
         if (!targetRobot) {
           setLoading(false);
           return;
         }
         
-        // Auto-set robot ID if not manually set
         if (!robotId && targetRobot) {
           setRobotId(targetRobot.robot_id);
         }
         
-        // Get detailed performance data
         const perfData = await apiService.getPiPerformance(targetRobot.robot_id, '10m');
         
         if (perfData && perfData.length > 0) {
-          // Group data by timestamp
           const timeGroups: { [key: string]: any } = {};
           
           perfData.forEach((d: any) => {
             if (!d.field || !d.field.startsWith('system_')) return;
             
             const timestamp = new Date(d.time);
-            if (isNaN(timestamp.getTime())) return; // Skip invalid dates
+            if (isNaN(timestamp.getTime())) return;
             
             const timeKey = timestamp.toLocaleTimeString();
             
@@ -87,7 +84,6 @@ const Monitoring: React.FC = () => {
             if (d.field === 'system_uptime') timeGroups[timeKey].uptime = d.value;
           });
           
-          // Sort by timestamp and take latest 20
           const sortedData = Object.values(timeGroups)
             .sort((a: any, b: any) => a.timestamp - b.timestamp)
             .slice(-20)
@@ -97,7 +93,6 @@ const Monitoring: React.FC = () => {
           
           setChartData(sortedData);
           
-          // Get latest values for metric cards
           const latest = Object.values(timeGroups).sort((a: any, b: any) => b.timestamp - a.timestamp)[0] as any;
           
           if (latest) {
@@ -130,9 +125,9 @@ const Monitoring: React.FC = () => {
   };
 
   const getColorClass = (value: number, thresholds: {warning: number, danger: number}) => {
-    if (value >= thresholds.danger) return 'text-red-600';
-    if (value >= thresholds.warning) return 'text-yellow-600';
-    return 'text-green-600';
+    if (value >= thresholds.danger) return isDark ? 'text-red-400' : 'text-red-600';
+    if (value >= thresholds.warning) return isDark ? 'text-yellow-400' : 'text-yellow-600';
+    return isDark ? 'text-green-400' : 'text-green-600';
   };
 
   if (loading) {
@@ -150,7 +145,7 @@ const Monitoring: React.FC = () => {
       unit: '%',
       icon: Cpu,
       color: getColorClass(metrics?.cpu_percent || 0, {warning: 60, danger: 80}),
-      bgColor: 'bg-blue-50',
+      bgColor: isDark ? 'bg-blue-900/30' : 'bg-blue-50',
       thresholds: {warning: 60, danger: 80}
     },
     {
@@ -159,7 +154,7 @@ const Monitoring: React.FC = () => {
       unit: '%',
       icon: Activity,
       color: getColorClass(metrics?.memory_percent || 0, {warning: 70, danger: 85}),
-      bgColor: 'bg-purple-50',
+      bgColor: isDark ? 'bg-purple-900/30' : 'bg-purple-50',
       thresholds: {warning: 70, danger: 85}
     },
     {
@@ -168,7 +163,7 @@ const Monitoring: React.FC = () => {
       unit: '%',
       icon: HardDrive,
       color: getColorClass(metrics?.disk_usage || 0, {warning: 75, danger: 90}),
-      bgColor: 'bg-orange-50',
+      bgColor: isDark ? 'bg-orange-900/30' : 'bg-orange-50',
       thresholds: {warning: 75, danger: 90}
     },
     {
@@ -177,7 +172,7 @@ const Monitoring: React.FC = () => {
       unit: '°C',
       icon: Thermometer,
       color: getColorClass(metrics?.temperature || 0, {warning: 60, danger: 75}),
-      bgColor: 'bg-red-50',
+      bgColor: isDark ? 'bg-red-900/30' : 'bg-red-50',
       thresholds: {warning: 60, danger: 75}
     }
   ];
@@ -188,21 +183,20 @@ const Monitoring: React.FC = () => {
       <div className="card">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className={`text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <Activity className="h-6 w-6" />
               Performance / Task Manager
             </h2>
-            <p className="text-gray-600 mt-1">
+            <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               Real-time Raspberry Pi system metrics: CPU, Memory, Disk, and Temperature
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            {/* Robot Selector */}
             {allRobots.length > 0 && (
               <select
                 value={robotId}
                 onChange={(e) => setRobotId(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
               >
                 {allRobots.map((robot) => (
                   <option key={robot.robot_id} value={robot.robot_id}>
@@ -212,7 +206,7 @@ const Monitoring: React.FC = () => {
               </select>
             )}
             {metrics && (
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className={`flex items-center gap-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 <Clock className="h-4 w-4" />
                 <span className="text-sm">Uptime: {formatUptime(metrics.uptime)}</span>
               </div>
@@ -231,17 +225,16 @@ const Monitoring: React.FC = () => {
                   <card.icon className={`h-6 w-6 ${card.color}`} />
                 </div>
                 <div className="ml-4 flex-1">
-                  <p className="text-sm font-medium text-gray-600">{card.title}</p>
+                  <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{card.title}</p>
                   <div className="flex items-baseline gap-2">
                     <p className={`text-3xl font-bold ${card.color}`}>
                       {card.value.toFixed(1)}
                     </p>
-                    <span className="text-sm text-gray-500">{card.unit}</span>
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{card.unit}</span>
                   </div>
                 </div>
               </div>
-              {/* Progress bar */}
-              <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+              <div className={`mt-3 w-full rounded-full h-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ${
                     card.value >= card.thresholds.danger
@@ -258,7 +251,7 @@ const Monitoring: React.FC = () => {
         </div>
       ) : (
         <div className="card text-center py-8">
-          <p className="text-gray-600">
+          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
             No performance records. Click "Refresh Performance" after the robot publishes telemetry.
           </p>
         </div>
@@ -268,13 +261,13 @@ const Monitoring: React.FC = () => {
       {chartData.length > 0 && (
         <>
           <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">CPU & Memory Usage Over Time</h3>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>CPU & Memory Usage Over Time</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis domain={[0, 100]} label={{ value: '%', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                <XAxis dataKey="time" stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                <YAxis domain={[0, 100]} label={{ value: '%', angle: -90, position: 'insideLeft', fill: isDark ? '#9ca3af' : '#6b7280' }} stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', border: isDark ? '1px solid #374151' : '1px solid #e5e7eb', color: isDark ? '#fff' : '#000' }} />
                 <Legend />
                 <Line type="monotone" dataKey="cpu" stroke="#3b82f6" name="CPU %" strokeWidth={2} />
                 <Line type="monotone" dataKey="memory" stroke="#8b5cf6" name="Memory %" strokeWidth={2} />
@@ -284,26 +277,26 @@ const Monitoring: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Disk Usage</h3>
+              <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Disk Usage</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                  <XAxis dataKey="time" stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                  <YAxis domain={[0, 100]} stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                  <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', border: isDark ? '1px solid #374151' : '1px solid #e5e7eb', color: isDark ? '#fff' : '#000' }} />
                   <Line type="monotone" dataKey="disk" stroke="#f59e0b" name="Disk %" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
             <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">CPU Temperature</h3>
+              <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>CPU Temperature</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                  <XAxis dataKey="time" stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                  <YAxis domain={[0, 100]} stroke={isDark ? '#9ca3af' : '#6b7280'} />
+                  <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', border: isDark ? '1px solid #374151' : '1px solid #e5e7eb', color: isDark ? '#fff' : '#000' }} />
                   <Line type="monotone" dataKey="temperature" stroke="#ef4444" name="Temp °C" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
@@ -316,7 +309,7 @@ const Monitoring: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Advanced System Analytics</h3>
+                  <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Advanced System Analytics</h3>
                 </div>
                 <a
                   href={getGrafanaDashboardUrl()}
@@ -329,26 +322,24 @@ const Monitoring: React.FC = () => {
                 </a>
               </div>
               
-              {/* CPU & Memory Panel */}
               <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">System Performance (CPU & Memory)</h4>
+                <h4 className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>System Performance (CPU & Memory)</h4>
                 <GrafanaPanel 
                   panelUrl={getGrafanaPanelUrl(1)}
                   height={350}
                 />
               </div>
 
-              {/* CPU Temperature Gauge */}
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">CPU Temperature Gauge</h4>
+                <h4 className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>CPU Temperature Gauge</h4>
                 <GrafanaPanel 
                   panelUrl={getGrafanaPanelUrl(2)}
                   height={250}
                 />
               </div>
 
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-700">
+              <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+                <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   <span className="font-semibold">Pro Tip:</span> These charts auto-refresh every 5 seconds. 
                   Click "Open Full Dashboard" to access all Grafana features including time range selection, 
                   zoom, and custom queries. For sensor data, visit the <strong>Sensors</strong> tab.

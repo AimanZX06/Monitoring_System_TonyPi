@@ -20,10 +20,12 @@ import {
   Settings,
   Clock,
   Save,
-  Activity
+  Activity,
+  Zap
 } from 'lucide-react';
 import { apiService, handleApiError } from '../utils/api';
 import { useNotification } from '../contexts/NotificationContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Alert {
   id: number;
@@ -63,6 +65,7 @@ interface Threshold {
 }
 
 const Alerts: React.FC = () => {
+  const { isDark } = useTheme();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [stats, setStats] = useState<AlertStats | null>(null);
   const [thresholds, setThresholds] = useState<Threshold[]>([]);
@@ -74,6 +77,7 @@ const Alerts: React.FC = () => {
   const [robots, setRobots] = useState<string[]>([]);
   const [showThresholdModal, setShowThresholdModal] = useState(false);
   const [expandedAlerts, setExpandedAlerts] = useState<Set<number>>(new Set());
+  const [thresholdValues, setThresholdValues] = useState<Record<string, { warning: number; critical: number }>>({});
 
   const { success, error: showError } = useNotification();
 
@@ -110,6 +114,34 @@ const Alerts: React.FC = () => {
     try {
       const data = await apiService.getThresholds(selectedRobot || undefined);
       setThresholds(data);
+      
+      const values: Record<string, { warning: number; critical: number }> = {};
+      let defaultThresholds: any = {};
+      
+      try {
+        defaultThresholds = await apiService.getDefaultThresholds();
+      } catch (err) {
+        console.warn('Could not fetch default thresholds, using fallback values:', err);
+      }
+      
+      const metricTypes = [
+        { type: 'cpu', defaults: defaultThresholds.cpu },
+        { type: 'memory', defaults: defaultThresholds.memory },
+        { type: 'temperature', defaults: defaultThresholds.temperature },
+        { type: 'battery', defaults: defaultThresholds.battery },
+        { type: 'servo_temp', defaults: defaultThresholds.servo_temp },
+        { type: 'servo_voltage', defaults: defaultThresholds.servo_voltage },
+      ];
+      
+      metricTypes.forEach(({ type, defaults }) => {
+        const threshold = data.find(t => t.metric_type === type && !t.robot_id);
+        values[type] = {
+          warning: threshold?.warning_threshold ?? defaults?.warning ?? 70,
+          critical: threshold?.critical_threshold ?? defaults?.critical ?? 90,
+        };
+      });
+      
+      setThresholdValues(values);
     } catch (err) {
       console.error('Error fetching thresholds:', err);
     }
@@ -171,11 +203,11 @@ const Alerts: React.FC = () => {
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return <AlertCircle className="h-5 w-5 text-red-600" />;
+        return <AlertCircle className={`h-5 w-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />;
       case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+        return <AlertTriangle className={`h-5 w-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />;
       default:
-        return <Info className="h-5 w-5 text-blue-600" />;
+        return <Info className={`h-5 w-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />;
     }
   };
 
@@ -183,11 +215,11 @@ const Alerts: React.FC = () => {
     const baseClass = "px-2 py-1 rounded-full text-xs font-medium";
     switch (severity) {
       case 'critical':
-        return <span className={`${baseClass} bg-red-100 text-red-800`}>Critical</span>;
+        return <span className={`${baseClass} ${isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-800'}`}>Critical</span>;
       case 'warning':
-        return <span className={`${baseClass} bg-yellow-100 text-yellow-800`}>Warning</span>;
+        return <span className={`${baseClass} ${isDark ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-800'}`}>Warning</span>;
       default:
-        return <span className={`${baseClass} bg-blue-100 text-blue-800`}>Info</span>;
+        return <span className={`${baseClass} ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800'}`}>Info</span>;
     }
   };
 
@@ -229,7 +261,7 @@ const Alerts: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Loading alerts...</span>
+        <span className={`ml-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading alerts...</span>
       </div>
     );
   }
@@ -239,14 +271,14 @@ const Alerts: React.FC = () => {
       {/* Header */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Bell className="h-6 w-6 text-red-600" />
+          <h2 className={`text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <Bell className={`h-6 w-6 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
             Alerts & Notifications
           </h2>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                fetchThresholds();
+              onClick={async () => {
+                await fetchThresholds();
                 setShowThresholdModal(true);
               }}
               className="btn-secondary flex items-center gap-2"
@@ -265,15 +297,15 @@ const Alerts: React.FC = () => {
         </div>
 
         {/* Robot Selector - Prominent */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+        <div className={`mb-6 p-4 rounded-xl border ${isDark ? 'bg-blue-900/20 border-blue-700' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Bot className="h-6 w-6 text-blue-600" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-blue-800' : 'bg-blue-100'}`}>
+                <Bot className={`h-6 w-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Viewing Alerts For</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Viewing Alerts For</p>
+                <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {selectedRobot || 'All Robots'}
                 </p>
               </div>
@@ -281,7 +313,7 @@ const Alerts: React.FC = () => {
             <select
               value={selectedRobot}
               onChange={(e) => setSelectedRobot(e.target.value)}
-              className="px-4 py-2 border border-blue-300 rounded-lg text-sm font-medium bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[200px]"
+              className={`px-4 py-2 border rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[200px] ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-blue-300'}`}
             >
               <option value="">All Robots</option>
               {robots.map((robot) => (
@@ -294,29 +326,29 @@ const Alerts: React.FC = () => {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-              <p className="text-xs text-slate-600">Total</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Total</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{stats.total}</p>
             </div>
-            <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-              <p className="text-xs text-red-600">Critical</p>
-              <p className="text-2xl font-bold text-red-900">{stats.critical}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-red-400' : 'text-red-600'}`}>Critical</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-red-300' : 'text-red-900'}`}>{stats.critical}</p>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-              <p className="text-xs text-yellow-600">Warning</p>
-              <p className="text-2xl font-bold text-yellow-900">{stats.warning}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>Warning</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-yellow-300' : 'text-yellow-900'}`}>{stats.warning}</p>
             </div>
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <p className="text-xs text-blue-600">Info</p>
-              <p className="text-2xl font-bold text-blue-900">{stats.info}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Info</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>{stats.info}</p>
             </div>
-            <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
-              <p className="text-xs text-orange-600">Unacknowledged</p>
-              <p className="text-2xl font-bold text-orange-900">{stats.unacknowledged}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-orange-900/20 border-orange-800' : 'bg-orange-50 border-orange-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>Unacknowledged</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-orange-300' : 'text-orange-900'}`}>{stats.unacknowledged}</p>
             </div>
-            <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-              <p className="text-xs text-purple-600">Unresolved</p>
-              <p className="text-2xl font-bold text-purple-900">{stats.unresolved}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-purple-900/20 border-purple-800' : 'bg-purple-50 border-purple-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>Unresolved</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-purple-300' : 'text-purple-900'}`}>{stats.unresolved}</p>
             </div>
           </div>
         )}
@@ -324,14 +356,14 @@ const Alerts: React.FC = () => {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">Filters:</span>
+            <Filter className={`h-4 w-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Filters:</span>
           </div>
           
           <select
             value={selectedSeverity}
             onChange={(e) => setSelectedSeverity(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            className={`px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
           >
             <option value="">All Severities</option>
             <option value="critical">Critical</option>
@@ -342,7 +374,7 @@ const Alerts: React.FC = () => {
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            className={`px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
           >
             <option value="1h">Last Hour</option>
             <option value="6h">Last 6 Hours</option>
@@ -351,12 +383,12 @@ const Alerts: React.FC = () => {
             <option value="30d">Last 30 Days</option>
           </select>
 
-          <label className="flex items-center gap-2 text-sm">
+          <label className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             <input
               type="checkbox"
               checked={showResolved}
               onChange={(e) => setShowResolved(e.target.checked)}
-              className="rounded border-gray-300"
+              className={`rounded ${isDark ? 'border-gray-600' : 'border-gray-300'}`}
             />
             Show Resolved
           </label>
@@ -377,9 +409,9 @@ const Alerts: React.FC = () => {
       <div className="space-y-3">
         {alerts.length === 0 ? (
           <div className="card text-center py-12">
-            <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No alerts found</p>
-            <p className="text-sm text-gray-500 mt-1">System is running smoothly!</p>
+            <Bell className={`h-12 w-12 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No alerts found</p>
+            <p className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>System is running smoothly!</p>
           </div>
         ) : (
           alerts.map((alert) => {
@@ -398,38 +430,38 @@ const Alerts: React.FC = () => {
                     {getSeverityIcon(alert.severity)}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-gray-900">{alert.title}</h4>
+                        <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{alert.title}</h4>
                         {getSeverityBadge(alert.severity)}
                         {getTypeIcon(alert.alert_type)}
                         {alert.resolved && (
-                          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
                             Resolved
                           </span>
                         )}
                         {alert.acknowledged && !alert.resolved && (
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-700'}`}>
                             Acknowledged
                           </span>
                         )}
                       </div>
-                      <p className="text-gray-600 text-sm">{alert.message}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{alert.message}</p>
+                      <div className={`flex items-center gap-4 mt-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                         {alert.robot_id ? (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
+                          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-indigo-900/30 text-indigo-400' : 'bg-indigo-100 text-indigo-700'}`}>
                             <Bot className="h-3 w-3" />
                             {alert.robot_id}
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full font-medium">
+                          <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
                             <Activity className="h-3 w-3" />
                             System-wide
                           </span>
                         )}
                         {alert.source && (
-                          <span className="px-2 py-0.5 bg-gray-100 rounded">Source: {alert.source}</span>
+                          <span className={`px-2 py-0.5 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>Source: {alert.source}</span>
                         )}
                         {alert.value !== null && alert.threshold !== null && (
-                          <span className="text-red-600 font-medium px-2 py-0.5 bg-red-50 rounded">
+                          <span className={`font-medium px-2 py-0.5 rounded ${isDark ? 'text-red-400 bg-red-900/20' : 'text-red-600 bg-red-50'}`}>
                             Value: {alert.value.toFixed(1)} (threshold: {alert.threshold})
                           </span>
                         )}
@@ -445,7 +477,7 @@ const Alerts: React.FC = () => {
                     {!alert.acknowledged && (
                       <button
                         onClick={() => acknowledgeAlert(alert.id)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        className={`p-2 rounded-lg transition-colors ${isDark ? 'text-green-400 hover:bg-green-900/30' : 'text-green-600 hover:bg-green-50'}`}
                         title="Acknowledge"
                       >
                         <Check className="h-4 w-4" />
@@ -454,7 +486,7 @@ const Alerts: React.FC = () => {
                     {!alert.resolved && (
                       <button
                         onClick={() => resolveAlert(alert.id)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className={`p-2 rounded-lg transition-colors ${isDark ? 'text-blue-400 hover:bg-blue-900/30' : 'text-blue-600 hover:bg-blue-50'}`}
                         title="Mark as Resolved"
                       >
                         <CheckCircle className="h-4 w-4" />
@@ -462,14 +494,14 @@ const Alerts: React.FC = () => {
                     )}
                     <button
                       onClick={() => deleteAlert(alert.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className={`p-2 rounded-lg transition-colors ${isDark ? 'text-red-400 hover:bg-red-900/30' : 'text-red-600 hover:bg-red-50'}`}
                       title="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => toggleExpand(alert.id)}
-                      className="p-2 text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                      className={`p-2 rounded-lg transition-colors ${isDark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-50'}`}
                     >
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
@@ -478,36 +510,36 @@ const Alerts: React.FC = () => {
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className={`mt-4 pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <p className="text-gray-500">Created</p>
-                        <p className="font-medium">{formatDate(alert.created_at)}</p>
+                        <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Created</p>
+                        <p className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{formatDate(alert.created_at)}</p>
                       </div>
                       {alert.acknowledged_at && (
                         <div>
-                          <p className="text-gray-500">Acknowledged</p>
-                          <p className="font-medium">{formatDate(alert.acknowledged_at)}</p>
+                          <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Acknowledged</p>
+                          <p className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{formatDate(alert.acknowledged_at)}</p>
                           {alert.acknowledged_by && (
-                            <p className="text-xs text-gray-400">by {alert.acknowledged_by}</p>
+                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>by {alert.acknowledged_by}</p>
                           )}
                         </div>
                       )}
                       {alert.resolved_at && (
                         <div>
-                          <p className="text-gray-500">Resolved</p>
-                          <p className="font-medium">{formatDate(alert.resolved_at)}</p>
+                          <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Resolved</p>
+                          <p className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{formatDate(alert.resolved_at)}</p>
                         </div>
                       )}
                       <div>
-                        <p className="text-gray-500">Alert Type</p>
-                        <p className="font-medium capitalize">{alert.alert_type}</p>
+                        <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Alert Type</p>
+                        <p className={`font-medium capitalize ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{alert.alert_type}</p>
                       </div>
                     </div>
                     {alert.details && (
                       <div className="mt-4">
-                        <p className="text-gray-500 text-sm mb-2">Additional Details:</p>
-                        <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">
+                        <p className={`text-sm mb-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Additional Details:</p>
+                        <pre className={`p-3 rounded text-xs overflow-x-auto ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
                           {JSON.stringify(alert.details, null, 2)}
                         </pre>
                       </div>
@@ -527,22 +559,22 @@ const Alerts: React.FC = () => {
           onClick={() => setShowThresholdModal(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            className={`rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto ${isDark ? 'bg-gray-800' : 'bg-white'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <h2 className={`text-xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <Sliders className="h-5 w-5 text-blue-600" />
                   Alert Thresholds
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   Configure warning and critical thresholds for monitoring
                 </p>
               </div>
               <button
                 onClick={() => setShowThresholdModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className={isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}
               >
                 <X className="h-6 w-6" />
               </button>
@@ -550,38 +582,67 @@ const Alerts: React.FC = () => {
 
             <div className="space-y-4">
               {/* Default Thresholds */}
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-900 mb-3">Default Thresholds</h3>
+              <div className={`p-4 rounded-lg border ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+                <h3 className={`font-semibold mb-3 ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>Default Thresholds</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
-                    { type: 'cpu', label: 'CPU Usage (%)', icon: Cpu },
-                    { type: 'memory', label: 'Memory Usage (%)', icon: Cpu },
-                    { type: 'temperature', label: 'Temperature (C)', icon: Thermometer },
-                    { type: 'battery', label: 'Battery Level (%)', icon: Battery },
-                    { type: 'servo_temp', label: 'Servo Temperature (C)', icon: Settings },
+                    { type: 'cpu', label: 'CPU Usage (%)', icon: Cpu, hint: 'Alert when above' },
+                    { type: 'memory', label: 'Memory Usage (%)', icon: Cpu, hint: 'Alert when above' },
+                    { type: 'temperature', label: 'CPU Temperature (°C)', icon: Thermometer, hint: 'Alert when above' },
+                    { type: 'battery', label: 'Battery Level (%)', icon: Battery, hint: 'Alert when below' },
+                    { type: 'servo_temp', label: 'Servo Temperature (°C)', icon: Settings, hint: 'Alert when above' },
+                    { type: 'servo_voltage', label: 'Servo Voltage (V)', icon: Zap, hint: 'Alert when below' },
                   ].map((metric) => {
                     const threshold = thresholds.find(t => t.metric_type === metric.type && !t.robot_id);
+                    const currentValues = thresholdValues[metric.type] || {
+                      warning: threshold?.warning_threshold || 70,
+                      critical: threshold?.critical_threshold || 90,
+                    };
+                    
                     return (
-                      <div key={metric.type} className="bg-white p-3 rounded-lg border border-gray-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <metric.icon className="h-4 w-4 text-gray-600" />
-                          <span className="font-medium text-gray-900">{metric.label}</span>
+                      <div key={metric.type} className={`p-3 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <metric.icon className={`h-4 w-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                            <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{metric.label}</span>
+                          </div>
+                          <span className={`text-xs italic ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{metric.hint}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
-                            <label className="text-xs text-yellow-600">Warning</label>
+                            <label className={`text-xs ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>Warning</label>
                             <input
                               type="number"
-                              defaultValue={threshold?.warning_threshold || 70}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              step={metric.type === 'servo_voltage' ? '0.1' : '1'}
+                              value={currentValues.warning}
+                              onChange={(e) => {
+                                setThresholdValues(prev => ({
+                                  ...prev,
+                                  [metric.type]: {
+                                    ...prev[metric.type],
+                                    warning: parseFloat(e.target.value) || 0,
+                                  }
+                                }));
+                              }}
+                              className={`w-full px-2 py-1 border rounded text-sm ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-red-600">Critical</label>
+                            <label className={`text-xs ${isDark ? 'text-red-400' : 'text-red-600'}`}>Critical</label>
                             <input
                               type="number"
-                              defaultValue={threshold?.critical_threshold || 90}
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              step={metric.type === 'servo_voltage' ? '0.1' : '1'}
+                              value={currentValues.critical}
+                              onChange={(e) => {
+                                setThresholdValues(prev => ({
+                                  ...prev,
+                                  [metric.type]: {
+                                    ...prev[metric.type],
+                                    critical: parseFloat(e.target.value) || 0,
+                                  }
+                                }));
+                              }}
+                              className={`w-full px-2 py-1 border rounded text-sm ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
                             />
                           </div>
                         </div>
@@ -591,10 +652,16 @@ const Alerts: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  <strong>Note:</strong> When a metric exceeds the warning threshold, a warning alert is generated.
-                  Exceeding the critical threshold generates a critical alert.
+              <div className={`p-4 rounded-lg space-y-2 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <strong>How thresholds work:</strong>
+                </p>
+                <ul className={`text-sm list-disc list-inside space-y-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <li><strong>CPU, Memory, Temperature, Servo Temp:</strong> Alert when value goes <em>above</em> threshold</li>
+                  <li><strong>Battery, Servo Voltage:</strong> Alert when value goes <em>below</em> threshold</li>
+                </ul>
+                <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Alerts are automatically generated when robot data exceeds these thresholds.
                 </p>
               </div>
             </div>
@@ -602,14 +669,30 @@ const Alerts: React.FC = () => {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setShowThresholdModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className={`flex-1 px-4 py-2 border rounded-lg ${isDark ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50'}`}
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  success('Thresholds Saved', 'Alert thresholds have been updated');
-                  setShowThresholdModal(false);
+                onClick={async () => {
+                  try {
+                    const savePromises = Object.entries(thresholdValues).map(([metricType, values]) => {
+                      return apiService.createOrUpdateThreshold({
+                        robot_id: selectedRobot || undefined,
+                        metric_type: metricType,
+                        warning_threshold: values.warning,
+                        critical_threshold: values.critical,
+                        enabled: true,
+                      });
+                    });
+                    
+                    await Promise.all(savePromises);
+                    success('Thresholds Saved', 'Alert thresholds have been updated');
+                    setShowThresholdModal(false);
+                    fetchThresholds();
+                  } catch (err) {
+                    showError('Error', handleApiError(err));
+                  }
                 }}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
               >

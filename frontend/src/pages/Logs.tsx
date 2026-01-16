@@ -20,6 +20,7 @@ import {
 import { RobotData } from '../types';
 import { apiService, handleApiError } from '../utils/api';
 import { useNotification } from '../contexts/NotificationContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LogEntry {
   id: number;
@@ -40,25 +41,8 @@ interface LogStats {
   by_category: Record<string, number>;
 }
 
-const LOG_LEVELS = {
-  INFO: { color: 'blue', icon: Info, bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
-  WARNING: { color: 'yellow', icon: AlertTriangle, bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700' },
-  ERROR: { color: 'red', icon: AlertCircle, bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
-  CRITICAL: { color: 'purple', icon: XCircle, bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' }
-};
-
-const LOG_CATEGORIES = [
-  { value: 'mqtt', label: 'MQTT', color: 'bg-green-100 text-green-800' },
-  { value: 'api', label: 'API', color: 'bg-blue-100 text-blue-800' },
-  { value: 'database', label: 'Database', color: 'bg-purple-100 text-purple-800' },
-  { value: 'system', label: 'System', color: 'bg-gray-100 text-gray-800' },
-  { value: 'command', label: 'Command', color: 'bg-orange-100 text-orange-800' },
-  { value: 'robot', label: 'Robot', color: 'bg-indigo-100 text-indigo-800' },
-  { value: 'alert', label: 'Alert', color: 'bg-red-100 text-red-800' },
-  { value: 'report', label: 'Report', color: 'bg-teal-100 text-teal-800' }
-];
-
 const Logs: React.FC = () => {
+  const { isDark } = useTheme();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [stats, setStats] = useState<LogStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,6 +56,30 @@ const Logs: React.FC = () => {
   const [viewMode, setViewMode] = useState<'all' | 'errors' | 'commands'>('all');
 
   const { success, error: showError, info } = useNotification();
+
+  const LOG_LEVELS = {
+    INFO: { color: 'blue', icon: Info, bg: isDark ? 'bg-blue-900/30' : 'bg-blue-50', border: isDark ? 'border-blue-700' : 'border-blue-200', text: isDark ? 'text-blue-400' : 'text-blue-700' },
+    WARNING: { color: 'yellow', icon: AlertTriangle, bg: isDark ? 'bg-yellow-900/30' : 'bg-yellow-50', border: isDark ? 'border-yellow-700' : 'border-yellow-200', text: isDark ? 'text-yellow-400' : 'text-yellow-700' },
+    ERROR: { color: 'red', icon: AlertCircle, bg: isDark ? 'bg-red-900/30' : 'bg-red-50', border: isDark ? 'border-red-700' : 'border-red-200', text: isDark ? 'text-red-400' : 'text-red-700' },
+    CRITICAL: { color: 'purple', icon: XCircle, bg: isDark ? 'bg-purple-900/30' : 'bg-purple-50', border: isDark ? 'border-purple-700' : 'border-purple-200', text: isDark ? 'text-purple-400' : 'text-purple-700' }
+  };
+
+  const LOG_CATEGORIES = [
+    { value: 'mqtt', label: 'MQTT', color: isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-800' },
+    { value: 'api', label: 'API', color: isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800' },
+    { value: 'database', label: 'Database', color: isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-100 text-purple-800' },
+    { value: 'system', label: 'System', color: isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-800' },
+    { value: 'command', label: 'Command', color: isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-100 text-orange-800' },
+    { value: 'robot', label: 'Robot', color: isDark ? 'bg-indigo-900/30 text-indigo-400' : 'bg-indigo-100 text-indigo-800' },
+    { value: 'alert', label: 'Alert', color: isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-800' },
+    { value: 'report', label: 'Report', color: isDark ? 'bg-teal-900/30 text-teal-400' : 'bg-teal-100 text-teal-800' },
+    { value: 'servo', label: 'Servo', color: isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-100 text-amber-800' },
+    { value: 'vision', label: 'Vision', color: isDark ? 'bg-cyan-900/30 text-cyan-400' : 'bg-cyan-100 text-cyan-800' },
+    { value: 'battery', label: 'Battery', color: isDark ? 'bg-lime-900/30 text-lime-400' : 'bg-lime-100 text-lime-800' },
+    { value: 'sensor', label: 'Sensor', color: isDark ? 'bg-rose-900/30 text-rose-400' : 'bg-rose-100 text-rose-800' },
+    { value: 'job', label: 'Job', color: isDark ? 'bg-violet-900/30 text-violet-400' : 'bg-violet-100 text-violet-800' },
+    { value: 'movement', label: 'Movement', color: isDark ? 'bg-sky-900/30 text-sky-400' : 'bg-sky-100 text-sky-800' },
+  ];
 
   useEffect(() => {
     fetchData();
@@ -169,7 +177,7 @@ const Logs: React.FC = () => {
 
   const getCategoryBadge = (category: string) => {
     const cat = LOG_CATEGORIES.find(c => c.value === category);
-    return cat ? cat.color : 'bg-gray-100 text-gray-800';
+    return cat ? cat.color : (isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-800');
   };
 
   const formatDate = (dateStr: string) => {
@@ -194,7 +202,7 @@ const Logs: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Loading logs...</span>
+        <span className={`ml-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading logs...</span>
       </div>
     );
   }
@@ -204,8 +212,8 @@ const Logs: React.FC = () => {
       {/* Header */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="h-6 w-6 text-gray-600" />
+          <h2 className={`text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <FileText className={`h-6 w-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
             Logs & Activity History
           </h2>
           <div className="flex items-center gap-2">
@@ -225,7 +233,7 @@ const Logs: React.FC = () => {
             </button>
             <button
               onClick={clearOldLogs}
-              className="btn-secondary flex items-center gap-2 text-sm text-red-600 hover:text-red-700"
+              className={`btn-secondary flex items-center gap-2 text-sm ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}`}
             >
               <Trash2 className="h-4 w-4" />
               Clear Old
@@ -241,15 +249,15 @@ const Logs: React.FC = () => {
         </div>
 
         {/* Robot Selector - Prominent */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl border border-slate-200">
+        <div className={`mb-6 p-4 rounded-xl border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-100 rounded-lg">
-                <Bot className="h-6 w-6 text-slate-600" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                <Bot className={`h-6 w-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Viewing Logs For</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Viewing Logs For</p>
+                <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {selectedRobot || 'All Robots'}
                 </p>
               </div>
@@ -257,7 +265,7 @@ const Logs: React.FC = () => {
             <select
               value={selectedRobot}
               onChange={(e) => setSelectedRobot(e.target.value)}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium bg-white focus:ring-2 focus:ring-slate-500 focus:border-transparent min-w-[200px]"
+              className={`px-4 py-2 border rounded-lg text-sm font-medium focus:ring-2 focus:ring-slate-500 focus:border-transparent min-w-[200px] ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-slate-300'}`}
             >
               <option value="">All Robots</option>
               {robots.map((robot) => (
@@ -270,25 +278,25 @@ const Logs: React.FC = () => {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-              <p className="text-xs text-slate-600">Total Logs</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Total Logs</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{stats.total}</p>
             </div>
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <p className="text-xs text-blue-600">Info</p>
-              <p className="text-2xl font-bold text-blue-900">{stats.info}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Info</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>{stats.info}</p>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-              <p className="text-xs text-yellow-600">Warning</p>
-              <p className="text-2xl font-bold text-yellow-900">{stats.warning}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>Warning</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-yellow-300' : 'text-yellow-900'}`}>{stats.warning}</p>
             </div>
-            <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-              <p className="text-xs text-red-600">Error</p>
-              <p className="text-2xl font-bold text-red-900">{stats.error}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-red-400' : 'text-red-600'}`}>Error</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-red-300' : 'text-red-900'}`}>{stats.error}</p>
             </div>
-            <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-              <p className="text-xs text-purple-600">Critical</p>
-              <p className="text-2xl font-bold text-purple-900">{stats.critical}</p>
+            <div className={`rounded-lg p-3 border ${isDark ? 'bg-purple-900/20 border-purple-800' : 'bg-purple-50 border-purple-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>Critical</p>
+              <p className={`text-2xl font-bold ${isDark ? 'text-purple-300' : 'text-purple-900'}`}>{stats.critical}</p>
             </div>
           </div>
         )}
@@ -298,7 +306,9 @@ const Logs: React.FC = () => {
           <button
             onClick={() => setViewMode('all')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              viewMode === 'all' 
+                ? 'bg-blue-600 text-white' 
+                : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             <Activity className="h-4 w-4 inline mr-1" />
@@ -307,7 +317,9 @@ const Logs: React.FC = () => {
           <button
             onClick={() => setViewMode('errors')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === 'errors' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              viewMode === 'errors' 
+                ? 'bg-red-600 text-white' 
+                : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             <AlertCircle className="h-4 w-4 inline mr-1" />
@@ -316,7 +328,9 @@ const Logs: React.FC = () => {
           <button
             onClick={() => setViewMode('commands')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === 'commands' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              viewMode === 'commands' 
+                ? 'bg-orange-600 text-white' 
+                : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             <Terminal className="h-4 w-4 inline mr-1" />
@@ -327,8 +341,8 @@ const Logs: React.FC = () => {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">Filters:</span>
+            <Filter className={`h-4 w-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Filters:</span>
           </div>
 
           {viewMode === 'all' && (
@@ -336,7 +350,7 @@ const Logs: React.FC = () => {
               <select
                 value={selectedLevel}
                 onChange={(e) => setSelectedLevel(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className={`px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
               >
                 <option value="">All Levels</option>
                 <option value="INFO">Info</option>
@@ -348,7 +362,7 @@ const Logs: React.FC = () => {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className={`px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
               >
                 <option value="">All Categories</option>
                 {LOG_CATEGORIES.map((cat) => (
@@ -361,7 +375,7 @@ const Logs: React.FC = () => {
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            className={`px-3 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
           >
             <option value="1h">Last Hour</option>
             <option value="6h">Last 6 Hours</option>
@@ -372,14 +386,14 @@ const Logs: React.FC = () => {
 
           <div className="flex-1 flex items-center gap-2">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type="text"
                 placeholder="Search logs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300'}`}
               />
             </div>
             <button
@@ -395,7 +409,7 @@ const Logs: React.FC = () => {
       {/* Category Stats */}
       {stats && stats.by_category && viewMode === 'all' && (
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Logs by Category</h3>
+          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Logs by Category</h3>
           <div className="flex flex-wrap gap-3">
             {LOG_CATEGORIES.map((cat) => {
               const count = stats.by_category[cat.value] || 0;
@@ -421,9 +435,9 @@ const Logs: React.FC = () => {
       <div className="space-y-2">
         {logs.length === 0 ? (
           <div className="card text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No logs found</p>
-            <p className="text-sm text-gray-500 mt-1">Try adjusting your filters</p>
+            <FileText className={`h-12 w-12 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No logs found</p>
+            <p className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Try adjusting your filters</p>
           </div>
         ) : (
           logs.map((log) => {
@@ -451,63 +465,63 @@ const Logs: React.FC = () => {
                           {log.category}
                         </span>
                         {log.robot_id ? (
-                          <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
+                          <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-indigo-900/30 text-indigo-400' : 'bg-indigo-100 text-indigo-700'}`}>
                             <Bot className="h-3 w-3" />
                             {log.robot_id}
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full font-medium">
+                          <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
                             System
                           </span>
                         )}
-                        <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <span className={`flex items-center gap-1 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                           <Clock className="h-3 w-3" />
                           {formatTimeAgo(log.timestamp)}
                         </span>
                       </div>
-                      <p className="text-gray-900 text-sm font-mono truncate">
+                      <p className={`text-sm font-mono truncate ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                         {log.message}
                       </p>
                     </div>
                   </div>
-                  <button className="p-1 text-gray-400 hover:text-gray-600">
+                  <button className={`p-1 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
                 </div>
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className={`mt-4 pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                       <div>
-                        <p className="text-gray-500">Timestamp</p>
-                        <p className="font-mono text-gray-900">{formatDate(log.timestamp)}</p>
+                        <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Timestamp</p>
+                        <p className={`font-mono ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{formatDate(log.timestamp)}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Level</p>
+                        <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Level</p>
                         <p className={`font-medium ${levelConfig.text}`}>{log.level}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Category</p>
-                        <p className="font-medium text-gray-900 capitalize">{log.category}</p>
+                        <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Category</p>
+                        <p className={`font-medium capitalize ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{log.category}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Robot ID</p>
-                        <p className="font-medium text-gray-900">{log.robot_id || 'N/A'}</p>
+                        <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Robot ID</p>
+                        <p className={`font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{log.robot_id || 'N/A'}</p>
                       </div>
                     </div>
                     
                     <div className="mb-4">
-                      <p className="text-gray-500 text-sm mb-2">Full Message:</p>
-                      <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm overflow-x-auto font-mono whitespace-pre-wrap">
+                      <p className={`text-sm mb-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Full Message:</p>
+                      <pre className={`p-4 rounded-lg text-sm overflow-x-auto font-mono whitespace-pre-wrap ${isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-900 text-gray-100'}`}>
                         {log.message}
                       </pre>
                     </div>
                     
                     {log.details && (
                       <div>
-                        <p className="text-gray-500 text-sm mb-2">Details (Stack Trace / Additional Info):</p>
-                        <pre className="bg-gray-50 p-4 rounded-lg text-xs overflow-x-auto font-mono border border-gray-200">
+                        <p className={`text-sm mb-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Details (Stack Trace / Additional Info):</p>
+                        <pre className={`p-4 rounded-lg text-xs overflow-x-auto font-mono border ${isDark ? 'bg-gray-900 text-gray-300 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                           {JSON.stringify(log.details, null, 2)}
                         </pre>
                       </div>
@@ -523,7 +537,7 @@ const Logs: React.FC = () => {
       {/* Load More */}
       {logs.length >= 100 && (
         <div className="text-center">
-          <p className="text-sm text-gray-500">
+          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
             Showing first 100 logs. Use filters to narrow down results.
           </p>
         </div>

@@ -22,6 +22,7 @@ import {
 import { apiService, handleApiError } from '../utils/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { Report } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AIStatus {
   gemini_available: boolean;
@@ -40,6 +41,7 @@ interface ReportStats {
 }
 
 const Reports: React.FC = () => {
+  const { isDark } = useTheme();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -178,10 +180,8 @@ const Reports: React.FC = () => {
   const getReportsByRobot = (): { [key: string]: Report[] } => {
     const grouped: { [key: string]: Report[] } = {};
     
-    // Add "All Robots" category for reports without specific robot
     grouped['All Robots'] = reports.filter(r => !r.robot_id);
     
-    // Group by robot_id
     reports.filter(r => r.robot_id).forEach(report => {
       const robotId = report.robot_id!;
       if (!grouped[robotId]) {
@@ -222,13 +222,13 @@ const Reports: React.FC = () => {
     const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
     switch (type) {
       case 'performance':
-        return <span className={`${baseClasses} bg-blue-100 text-blue-800`}>Performance</span>;
+        return <span className={`${baseClasses} ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800'}`}>Performance</span>;
       case 'job':
-        return <span className={`${baseClasses} bg-green-100 text-green-800`}>Job Summary</span>;
+        return <span className={`${baseClasses} ${isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-800'}`}>Job Summary</span>;
       case 'maintenance':
-        return <span className={`${baseClasses} bg-orange-100 text-orange-800`}>Maintenance</span>;
+        return <span className={`${baseClasses} ${isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-100 text-orange-800'}`}>Maintenance</span>;
       default:
-        return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>{type}</span>;
+        return <span className={`${baseClasses} ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-800'}`}>{type}</span>;
     }
   };
 
@@ -236,7 +236,7 @@ const Reports: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Loading reports...</span>
+        <span className={`ml-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading reports...</span>
       </div>
     );
   }
@@ -249,8 +249,8 @@ const Reports: React.FC = () => {
       {/* Header */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="h-6 w-6 text-blue-600" />
+          <h2 className={`text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <FileText className={`h-6 w-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
             Reports & PDF Export
           </h2>
           <button
@@ -264,19 +264,19 @@ const Reports: React.FC = () => {
 
         {/* AI Status */}
         {aiStatus && (
-          <div className={`p-4 rounded-lg mb-4 ${aiStatus.gemini_available ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+          <div className={`p-4 rounded-lg mb-4 border ${aiStatus.gemini_available ? (isDark ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200') : (isDark ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200')}`}>
             <div className="flex items-center gap-2">
               {aiStatus.gemini_available ? (
-                <Sparkles className="h-5 w-5 text-green-600" />
+                <Sparkles className={`h-5 w-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
               ) : (
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
+                <AlertCircle className={`h-5 w-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
               )}
-              <span className={aiStatus.gemini_available ? 'text-green-800' : 'text-yellow-800'}>
+              <span className={aiStatus.gemini_available ? (isDark ? 'text-green-300' : 'text-green-800') : (isDark ? 'text-yellow-300' : 'text-yellow-800')}>
                 {aiStatus.message}
               </span>
             </div>
             {!aiStatus.gemini_available && (
-              <p className="text-sm text-yellow-700 mt-2">
+              <p className={`text-sm mt-2 ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>
                 To enable AI-powered analysis, set the GEMINI_API_KEY environment variable in docker-compose.yml
               </p>
             )}
@@ -284,8 +284,8 @@ const Reports: React.FC = () => {
         )}
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-            <p className="text-red-800 flex items-center gap-2">
+          <div className={`p-4 rounded-lg mb-4 border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+            <p className={`flex items-center gap-2 ${isDark ? 'text-red-400' : 'text-red-800'}`}>
               <AlertCircle className="h-5 w-5" />
               {error}
             </p>
@@ -293,65 +293,59 @@ const Reports: React.FC = () => {
         )}
       </div>
 
-      {/* ============================================ */}
-      {/* OVERALL SUMMARY FOR ALL ROBOTS */}
-      {/* ============================================ */}
+      {/* Overall Summary */}
       <div className="card">
         <div className="flex items-center gap-2 mb-6">
           <BarChart3 className="h-5 w-5 text-primary-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Overall Summary (All Robots)</h3>
+          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Overall Summary (All Robots)</h3>
         </div>
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          {/* Total Reports */}
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+          <div className={`rounded-xl p-4 border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200'}`}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-slate-200">
-                <FileText className="h-5 w-5 text-slate-700" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                <FileText className={`h-5 w-5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-600">Total Reports</p>
-                <p className="text-xl font-bold text-slate-900">{stats.totalReports}</p>
+                <p className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Total Reports</p>
+                <p className={`text-xl font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{stats.totalReports}</p>
               </div>
             </div>
           </div>
 
-          {/* Performance Reports */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+          <div className={`rounded-xl p-4 border ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'}`}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-200">
-                <Activity className="h-5 w-5 text-blue-700" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-blue-800' : 'bg-blue-200'}`}>
+                <Activity className={`h-5 w-5 ${isDark ? 'text-blue-400' : 'text-blue-700'}`} />
               </div>
               <div>
-                <p className="text-xs font-medium text-blue-600">Performance</p>
-                <p className="text-xl font-bold text-blue-900">{stats.performanceReports}</p>
+                <p className={`text-xs font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Performance</p>
+                <p className={`text-xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>{stats.performanceReports}</p>
               </div>
             </div>
           </div>
 
-          {/* Job Reports */}
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+          <div className={`rounded-xl p-4 border ${isDark ? 'bg-green-900/20 border-green-800' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'}`}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-200">
-                <Briefcase className="h-5 w-5 text-green-700" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-green-800' : 'bg-green-200'}`}>
+                <Briefcase className={`h-5 w-5 ${isDark ? 'text-green-400' : 'text-green-700'}`} />
               </div>
               <div>
-                <p className="text-xs font-medium text-green-600">Job Summary</p>
-                <p className="text-xl font-bold text-green-900">{stats.jobReports}</p>
+                <p className={`text-xs font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>Job Summary</p>
+                <p className={`text-xl font-bold ${isDark ? 'text-green-300' : 'text-green-900'}`}>{stats.jobReports}</p>
               </div>
             </div>
           </div>
 
-          {/* Maintenance Reports */}
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+          <div className={`rounded-xl p-4 border ${isDark ? 'bg-orange-900/20 border-orange-800' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200'}`}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-200">
-                <Wrench className="h-5 w-5 text-orange-700" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-orange-800' : 'bg-orange-200'}`}>
+                <Wrench className={`h-5 w-5 ${isDark ? 'text-orange-400' : 'text-orange-700'}`} />
               </div>
               <div>
-                <p className="text-xs font-medium text-orange-600">Maintenance</p>
-                <p className="text-xl font-bold text-orange-900">{stats.maintenanceReports}</p>
+                <p className={`text-xs font-medium ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>Maintenance</p>
+                <p className={`text-xl font-bold ${isDark ? 'text-orange-300' : 'text-orange-900'}`}>{stats.maintenanceReports}</p>
               </div>
             </div>
           </div>
@@ -359,41 +353,38 @@ const Reports: React.FC = () => {
 
         {/* Secondary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Reports Today */}
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+          <div className={`rounded-xl p-4 border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-100">
-                <Calendar className="h-5 w-5 text-purple-600" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-purple-900/30' : 'bg-purple-100'}`}>
+                <Calendar className={`h-5 w-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Reports Today</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.reportsToday}</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Reports Today</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.reportsToday}</p>
               </div>
             </div>
           </div>
 
-          {/* Reports This Week */}
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+          <div className={`rounded-xl p-4 border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-indigo-100">
-                <Clock className="h-5 w-5 text-indigo-600" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-indigo-900/30' : 'bg-indigo-100'}`}>
+                <Clock className={`h-5 w-5 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">This Week</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.reportsThisWeek}</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>This Week</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.reportsThisWeek}</p>
               </div>
             </div>
           </div>
 
-          {/* Robots with Reports */}
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+          <div className={`rounded-xl p-4 border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-teal-100">
-                <Bot className="h-5 w-5 text-teal-600" />
+              <div className={`p-2 rounded-lg ${isDark ? 'bg-teal-900/30' : 'bg-teal-100'}`}>
+                <Bot className={`h-5 w-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Robots with Reports</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.robotsWithReports}</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Robots with Reports</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.robotsWithReports}</p>
               </div>
             </div>
           </div>
@@ -402,14 +393,14 @@ const Reports: React.FC = () => {
 
       {/* Generate Report */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Plus className="h-5 w-5 text-green-600" />
+        <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <Plus className={`h-5 w-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
           Generate New Report
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Robot (Optional)
             </label>
             <select
@@ -427,7 +418,7 @@ const Reports: React.FC = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Report Type
             </label>
             <select
@@ -442,7 +433,7 @@ const Reports: React.FC = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Time Range
             </label>
             <select
@@ -479,10 +470,9 @@ const Reports: React.FC = () => {
           </div>
         </div>
         
-        {/* Robot selection requirement note */}
         {(reportType === 'maintenance' || reportType === 'job') && !selectedRobot && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mt-4">
-            <p className="text-amber-800 text-sm flex items-center gap-2">
+          <div className={`p-3 rounded-lg mt-4 border ${isDark ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
+            <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
               <AlertCircle className="h-4 w-4" />
               {reportType === 'maintenance' 
                 ? 'Servo Maintenance reports require selecting a specific robot.'
@@ -491,10 +481,9 @@ const Reports: React.FC = () => {
           </div>
         )}
         
-        {/* Maintenance report info */}
         {reportType === 'maintenance' && selectedRobot && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mt-4">
-            <p className="text-blue-800 text-sm flex items-center gap-2">
+          <div className={`p-3 rounded-lg mt-4 border ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+            <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
               <Wrench className="h-4 w-4" />
               <span>
                 <strong>Servo Maintenance Report</strong> will analyze servo temperature, voltage, and position data 
@@ -505,27 +494,25 @@ const Reports: React.FC = () => {
         )}
       </div>
 
-      {/* ============================================ */}
-      {/* PER ROBOT BREAKDOWN */}
-      {/* ============================================ */}
+      {/* Per Robot Breakdown */}
       <div className="card">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Per Robot Breakdown</h3>
-            <span className="text-sm text-gray-500">({reports.length} total reports)</span>
+            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Per Robot Breakdown</h3>
+            <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>({reports.length} total reports)</span>
           </div>
           
           {/* View Toggle */}
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-400" />
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <Filter className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+            <div className={`flex rounded-lg border overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
               <button
                 onClick={() => setViewMode('byRobot')}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                   viewMode === 'byRobot' 
                     ? 'bg-primary-600 text-white' 
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    : isDark ? 'bg-gray-800 text-gray-400 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 By Robot
@@ -535,7 +522,7 @@ const Reports: React.FC = () => {
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                   viewMode === 'all' 
                     ? 'bg-primary-600 text-white' 
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    : isDark ? 'bg-gray-800 text-gray-400 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 All Reports
@@ -546,11 +533,10 @@ const Reports: React.FC = () => {
 
         {reports.length === 0 ? (
           <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No reports yet. Generate one above!</p>
+            <FileText className={`h-12 w-12 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No reports yet. Generate one above!</p>
           </div>
         ) : viewMode === 'byRobot' ? (
-          /* By Robot View */
           <div className="space-y-3">
             {Object.entries(reportsByRobot).map(([robotId, robotReports]) => {
               if (robotReports.length === 0) return null;
@@ -558,7 +544,6 @@ const Reports: React.FC = () => {
               const isExpanded = expandedRobots.has(robotId);
               const isAllRobots = robotId === 'All Robots';
               
-              // Count report types for this robot
               const performanceCount = robotReports.filter(r => r.report_type === 'performance').length;
               const jobCount = robotReports.filter(r => r.report_type === 'job').length;
               const maintenanceCount = robotReports.filter(r => r.report_type === 'maintenance').length;
@@ -568,89 +553,83 @@ const Reports: React.FC = () => {
                   key={robotId} 
                   className={`rounded-xl border transition-all duration-200 ${
                     isAllRobots 
-                      ? 'border-purple-200 bg-purple-50/50' 
-                      : 'border-gray-200 bg-gray-50/50'
+                      ? (isDark ? 'border-purple-700 bg-purple-900/20' : 'border-purple-200 bg-purple-50/50')
+                      : (isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50')
                   }`}
                 >
-                  {/* Robot Header */}
                   <div 
-                    className="p-4 cursor-pointer hover:bg-white/50 transition-colors rounded-xl"
+                    className={`p-4 cursor-pointer transition-colors rounded-xl ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-white/50'}`}
                     onClick={() => toggleRobotExpansion(robotId)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        {/* Icon */}
                         <div className={`p-2 rounded-lg ${
-                          isAllRobots ? 'bg-purple-200' : 'bg-gray-200'
+                          isAllRobots ? (isDark ? 'bg-purple-800' : 'bg-purple-200') : (isDark ? 'bg-gray-700' : 'bg-gray-200')
                         }`}>
                           {isAllRobots ? (
-                            <BarChart3 className="h-5 w-5 text-purple-700" />
+                            <BarChart3 className={`h-5 w-5 ${isDark ? 'text-purple-400' : 'text-purple-700'}`} />
                           ) : (
-                            <Bot className="h-5 w-5 text-gray-700" />
+                            <Bot className={`h-5 w-5 ${isDark ? 'text-gray-400' : 'text-gray-700'}`} />
                           )}
                         </div>
                         
-                        {/* Robot Info */}
                         <div>
-                          <h4 className="font-semibold text-gray-900">{robotId}</h4>
-                          <p className="text-sm text-gray-500">
+                          <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{robotId}</h4>
+                          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                             {robotReports.length} report{robotReports.length !== 1 ? 's' : ''}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-4">
-                        {/* Quick Stats */}
                         <div className="hidden sm:flex items-center gap-3 text-xs">
                           {performanceCount > 0 && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                            <span className={`px-2 py-1 rounded-full ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'}`}>
                               {performanceCount} Performance
                             </span>
                           )}
                           {jobCount > 0 && (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                            <span className={`px-2 py-1 rounded-full ${isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
                               {jobCount} Job
                             </span>
                           )}
                           {maintenanceCount > 0 && (
-                            <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                            <span className={`px-2 py-1 rounded-full ${isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-100 text-orange-700'}`}>
                               {maintenanceCount} Maintenance
                             </span>
                           )}
                         </div>
 
-                        {/* Expand Icon */}
-                        <button className="p-1 hover:bg-gray-200 rounded-lg transition-colors">
+                        <button className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}>
                           {isExpanded ? (
-                            <ChevronUp className="h-5 w-5 text-gray-500" />
+                            <ChevronUp className={`h-5 w-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                           ) : (
-                            <ChevronDown className="h-5 w-5 text-gray-500" />
+                            <ChevronDown className={`h-5 w-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                           )}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Expanded Details */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-gray-200/50">
+                    <div className={`px-4 pb-4 border-t ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'}`}>
                       <div className="pt-4 space-y-3">
                         {robotReports.map((report) => (
                           <div
                             key={report.id}
-                            className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+                            className={`p-4 rounded-lg border hover:shadow-md transition-shadow ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   {getReportTypeIcon(report.report_type)}
-                                  <h4 className="font-semibold text-gray-900">{report.title}</h4>
+                                  <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{report.title}</h4>
                                   {getReportTypeBadge(report.report_type)}
                                 </div>
-                                <p className="text-sm text-gray-600">
+                                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                                   {report.description || 'No description'}
                                 </p>
-                                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                <p className={`text-xs mt-2 flex items-center gap-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                                   <Clock className="h-3 w-3" />
                                   Created: {formatDate(report.created_at)}
                                 </p>
@@ -700,24 +679,23 @@ const Reports: React.FC = () => {
             })}
           </div>
         ) : (
-          /* All Reports View */
           <div className="space-y-4">
             {reports.map((report) => (
               <div
                 key={report.id}
-                className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+                className={`p-4 rounded-lg border hover:shadow-md transition-shadow ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       {getReportTypeIcon(report.report_type)}
-                      <h4 className="text-lg font-semibold text-gray-900">{report.title}</h4>
+                      <h4 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{report.title}</h4>
                       {getReportTypeBadge(report.report_type)}
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       {report.description || 'No description'}
                     </p>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                    <div className={`flex items-center gap-4 mt-2 text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                       {report.robot_id && (
                         <span className="flex items-center gap-1">
                           <Bot className="h-4 w-4" />
@@ -765,119 +743,11 @@ const Reports: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                
-                {/* Report Data Preview */}
-                {report.data && (
-                  <div className="mt-4 p-3 bg-white rounded border border-gray-100">
-                    <p className="text-xs text-gray-500 mb-2">Report Data:</p>
-                    <pre className="text-xs text-gray-700 overflow-x-auto max-h-32">
-                      {JSON.stringify(report.data, null, 2)}
-                    </pre>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         )}
       </div>
-
-      {/* Quick Summary Table */}
-      {reports.length > 0 && (
-        <div className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-5 w-5 text-primary-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Reports Summary by Robot</h3>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Robot ID</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Performance</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Job Summary</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Maintenance</th>
-                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Total</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Latest Report</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(reportsByRobot).map(([robotId, robotReports]) => {
-                  if (robotReports.length === 0) return null;
-                  
-                  const performanceCount = robotReports.filter(r => r.report_type === 'performance').length;
-                  const jobCount = robotReports.filter(r => r.report_type === 'job').length;
-                  const maintenanceCount = robotReports.filter(r => r.report_type === 'maintenance').length;
-                  const latestReport = robotReports.sort((a, b) => 
-                    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                  )[0];
-                  
-                  return (
-                    <tr key={robotId} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          {robotId === 'All Robots' ? (
-                            <BarChart3 className="h-4 w-4 text-purple-600" />
-                          ) : (
-                            <Bot className="h-4 w-4 text-gray-600" />
-                          )}
-                          <span className="font-medium text-gray-900">{robotId}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {performanceCount > 0 ? (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-semibold">
-                            {performanceCount}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {jobCount > 0 ? (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-800 font-semibold">
-                            {jobCount}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {maintenanceCount > 0 ? (
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-100 text-orange-800 font-semibold">
-                            {maintenanceCount}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-800 font-semibold">
-                          {robotReports.length}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right text-gray-600 text-xs">
-                        {formatShortDate(latestReport.created_at)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {/* Table Footer with Totals */}
-              <tfoot>
-                <tr className="bg-gray-50 font-semibold">
-                  <td className="py-3 px-4 text-gray-700">Total</td>
-                  <td className="py-3 px-4 text-center text-blue-800">{stats.performanceReports}</td>
-                  <td className="py-3 px-4 text-center text-green-800">{stats.jobReports}</td>
-                  <td className="py-3 px-4 text-center text-orange-800">{stats.maintenanceReports}</td>
-                  <td className="py-3 px-4 text-center text-gray-800">{stats.totalReports}</td>
-                  <td className="py-3 px-4"></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

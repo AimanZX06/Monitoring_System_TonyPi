@@ -4,6 +4,7 @@ import { apiService, handleApiError } from '../utils/api';
 import { useNotification } from '../contexts/NotificationContext';
 import GrafanaPanel from '../components/GrafanaPanel';
 import { getGrafanaPanelUrl } from '../utils/config';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ServoData {
   id: number;
@@ -23,6 +24,7 @@ interface ServoStatusResponse {
 }
 
 const Servos: React.FC = () => {
+  const { isDark } = useTheme();
   const [robots, setRobots] = useState<string[]>([]);
   const [selectedRobot, setSelectedRobot] = useState<string>('');
   const [servoData, setServoData] = useState<ServoStatusResponse | null>(null);
@@ -64,7 +66,6 @@ const Servos: React.FC = () => {
     
     try {
       const data = await apiService.getServoData(selectedRobot);
-      // Check if we actually have servo data
       if (data && data.servos && Object.keys(data.servos).length > 0) {
         setServoData(data);
         setError(null);
@@ -86,31 +87,31 @@ const Servos: React.FC = () => {
 
   const getAlertColor = (level: string) => {
     switch (level) {
-      case 'critical': return 'border-red-500 bg-red-50';
-      case 'warning': return 'border-yellow-500 bg-yellow-50';
-      default: return 'border-green-500 bg-green-50';
+      case 'critical': return isDark ? 'border-red-600 bg-red-900/20' : 'border-red-500 bg-red-50';
+      case 'warning': return isDark ? 'border-yellow-600 bg-yellow-900/20' : 'border-yellow-500 bg-yellow-50';
+      default: return isDark ? 'border-green-600 bg-green-900/20' : 'border-green-500 bg-green-50';
     }
   };
 
   const getAlertIcon = (level: string) => {
     switch (level) {
-      case 'critical': return <AlertCircle className="h-5 w-5 text-red-600" />;
-      case 'warning': return <AlertCircle className="h-5 w-5 text-yellow-600" />;
+      case 'critical': return <AlertCircle className={`h-5 w-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />;
+      case 'warning': return <AlertCircle className={`h-5 w-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />;
       default: return null;
     }
   };
 
   const getTemperatureColor = (temp: number) => {
-    if (temp > 70) return 'text-red-600';
-    if (temp > 50) return 'text-yellow-600';
-    return 'text-green-600';
+    if (temp > 70) return isDark ? 'text-red-400' : 'text-red-600';
+    if (temp > 50) return isDark ? 'text-yellow-400' : 'text-yellow-600';
+    return isDark ? 'text-green-400' : 'text-green-600';
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Loading servos...</span>
+        <span className={`ml-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading servos...</span>
       </div>
     );
   }
@@ -120,8 +121,8 @@ const Servos: React.FC = () => {
       {/* Header */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Settings className="h-6 w-6 text-blue-600" />
+          <h2 className={`text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <Settings className={`h-6 w-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
             Servo Motor Monitoring
           </h2>
           <button
@@ -136,7 +137,7 @@ const Servos: React.FC = () => {
 
         {/* Robot Selector */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             Select Robot
           </label>
           <select
@@ -154,8 +155,8 @@ const Servos: React.FC = () => {
         </div>
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-            <p className="text-red-800 flex items-center gap-2">
+          <div className={`p-4 rounded-lg mb-4 border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+            <p className={`flex items-center gap-2 ${isDark ? 'text-red-400' : 'text-red-800'}`}>
               <AlertCircle className="h-5 w-5" />
               {error}
             </p>
@@ -168,27 +169,27 @@ const Servos: React.FC = () => {
         <>
           {/* Summary */}
           <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Summary</h3>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Summary</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-gray-600 mb-1">Total Servos</p>
-                <p className="text-2xl font-bold text-blue-600">{servoData.servo_count}</p>
+              <div className={`p-4 rounded-lg border ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+                <p className={`text-sm mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Servos</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{servoData.servo_count}</p>
               </div>
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-sm text-gray-600 mb-1">Normal</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className={`p-4 rounded-lg border ${isDark ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200'}`}>
+                <p className={`text-sm mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Normal</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
                   {Object.values(servoData.servos).filter(s => s.alert_level === 'normal').length}
                 </p>
               </div>
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-sm text-gray-600 mb-1">Warning</p>
-                <p className="text-2xl font-bold text-yellow-600">
+              <div className={`p-4 rounded-lg border ${isDark ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200'}`}>
+                <p className={`text-sm mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Warning</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
                   {Object.values(servoData.servos).filter(s => s.alert_level === 'warning').length}
                 </p>
               </div>
-              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-sm text-gray-600 mb-1">Critical</p>
-                <p className="text-2xl font-bold text-red-600">
+              <div className={`p-4 rounded-lg border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+                <p className={`text-sm mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Critical</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>
                   {Object.values(servoData.servos).filter(s => s.alert_level === 'critical').length}
                 </p>
               </div>
@@ -203,23 +204,23 @@ const Servos: React.FC = () => {
                 className={`card border-2 ${getAlertColor(servo.alert_level)}`}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold text-gray-900">{servo.name}</h4>
+                  <h4 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{servo.name}</h4>
                   {getAlertIcon(servo.alert_level)}
                 </div>
 
                 <div className="space-y-3">
                   {/* Position */}
-                  <div className="p-3 bg-white rounded-lg border border-gray-200">
+                  <div className={`p-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-600 flex items-center gap-1">
+                      <span className={`text-sm flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                         <Activity className="h-4 w-4" />
                         Position
                       </span>
-                      <span className="text-lg font-bold text-blue-600">
+                      <span className={`text-lg font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
                         {servo.position.toFixed(1)}°
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className={`w-full rounded-full h-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                       <div
                         className="bg-blue-600 h-2 rounded-full"
                         style={{ width: `${Math.abs(servo.position / 180) * 100}%` }}
@@ -228,9 +229,9 @@ const Servos: React.FC = () => {
                   </div>
 
                   {/* Temperature */}
-                  <div className="p-3 bg-white rounded-lg border border-gray-200">
+                  <div className={`p-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 flex items-center gap-1">
+                      <span className={`text-sm flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                         <Thermometer className="h-4 w-4" />
                         Temperature
                       </span>
@@ -238,7 +239,7 @@ const Servos: React.FC = () => {
                         {servo.temperature.toFixed(1)}°C
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div className={`w-full rounded-full h-2 mt-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                       <div
                         className={`h-2 rounded-full ${
                           servo.temperature > 70 ? 'bg-red-600' :
@@ -250,26 +251,26 @@ const Servos: React.FC = () => {
                   </div>
 
                   {/* Voltage */}
-                  <div className="p-3 bg-white rounded-lg border border-gray-200">
+                  <div className={`p-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 flex items-center gap-1">
+                      <span className={`text-sm flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                         <Zap className="h-4 w-4" />
                         Voltage
                       </span>
-                      <span className="text-lg font-bold text-purple-600">
+                      <span className={`text-lg font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
                         {servo.voltage.toFixed(2)}V
                       </span>
                     </div>
                   </div>
 
                   {/* Torque Status */}
-                  <div className="p-3 bg-white rounded-lg border border-gray-200">
+                  <div className={`p-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Torque</span>
+                      <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Torque</span>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                         servo.torque_enabled
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-800'
+                          : isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-800'
                       }`}>
                         {servo.torque_enabled ? 'Enabled' : 'Disabled'}
                       </span>
@@ -277,10 +278,10 @@ const Servos: React.FC = () => {
                   </div>
 
                   {/* Servo ID */}
-                  <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Servo ID</span>
-                      <span className="text-sm font-medium text-gray-900">#{servo.id}</span>
+                      <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>Servo ID</span>
+                      <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>#{servo.id}</span>
                     </div>
                   </div>
                 </div>
@@ -290,11 +291,11 @@ const Servos: React.FC = () => {
 
           {/* Servo Angle Grafana Panel */}
           <div className="card">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
+            <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <TrendingUp className={`h-5 w-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
               Servo Angle History
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               Historical servo position data from Grafana
             </p>
             <GrafanaPanel 
@@ -304,22 +305,22 @@ const Servos: React.FC = () => {
           </div>
 
           {/* Last Update */}
-          <div className="text-center text-sm text-gray-500">
+          <div className={`text-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
             Last updated: {new Date(servoData.timestamp).toLocaleString()}
           </div>
         </>
       ) : selectedRobot && !error ? (
         <div className="card text-center py-12">
-          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No servo data available for {selectedRobot}</p>
-          <p className="text-sm text-gray-500 mt-2">
+          <AlertCircle className={`h-12 w-12 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No servo data available for {selectedRobot}</p>
+          <p className={`text-sm mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
             Make sure the robot is sending servo data via MQTT
           </p>
         </div>
       ) : !selectedRobot ? (
         <div className="card text-center py-12">
-          <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Please select a robot to view servo data</p>
+          <Settings className={`h-12 w-12 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Please select a robot to view servo data</p>
         </div>
       ) : null}
     </div>

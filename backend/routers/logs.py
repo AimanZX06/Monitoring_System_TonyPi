@@ -65,8 +65,23 @@ LOG_LEVELS = {
     'CRITICAL': {'color': 'purple', 'priority': 4}
 }
 
-# Log categories
-LOG_CATEGORIES = ['mqtt', 'api', 'database', 'system', 'command', 'robot', 'alert', 'report']
+# Log categories - aligned with robot activities
+LOG_CATEGORIES = [
+    'mqtt',       # MQTT broker events
+    'api',        # API requests
+    'database',   # Database operations
+    'system',     # System-level events
+    'command',    # Robot commands (move, action, etc.)
+    'robot',      # Robot status updates
+    'alert',      # Alert generation events
+    'report',     # Report generation
+    'servo',      # Servo-related events
+    'vision',     # Vision/camera detection events
+    'battery',    # Battery-related events
+    'sensor',     # Sensor readings
+    'job',        # Job/task progress
+    'movement',   # Movement/action events
+]
 
 
 @router.get("/logs", response_model=List[LogResponse])
