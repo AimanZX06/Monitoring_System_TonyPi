@@ -107,26 +107,24 @@ Create a `.env` file in the project root:
 
 ```env
 # Database
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
 POSTGRES_DB=tonypi_db
+POSTGRES_USER=your_postgres_user
+POSTGRES_PASSWORD=your_secure_password
 
 # InfluxDB
-INFLUXDB_TOKEN=my-super-secret-auth-token
+INFLUXDB_USERNAME=your_influxdb_user
+INFLUXDB_PASSWORD=your_secure_password
 INFLUXDB_ORG=tonypi
 INFLUXDB_BUCKET=robot_data
-
-# MQTT
-MQTT_BROKER_HOST=mosquitto
-MQTT_BROKER_PORT=1883
+INFLUXDB_TOKEN=your_secure_token
 
 # Grafana
-GRAFANA_USER=admin
-GRAFANA_PASSWORD=admin
+GRAFANA_USER=your_grafana_user
+GRAFANA_PASSWORD=your_secure_password
 
-# AI Analytics (Optional - Free tier)
-# Get your key: https://aistudio.google.com/app/apikey
-GEMINI_API_KEY=your-api-key-here
+# AI Analytics (Optional)
+# Get FREE key: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=
 ```
 
 ### 3. Start All Services
@@ -141,8 +139,8 @@ docker-compose up -d
 | **Frontend** | http://localhost:3001 | - |
 | **Backend API** | http://localhost:8000 | - |
 | **API Docs** | http://localhost:8000/docs | Interactive Swagger |
-| **Grafana** | http://localhost:3000 | admin / admin |
-| **InfluxDB** | http://localhost:8086 | admin / adminpass |
+| **Grafana** | http://localhost:3000 | (from .env) |
+| **InfluxDB** | http://localhost:8086 | (from .env) |
 
 ### 5. Connect Your Robot
 On your TonyPi robot:
