@@ -1,289 +1,51 @@
-/* Enhanced Global Styles - Modern Design System */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  * {
-    @apply box-border;
-  }
-
-  body {
-    @apply m-0 font-sans antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    background-attachment: fixed;
-    min-height: 100vh;
-  }
-
-  #root {
-    @apply min-h-screen;
-  }
+/* Basic CSS - No Tailwind to avoid compilation issues */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8f9fa;
 }
 
-@layer components {
-  /* Enhanced Card Component - Light Mode */
-  .card {
-    @apply bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    backdrop-filter: blur(10px);
-  }
-
-  /* Enhanced Card Component - Dark Mode */
-  .dark .card {
-    @apply bg-gray-800 border-gray-700 shadow-gray-900/50;
-  }
-
-  .card:hover {
-    @apply shadow-xl;
-    transform: translateY(-2px);
-  }
-
-  /* Enhanced Button Styles */
-  .btn-primary {
-    @apply bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg;
-    @apply font-semibold shadow-md transition-all duration-200;
-    @apply hover:from-blue-700 hover:to-blue-800 hover:shadow-lg;
-    @apply active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
-  }
-
-  .btn-secondary {
-    @apply bg-gray-100 text-gray-700 px-6 py-3 rounded-lg;
-    @apply font-semibold shadow-sm transition-all duration-200;
-    @apply hover:bg-gray-200 hover:shadow-md;
-    @apply active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
-  }
-
-  .dark .btn-secondary {
-    @apply bg-gray-700 text-gray-200 hover:bg-gray-600;
-  }
-
-  .btn-danger {
-    @apply bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-lg;
-    @apply font-semibold shadow-md transition-all duration-200;
-    @apply hover:from-red-700 hover:to-red-800 hover:shadow-lg;
-    @apply active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
-  }
-
-  .btn-success {
-    @apply bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg;
-    @apply font-semibold shadow-md transition-all duration-200;
-    @apply hover:from-green-700 hover:to-green-800 hover:shadow-lg;
-    @apply active:scale-95 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
-  }
-
-  /* Status Badges */
-  .status-online {
-    @apply text-green-700 bg-green-50 px-3 py-1.5 rounded-full text-sm font-medium;
-    @apply border border-green-200;
-  }
-
-  .status-offline {
-    @apply text-red-700 bg-red-50 px-3 py-1.5 rounded-full text-sm font-medium;
-    @apply border border-red-200;
-  }
-
-  .status-warning {
-    @apply text-yellow-700 bg-yellow-50 px-3 py-1.5 rounded-full text-sm font-medium;
-    @apply border border-yellow-200;
-  }
-
-  /* Tab Navigation */
-  .tab-button {
-    @apply px-6 py-3 rounded-lg font-medium transition-all duration-200;
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
-  }
-
-  .tab-button-active {
-    @apply bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg;
-    @apply transform scale-105;
-  }
-
-  .tab-button-inactive {
-    @apply bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900;
-    @apply shadow-sm hover:shadow-md;
-  }
-
-  /* Input Fields */
-  .input-field {
-    @apply w-full px-4 py-3 rounded-lg border border-gray-300;
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
-    @apply transition-all duration-200 bg-white text-gray-900;
-  }
-
-  .dark .input-field {
-    @apply bg-gray-700 border-gray-600 text-white placeholder-gray-400;
-  }
-
-  .input-field:focus {
-    @apply shadow-md;
-  }
-
-  /* Loading Spinner */
-  .spinner {
-    @apply inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  /* Fade In Animation */
-  .fade-in {
-    animation: fadeIn 0.5s ease-in;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Slide In Animation */
-  .slide-in {
-    animation: slideIn 0.3s ease-out;
-  }
-
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  /* Pulse Animation for Live Data */
-  .pulse-live {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
-
-  /* Glass Morphism Effect */
-  .glass {
-    @apply bg-white bg-opacity-80 backdrop-blur-lg border border-white border-opacity-20;
-  }
-
-  /* Gradient Text */
-  .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
-  }
-
-  /* Metric Card Enhanced */
-  .metric-card {
-    @apply bg-gradient-to-br from-white to-gray-50 rounded-xl p-6;
-    @apply border border-gray-100 shadow-md hover:shadow-xl;
-    @apply transition-all duration-300 transform hover:-translate-y-1;
-  }
-
-  /* Progress Bar Enhanced */
-  .progress-bar {
-    @apply w-full h-2.5 bg-gray-200 rounded-full overflow-hidden;
-  }
-
-  .progress-fill {
-    @apply h-full rounded-full transition-all duration-500 ease-out;
-  }
+* {
+  box-sizing: border-box;
 }
 
-@layer utilities {
-  /* Custom Scrollbar */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-gray-100 rounded-full;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 rounded-full hover:bg-gray-400;
-  }
-
-  /* Hide Scrollbar for Tab Navigation */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Text Gradient */
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600;
-  }
-
-  /* Smooth Transitions */
-  .transition-smooth {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
 }
 
-/* Responsive Design Enhancements */
-@media (max-width: 768px) {
-  .card {
-    @apply p-3 sm:p-4;
-    margin-bottom: 12px;
-  }
-
-  .btn-primary,
-  .btn-secondary,
-  .btn-danger,
-  .btn-success {
-    @apply px-3 py-2 text-sm;
-  }
-
-  .tab-button {
-    @apply px-3 py-2 text-xs;
-  }
-
-  .tab-button-active {
-    transform: scale(1);
-  }
+.btn-primary:hover {
+  background-color: #0056b3;
 }
 
-@media (max-width: 640px) {
-  .card {
-    @apply p-3;
-    border-radius: 8px;
-  }
-
-  .card:hover {
-    transform: none;
-  }
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+  padding: 24px;
+  margin-bottom: 16px;
 }
 
-/* Dark Mode Support */
-.dark body {
-  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+.status-online {
+  color: #28a745;
+  background-color: #d4edda;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
-.dark .custom-scrollbar::-webkit-scrollbar-track {
-  @apply bg-gray-800;
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 hover:bg-gray-500;
+.status-offline {
+  color: #dc3545;
+  background-color: #f8d7da;
+  padding: 4px 8px;
+  border-radius: 4px;
 }

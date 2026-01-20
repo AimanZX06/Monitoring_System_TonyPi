@@ -3,31 +3,23 @@ import {
   Activity, 
   Battery, 
   MapPin, 
+  AlertTriangle,
   CheckCircle,
   Clock
 } from 'lucide-react';
-import { apiService, handleApiError } from '../utils/api';
+import { apiService } from '../utils/api';
 import { RobotData } from '../types';
-import { useTheme } from '../contexts/ThemeContext';
 
+// Simple utility functions instead of importing
 const formatDate = (date: string) => new Date(date).toLocaleString();
+const getStatusColor = (status: string) => status === 'online' ? 'text-green-600' : 'text-red-600';
+const getBatteryColor = (level: number) => level > 50 ? 'text-green-600' : level > 20 ? 'text-yellow-600' : 'text-red-600';
 
 const Dashboard: React.FC = () => {
-  const { isDark } = useTheme();
   const [robotData, setRobotData] = useState<RobotData[]>([]);
   const [systemStatus, setSystemStatus] = useState<any>(null);
   const [jobStats, setJobStats] = useState<any>({ activeJobs: 0, completedToday: 0, totalItems: 0 });
   const [loading, setLoading] = useState(true);
-
-  const getStatusColor = (status: string) => status === 'online' 
-    ? (isDark ? 'text-green-400' : 'text-green-600') 
-    : (isDark ? 'text-red-400' : 'text-red-600');
-  
-  const getBatteryColor = (level: number) => level > 50 
-    ? (isDark ? 'text-green-400' : 'text-green-600') 
-    : level > 20 
-      ? (isDark ? 'text-yellow-400' : 'text-yellow-600') 
-      : (isDark ? 'text-red-400' : 'text-red-600');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,6 +32,7 @@ const Dashboard: React.FC = () => {
         setRobotData(robots);
         setSystemStatus(status);
         
+        // Fetch job statistics
         if (robots.length > 0) {
           let activeCount = 0;
           let completedCount = 0;
@@ -47,19 +40,22 @@ const Dashboard: React.FC = () => {
           
           for (const robot of robots) {
             try {
-              const jobData = await apiService.getJobSummary(robot.robot_id);
-              if (jobData.start_time && !jobData.end_time) {
-                activeCount++;
-              } else if (jobData.end_time) {
-                const today = new Date().toDateString();
-                const endDate = new Date(jobData.end_time).toDateString();
-                if (today === endDate) {
-                  completedCount++;
+              const response = await fetch(`/api/robot-data/job-summary/${robot.robot_id}`);
+              if (response.ok) {
+                const jobData = await response.json();
+                if (jobData.start_time && !jobData.end_time) {
+                  activeCount++;
+                } else if (jobData.end_time) {
+                  const today = new Date().toDateString();
+                  const endDate = new Date(jobData.end_time).toDateString();
+                  if (today === endDate) {
+                    completedCount++;
+                  }
                 }
+                totalItemsProcessed += jobData.items_done || 0;
               }
-              totalItemsProcessed += jobData.items_done || 0;
             } catch (e) {
-              console.error(`Error fetching job for ${robot.robot_id}:`, handleApiError(e));
+              console.error(`Error fetching job for ${robot.robot_id}:`, e);
             }
           }
           
@@ -74,6 +70,7 @@ const Dashboard: React.FC = () => {
 
     fetchData();
     
+    // Set up periodic refresh
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -92,28 +89,28 @@ const Dashboard: React.FC = () => {
       value: systemStatus?.active_robots || robotData.filter(r => r.status === 'online').length,
       icon: Activity,
       color: 'text-primary-600',
-      bgColor: isDark ? 'bg-primary-900/30' : 'bg-primary-50'
+      bgColor: 'bg-primary-50'
     },
     {
       title: 'Active Jobs',
       value: jobStats.activeJobs,
       icon: Activity,
-      color: isDark ? 'text-blue-400' : 'text-blue-600',
-      bgColor: isDark ? 'bg-blue-900/30' : 'bg-blue-50'
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50'
     },
     {
       title: 'Completed Today',
       value: jobStats.completedToday,
       icon: CheckCircle,
-      color: isDark ? 'text-green-400' : 'text-green-600',
-      bgColor: isDark ? 'bg-green-900/30' : 'bg-green-50'
+      color: 'text-green-600',
+      bgColor: 'bg-green-50'
     },
     {
       title: 'Items Processed',
       value: jobStats.totalItems,
       icon: CheckCircle,
-      color: isDark ? 'text-purple-400' : 'text-purple-600',
-      bgColor: isDark ? 'bg-purple-900/30' : 'bg-purple-50'
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50'
     }
   ];
 
@@ -128,8 +125,8 @@ const Dashboard: React.FC = () => {
                 <card.icon className={`h-6 w-6 ${card.color}`} />
               </div>
               <div className="ml-4">
-                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{card.title}</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{card.value}</p>
+                <p className="text-sm font-medium text-gray-600">{card.title}</p>
+                <p className="text-2xl font-bold text-gray-900">{card.value}</p>
               </div>
             </div>
           </div>
@@ -142,14 +139,14 @@ const Dashboard: React.FC = () => {
           <div key={robot.robot_id} className="card">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDark ? 'bg-primary-900/30' : 'bg-primary-100'}`}>
+                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
                   <Activity className="h-6 w-6 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <h3 className="text-lg font-semibold text-gray-900">
                     {robot.name || robot.robot_id}
                   </h3>
-                  <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>ID: {robot.robot_id}</p>
+                  <p className="text-sm text-gray-500">ID: {robot.robot_id}</p>
                 </div>
               </div>
               
@@ -162,10 +159,10 @@ const Dashboard: React.FC = () => {
               {/* Battery */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Battery className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`} />
-                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Battery</span>
+                  <Battery className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Battery</span>
                 </div>
-                <span className={`text-sm font-medium ${getBatteryColor(robot.battery_percentage ?? 0)}`}>
+                <span className={`text-sm font-medium ${getBatteryColor(robot.battery_percentage)}`}>
                   {robot.battery_percentage?.toFixed(1) || 'N/A'}%
                 </span>
               </div>
@@ -174,10 +171,10 @@ const Dashboard: React.FC = () => {
               {robot.location && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <MapPin className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`} />
-                    <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Position</span>
+                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">Position</span>
                   </div>
-                  <span className={`text-sm font-mono ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                  <span className="text-sm font-mono text-gray-900">
                     ({robot.location.x.toFixed(1)}, {robot.location.y.toFixed(1)})
                   </span>
                 </div>
@@ -186,17 +183,17 @@ const Dashboard: React.FC = () => {
               {/* Last Seen */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Clock className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-gray-500'}`} />
-                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Last Seen</span>
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Last Seen</span>
                 </div>
-                <span className={`text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                <span className="text-sm text-gray-900">
                   {formatDate(robot.last_seen)}
                 </span>
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className={`mt-4 pt-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex space-x-2">
                 <button className="btn-primary text-xs px-3 py-1">
                   View Details
@@ -213,7 +210,7 @@ const Dashboard: React.FC = () => {
       {/* System Services Status */}
       {systemStatus?.services && (
         <div className="card">
-          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>System Services</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">System Services</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(systemStatus.services).map(([service, status]) => (
               <div key={service} className="flex items-center space-x-2">
@@ -221,13 +218,11 @@ const Dashboard: React.FC = () => {
                   status === 'running' ? 'bg-green-400' : 'bg-red-400'
                 }`}></div>
                 <div>
-                  <p className={`text-sm font-medium capitalize ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                  <p className="text-sm font-medium text-gray-900 capitalize">
                     {service.replace('_', ' ')}
                   </p>
                   <p className={`text-xs ${
-                    status === 'running' 
-                      ? (isDark ? 'text-green-400' : 'text-green-600')
-                      : (isDark ? 'text-red-400' : 'text-red-600')
+                    status === 'running' ? 'text-green-600' : 'text-red-600'
                   }`}>
                     {String(status)}
                   </p>
@@ -241,19 +236,19 @@ const Dashboard: React.FC = () => {
       {/* Resource Usage */}
       {systemStatus?.resource_usage && (
         <div className="card">
-          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Resource Usage</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Resource Usage</h3>
           <div className="space-y-4">
             {Object.entries(systemStatus.resource_usage).map(([resource, usage]) => {
               const usageNum = Number(usage);
               return (
                 <div key={resource}>
                   <div className="flex justify-between text-sm">
-                    <span className={`capitalize ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <span className="text-gray-600 capitalize">
                       {resource.replace('_', ' ')}
                     </span>
-                    <span className={`font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{usageNum}%</span>
+                    <span className="font-medium">{usageNum}%</span>
                   </div>
-                  <div className={`mt-1 h-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                  <div className="mt-1 h-2 bg-gray-200 rounded-full">
                     <div 
                       className={`h-full rounded-full ${
                         usageNum > 80 ? 'bg-red-500' : usageNum > 60 ? 'bg-yellow-500' : 'bg-green-500'

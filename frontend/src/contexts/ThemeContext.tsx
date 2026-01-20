@@ -16,14 +16,19 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage first
-    const stored = localStorage.getItem('tonypi_theme');
-    if (stored === 'dark' || stored === 'light') {
-      return stored;
+    // Check localStorage first (with safety check for SSR/test environments)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('tonypi_theme');
+      if (stored === 'dark' || stored === 'light') {
+        return stored;
+      }
     }
-    // Check system preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
+    // Check system preference (with safety check for test environments)
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mediaQuery && mediaQuery.matches) {
+        return 'dark';
+      }
     }
     return 'light';
   });
@@ -42,7 +47,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Listen for system theme changes
   useEffect(() => {
+    // Safety check for test environments
+    if (typeof window === 'undefined' || !window.matchMedia) {
+      return;
+    }
+    
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    if (!mediaQuery || !mediaQuery.addEventListener) {
+      return;
+    }
+    
     const handleChange = (e: MediaQueryListEvent) => {
       const stored = localStorage.getItem('tonypi_theme');
       // Only auto-switch if user hasn't manually set a preference

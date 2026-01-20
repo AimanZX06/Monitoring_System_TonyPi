@@ -10,7 +10,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
-router = APIRouter(prefix="/robots-db", tags=["robots-database"])
+router = APIRouter(prefix="/api/robots-db", tags=["robots-database"])
 
 
 # Pydantic models for request/response

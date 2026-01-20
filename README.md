@@ -1,194 +1,166 @@
-# 🤖 TonyPi Robot Monitoring System
+# TonyPi Robot Monitoring System
 
-A comprehensive full-stack monitoring, analytics, and management system for HiWonder TonyPi robots (Raspberry Pi 5). Real-time data collection, AI-powered insights, and a modern web interface.
+A comprehensive full-stack monitoring, reporting, and management system for HiWonder TonyPi robots (Raspberry Pi 5). This system provides real-time data collection, visualization, and remote control capabilities through a modern web interface.
 
-![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
-![Python](https://img.shields.io/badge/python-3.8+-green.svg)
-![React](https://img.shields.io/badge/react-18-blue.svg)
+## 🚀 Features
 
----
-
-## ✨ Features
-
-### 📊 Real-Time Monitoring
-- **Live Telemetry**: CPU, Memory, Disk, Temperature via MQTT
-- **Task Manager View**: Windows-style system performance dashboard
-- **Sensor Dashboard**: IMU, light sensors, ultrasonic, and more
-- **Servo Monitoring**: Position, temperature, voltage for all 6 servos
-- **Camera Streaming**: Live video feed from robot camera
-
-### 🤖 Robot Management
-- **Multi-Robot Support**: Monitor multiple TonyPi robots simultaneously
-- **Remote Commands**: Send commands to robots in real-time
-- **Job Tracking**: Track robot tasks and job progress
-- **Location Tracking**: GPS/position updates
-
-### 📈 Data & Analytics
-- **AI-Powered Insights**: Google Gemini integration for intelligent analysis
-- **Time-Series Storage**: InfluxDB for sensor data history
-- **Custom Reports**: Generate and export PDF reports
-- **Grafana Dashboards**: Advanced data visualization
-
-### 🔐 User Management
-- **Role-Based Access**: Admin, Operator, Viewer roles
-- **Authentication**: Secure login system
-- **Audit Logs**: Track all system activities
-
----
+- **Real-time Monitoring**: Live sensor data streaming via MQTT
+- **Interactive Dashboard**: System overview with robot status and health metrics
+- **Data Visualization**: Time-series charts using InfluxDB and Grafana
+- **Remote Management**: Send commands and configure robots remotely  
+- **Reporting System**: Automated and custom reports with PostgreSQL storage
+- **Responsive UI**: Modern React TypeScript interface with Tailwind CSS
+- **Containerized Deployment**: Complete Docker-based infrastructure
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    MONITORING SERVER                            │
-│                                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
-│  │ Frontend │  │ Backend  │  │ Grafana  │  │   MQTT   │       │
-│  │  :3001   │  │  :8000   │  │  :3000   │  │  :1883   │       │
-│  │  React   │  │ FastAPI  │  │          │  │Mosquitto │       │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘       │
-│       │             │             │              │              │
-│       └─────────────┴─────────────┴──────────────┘              │
-│                           │                                     │
-│              ┌────────────┴────────────┐                       │
-│              │                         │                        │
-│        ┌─────┴─────┐            ┌──────┴─────┐                 │
-│        │ PostgreSQL│            │  InfluxDB  │                 │
-│        │   :5432   │            │   :8086    │                 │
-│        │  Metadata │            │ Time-series│                 │
-│        └───────────┘            └────────────┘                 │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                         MQTT/HTTP
-                              │
-┌─────────────────────────────────────────────────────────────────┐
-│                     TONYPI ROBOT                                │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    main.py                                │  │
-│  │  • MQTT Telemetry Client                                 │  │
-│  │  • Camera Stream Server (:8080)                          │  │
-│  │  • Vision AI (QR codes, colors, faces)                   │  │
-│  │  • Voice Module (TTS with Piper)                         │  │
-│  │  • Hardware Control (servos, sensors)                    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  Hardware: Camera, 6 Servos, IMU, Light Sensor, Ultrasonic    │
-└─────────────────────────────────────────────────────────────────┘
-```
+The system consists of 6 main services:
 
----
+1. **MQTT Broker** (Mosquitto) - Message queuing for robot communication
+2. **Time-series Database** (InfluxDB) - Sensor data storage and analytics
+3. **Relational Database** (PostgreSQL) - Users, reports, configurations
+4. **Visualization** (Grafana) - Advanced data visualization and dashboards
+5. **Backend API** (FastAPI) - REST API with Python
+6. **Frontend** (React + TypeScript) - Modern web interface
 
 ## 📋 Prerequisites
 
-### Monitoring Server (Your Computer)
-- ✅ Docker Desktop
-- ✅ Docker Compose v2.0+
-- ✅ 8GB+ RAM recommended
-- ✅ Ports available: 1883, 3000, 3001, 5432, 8000, 8086, 9001
-
-### TonyPi Robot (Raspberry Pi)
-- ✅ Python 3.8+
-- ✅ Camera connected
-- ✅ Network connectivity to monitoring server
-
----
+- Docker Desktop
+- Docker Compose v2.0+
+- 8GB+ RAM recommended
+- Ports 1883, 3000, 3001, 5432, 8000, 8086, 9001 available
 
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/Monitoring_System_TonyPi.git
+git clone <repository-url>
 cd Monitoring_System_TonyPi
 ```
 
-### 2. Configure Environment
-Create a `.env` file in the project root:
+### 2. Environment Configuration
+The `.env` file is already configured with default values:
 
-```env
-# Database
+```bash
+# Database Configuration
 POSTGRES_DB=tonypi_db
-POSTGRES_USER=your_postgres_user
-POSTGRES_PASSWORD=your_secure_password
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
 
-# InfluxDB
-INFLUXDB_USERNAME=your_influxdb_user
-INFLUXDB_PASSWORD=your_secure_password
+# InfluxDB Configuration
+INFLUXDB_USERNAME=admin
+INFLUXDB_PASSWORD=adminpass
 INFLUXDB_ORG=tonypi
 INFLUXDB_BUCKET=robot_data
-INFLUXDB_TOKEN=your_secure_token
+INFLUXDB_TOKEN=my-super-secret-auth-token
 
-# Grafana
-GRAFANA_USER=your_grafana_user
-GRAFANA_PASSWORD=your_secure_password
+# Grafana Configuration
+GRAFANA_USER=admin
+GRAFANA_PASSWORD=admin
 
-# AI Analytics (Optional)
-# Get FREE key: https://aistudio.google.com/app/apikey
-GEMINI_API_KEY=
+# MQTT Configuration
+MQTT_USERNAME=tonypi
+MQTT_PASSWORD=tonypi123
 ```
 
 ### 3. Start All Services
 ```bash
+# Start all services in detached mode
 docker-compose up -d
+
+# View logs from all services
+docker-compose logs -f
+
+# Check service status
+docker-compose ps
 ```
 
-### 4. Access the System
+### 4. Access the Applications
+
+Once all services are running, access them via:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| **Frontend** | http://localhost:3001 | - |
-| **Backend API** | http://localhost:8000 | - |
-| **API Docs** | http://localhost:8000/docs | Interactive Swagger |
-| **Grafana** | http://localhost:3000 | (from .env) |
-| **InfluxDB** | http://localhost:8086 | (from .env) |
+| **Frontend** | http://localhost:3001 | No auth required |
+| **Backend API** | http://localhost:8000 | No auth required |
+| **API Docs** | http://localhost:8000/docs | Interactive Swagger UI |
+| **Grafana** | http://localhost:3000 | admin / admin |
+| **InfluxDB** | http://localhost:8086 | admin / adminpass |
 
-### 5. Connect Your Robot
-On your TonyPi robot:
-```bash
-cd tonyPi/FYP_Robot
-export MQTT_BROKER=YOUR_PC_IP
-python3 main.py
-```
+### 5. Verify Installation
 
----
+1. **Check API Health**:
+   ```bash
+   curl http://localhost:8000/api/health
+   ```
 
-## 🖥️ Frontend Pages
+2. **Frontend Access**: Navigate to http://localhost:3001
+   - Dashboard should show system status
+   - Monitoring page shows MQTT connection status
 
-| Page | Description |
-|------|-------------|
-| **Dashboard** | Overview with robot status, stats, and quick actions |
-| **Monitoring** | Task Manager-style CPU, Memory, Disk, Temperature view |
-| **Robots** | Robot grid with camera feeds and terminal output |
-| **Sensors** | Real-time sensor data charts (IMU, light, ultrasonic) |
-| **Servos** | Servo status with position, temperature, voltage |
-| **Jobs** | Job tracking and progress monitoring |
-| **Reports** | Generate and view AI-powered PDF reports |
-| **Logs** | Real-time system logs with filtering |
-| **Alerts** | Alert management and configuration |
-| **Users** | User management (Admin only) |
-
----
+3. **MQTT Connection**: Test MQTT broker
+   ```bash
+   # Install mosquitto clients (optional)
+   # Ubuntu/Debian: sudo apt-get install mosquitto-clients
+   # macOS: brew install mosquitto
+   
+   # Test publish
+   mosquitto_pub -h localhost -p 1883 -t "tonypi/test" -m '{"test": "message"}'
+   ```
 
 ## 📡 MQTT Topics
 
-### Robot → Server
+The system uses the following MQTT topic structure:
+
+### Robot Data Topics
 ```
-tonypi/status/{robot_id}           # Robot status & system metrics
-tonypi/sensors/{robot_id}          # Sensor data (IMU, light, etc.)
-tonypi/servos/{robot_id}           # Servo positions & status
-tonypi/battery/{robot_id}          # Battery level
-tonypi/location/{robot_id}         # GPS/position
-tonypi/camera/{robot_id}           # Camera events
-tonypi/logs/{robot_id}             # Robot logs
+tonypi/sensors/{robot_id}/{sensor_type}     # Sensor data
+tonypi/battery/{robot_id}                   # Battery status  
+tonypi/location/{robot_id}                  # Robot position
+tonypi/status/{robot_id}                    # Robot status
 ```
 
-### Server → Robot
+### Command Topics
 ```
-tonypi/commands/{robot_id}         # Commands to robot
-tonypi/config/{robot_id}           # Configuration updates
+tonypi/commands/{robot_id}                  # Commands to robot
+tonypi/commands/response/{robot_id}         # Command responses
+tonypi/config/{robot_id}                    # Configuration updates
 ```
 
----
+### Example Payloads
+
+**Sensor Data**:
+```json
+{
+  "robot_id": "tonypi_01",
+  "sensor_type": "temperature",
+  "value": 24.5,
+  "timestamp": "2025-09-24T10:30:00Z"
+}
+```
+
+**Battery Status**:
+```json
+{
+  "robot_id": "tonypi_01", 
+  "voltage": 12.3,
+  "current": 0.5,
+  "percentage": 85,
+  "temperature": 22.1
+}
+```
+
+**Robot Command**:
+```json
+{
+  "command": "move_forward",
+  "parameters": {
+    "speed": 0.5,
+    "distance": 1.0
+  },
+  "timestamp": "2025-09-24T10:30:00Z"
+}
+```
 
 ## 🔧 API Endpoints
 
@@ -196,30 +168,27 @@ tonypi/config/{robot_id}           # Configuration updates
 - `GET /api/health` - System health check
 - `GET /api/management/system/status` - Detailed system status
 
-### Robot Data
-- `GET /api/robot-data/status` - Current robot status
+### Robot Data  
 - `GET /api/robot-data/sensors` - Query sensor data
-- `GET /api/robots-db/robots` - List all robots
-- `GET /api/robots-db/stats` - Robot statistics
-
-### Performance Metrics
-- `GET /api/pi-perf/status` - Raspberry Pi performance
-- `GET /api/pi-perf/history` - Performance history
+- `GET /api/robot-data/status` - Current robot status
+- `GET /api/robot-data/latest/{robot_id}` - Latest data for robot
 
 ### Management
 - `POST /api/management/command` - Send command to robot
-- `POST /api/management/robots/{id}/emergency-stop` - Emergency stop
+- `GET /api/management/robots` - List all robots
+- `GET /api/management/robots/{robot_id}/config` - Robot configuration
+- `POST /api/management/robots/{robot_id}/emergency-stop` - Emergency stop
 
-### Reports & Logs
-- `GET /api/reports` - List reports
+### Reports
+- `GET /api/reports` - List reports (with filtering)
 - `POST /api/reports` - Create new report
-- `GET /api/robots-db/logs` - System logs
+- `GET /api/reports/{id}` - Get specific report
 
-Full documentation: http://localhost:8000/docs
-
----
+Full API documentation: http://localhost:8000/docs
 
 ## 🐳 Docker Services
+
+### Service Details
 
 | Service | Container | Port | Purpose |
 |---------|-----------|------|---------|
@@ -230,176 +199,184 @@ Full documentation: http://localhost:8000/docs
 | backend | tonypi_backend | 8000 | FastAPI server |
 | frontend | tonypi_frontend | 3001 | React app |
 
-### Common Commands
-```bash
-# Start all services
-docker-compose up -d
+### Volume Mappings
 
-# View logs
-docker-compose logs -f [service]
+Data persistence is configured with local directories:
+- `./mosquitto/data` - MQTT persistence
+- `./influxdb/data` - InfluxDB data
+- `./postgres/data` - PostgreSQL data  
+- `./grafana/data` - Grafana dashboards and config
 
-# Restart service
-docker-compose restart [service]
+### Service Dependencies
 
-# Stop all
-docker-compose down
-
-# Reset everything (removes data)
-docker-compose down -v
+```
+frontend → backend → [postgres, influxdb, mosquitto]
+grafana → [influxdb, postgres]
 ```
 
----
+## 🔧 Development
 
-## 🤖 Robot Setup
-
-The robot code is in `tonyPi/FYP_Robot/`. See [COMPLETE_SYSTEM_STARTUP_GUIDE.md](COMPLETE_SYSTEM_STARTUP_GUIDE.md) for detailed setup instructions.
-
-### Quick Start on Robot
-```bash
-# SSH into your TonyPi
-ssh pi@<robot-ip>
-
-# Navigate to robot code
-cd tonyPi/FYP_Robot
-
-# Set MQTT broker IP
-export MQTT_BROKER=<your-pc-ip>
-
-# Run robot
-python3 main.py
-```
-
-### Robot Features
-- **Camera Streaming**: MJPEG stream on port 8080
-- **Vision AI**: QR code, color, and face detection
-- **Voice**: Text-to-speech with Piper TTS
-- **Telemetry**: Auto-sends system metrics every 5 seconds
-- **Servo Control**: 6 servo positions and status
-
----
-
-## 🧠 AI Analytics (Optional)
-
-The system includes Google Gemini AI integration for intelligent data analysis:
-
-- **Performance Analysis**: CPU, memory, temperature insights
-- **Anomaly Detection**: Identify unusual patterns
-- **Report Generation**: AI-powered PDF reports
-- **Recommendations**: Actionable suggestions
-
-### Setup
-1. Get a free API key: https://aistudio.google.com/app/apikey
-2. Add to `.env`: `GEMINI_API_KEY=your-key`
-3. Restart backend: `docker-compose restart backend`
-
-Free tier limits (generous):
-- 15 requests/minute
-- 1 million tokens/minute
-- 1,500 requests/day
-
----
-
-## 🛠️ Development
-
-### Backend
+### Backend Development
 ```bash
 cd backend
+
+# Create virtual environment  
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate     # Windows
+
+# Install dependencies
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+
+# Run development server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Frontend
+### Frontend Development
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
+
+# Start development server
 npm start
 ```
 
-### Database Access
+### Database Migrations
 ```bash
-# PostgreSQL
+# Connect to PostgreSQL
 docker exec -it tonypi_postgres psql -U postgres -d tonypi_db
 
-# InfluxDB
-curl http://localhost:8086/ping
+# View tables
+\dt
+
+# Custom queries
+SELECT * FROM robots;
+SELECT * FROM reports ORDER BY created_at DESC LIMIT 10;
 ```
 
----
+## 📊 Grafana Dashboards
+
+Grafana comes pre-configured with InfluxDB and PostgreSQL datasources. Create custom dashboards:
+
+1. Login to Grafana (admin/admin)
+2. Navigate to Dashboards → New Dashboard
+3. Add panels with queries:
+
+**InfluxDB Flux Query Example**:
+```flux
+from(bucket: "robot_data")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r["_measurement"] == "sensors")
+  |> filter(fn: (r) => r["_field"] == "temperature")
+```
+
+**PostgreSQL Query Example**:
+```sql
+SELECT created_at, title, robot_id 
+FROM reports 
+WHERE created_at > NOW() - INTERVAL '24 hours'
+ORDER BY created_at DESC
+```
 
 ## 🐛 Troubleshooting
 
-### Services not starting
+### Common Issues
+
+**Services not starting**:
 ```bash
+# Check service status
 docker-compose ps
-docker-compose logs [service]
+
+# View service logs
+docker-compose logs [service-name]
+
+# Restart specific service
+docker-compose restart [service-name]
 ```
 
-### MQTT connection issues
+**Port conflicts**:
 ```bash
-# Test broker
-mosquitto_pub -h localhost -p 1883 -t "test" -m "hello"
+# Check port usage
+netstat -tulpn | grep :3000
 
-# Check logs
+# Stop conflicting services or modify docker-compose.yml ports
+```
+
+**MQTT connection issues**:
+```bash
+# Test MQTT broker directly
+mosquitto_pub -h localhost -p 1883 -t "test/topic" -m "test message"
+
+# Check Mosquitto logs
 docker-compose logs mosquitto
 ```
 
-### Robot not appearing
-1. Verify MQTT broker IP is correct
-2. Check firewall allows port 1883
-3. Test: `ping <pc-ip>` from robot
-4. Check backend logs: `docker-compose logs backend`
-
-### Database errors
+**Database connection errors**:
 ```bash
-# PostgreSQL
+# Check PostgreSQL
 docker exec -it tonypi_postgres pg_isready
 
-# InfluxDB
+# Check InfluxDB
 curl http://localhost:8086/ping
 ```
 
----
+### Reset Everything
+```bash
+# Stop and remove all containers, networks, and volumes
+docker-compose down -v
 
-## 📁 Project Structure
+# Remove all images (optional)
+docker-compose down --rmi all
 
-```
-Monitoring_System_TonyPi/
-├── backend/                 # FastAPI backend
-│   ├── routers/            # API routes
-│   ├── services/           # Business logic (Gemini AI)
-│   ├── models/             # Database models
-│   ├── database/           # DB connections
-│   └── mqtt/               # MQTT client
-├── frontend/               # React frontend
-│   ├── src/
-│   │   ├── pages/         # Page components
-│   │   ├── components/    # Shared components
-│   │   ├── contexts/      # React contexts
-│   │   └── utils/         # Helpers & API
-├── tonyPi/FYP_Robot/       # Robot code
-│   ├── main.py            # Main robot controller
-│   ├── modules/           # Robot modules
-│   └── actions/           # Robot actions
-├── grafana/               # Grafana config
-├── mosquitto/             # MQTT config
-├── postgres/              # PostgreSQL init
-├── influxdb/              # InfluxDB config
-├── docker-compose.yml     # Docker orchestration
-└── .env                   # Environment config
+# Start fresh
+docker-compose up -d
 ```
 
+## 📈 Production Deployment
+
+### Security Considerations
+
+1. **Change default passwords** in `.env`
+2. **Enable MQTT authentication** in `mosquitto.conf`
+3. **Use environment-specific configs**
+4. **Set up SSL/TLS** for all services
+5. **Implement proper authentication** in the API
+
+### Performance Optimization
+
+1. **Resource limits** in docker-compose.yml
+2. **InfluxDB retention policies** for data management  
+3. **Database indexing** optimization
+4. **MQTT QoS settings** based on requirements
+
+### Monitoring
+
+1. **Health checks** for all services
+2. **Log aggregation** (ELK stack)
+3. **Metrics collection** (Prometheus)
+4. **Alerting** (AlertManager)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the GitHub repository
+- Check the troubleshooting section above
+- Review Docker and service logs for debugging
+
 ---
 
-## 🙏 Acknowledgments
-
-- [HiWonder](https://www.hiwonder.com/) for TonyPi robot hardware
-- [Eclipse Mosquitto](https://mosquitto.org/) for MQTT broker
-- [InfluxDB](https://www.influxdata.com/) for time-series database
-- [Grafana](https://grafana.com/) for visualization
-- [Google Gemini](https://ai.google.dev/) for AI analytics
-
----
-
-
+**Built with ❤️ for HiWonder TonyPi Robot Community**

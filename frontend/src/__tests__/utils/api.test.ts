@@ -3,21 +3,34 @@
  * 
  * Run with: npm test -- api.test.ts
  */
-import axios from 'axios';
-import { apiService, handleApiError } from '../../utils/api';
 
-// Mock axios
-jest.mock('axios', () => ({
-  create: jest.fn(() => ({
+// Mock axios BEFORE importing api module
+jest.mock('axios', () => {
+  const mockAxiosInstance = {
     get: jest.fn(),
     post: jest.fn(),
     put: jest.fn(),
     delete: jest.fn(),
-  })),
-  isAxiosError: jest.fn(),
-}));
+    interceptors: {
+      request: {
+        use: jest.fn(),
+        eject: jest.fn(),
+      },
+      response: {
+        use: jest.fn(),
+        eject: jest.fn(),
+      },
+    },
+  };
+  
+  return {
+    create: jest.fn(() => mockAxiosInstance),
+    isAxiosError: jest.fn(),
+  };
+});
 
-const mockedAxios = axios.create() as jest.Mocked<typeof axios>;
+import axios from 'axios';
+import { apiService, handleApiError } from '../../utils/api';
 
 describe('API Service', () => {
   beforeEach(() => {

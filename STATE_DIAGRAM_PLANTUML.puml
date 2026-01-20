@@ -1,0 +1,590 @@
+@startuml State_Diagram_Robot
+title TonyPi Robot State Machine
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #E8F4FD
+    BorderColor #2196F3
+    ArrowColor #1976D2
+    FontColor #1565C0
+}
+
+state "Robot States" as RobotStates {
+    [*] --> Offline
+    
+    state "Offline" as Offline #FFE0E0
+    Offline : Robot not connected
+    Offline : No MQTT communication
+    
+    state "Connecting" as Connecting #FFF3E0
+    Connecting : Establishing MQTT
+    Connecting : Authenticating
+    
+    state "Online" as Online #E8F5E9 {
+        state "Idle" as Idle #C8E6C9
+        Idle : Awaiting commands
+        Idle : Sending telemetry
+        
+        state "Working" as Working #BBDEFB {
+            Working : Executing job
+            Working : QR scanning active
+            
+            state "WorkInit" as WorkInit
+            state "WorkScan" as WorkScan
+            state "WorkProcess" as WorkProcess
+            state "WorkUpdate" as WorkUpdate
+            
+            [*] --> WorkInit
+            WorkInit --> WorkScan : Camera ready
+            WorkScan --> WorkProcess : QR detected
+            WorkProcess --> WorkUpdate : Data validated
+            WorkUpdate --> WorkScan : Continue
+            WorkUpdate --> [*] : Job complete
+        }
+    }
+    
+    state "Error" as Error #FFCDD2
+    Error : Fault detected
+    Error : Requires attention
+    
+    state "Maintenance" as Maintenance #E1BEE7
+    Maintenance : Service mode
+    Maintenance : Diagnostics running
+    
+    Offline --> Connecting : Power on
+    Connecting --> Online : Connection success
+    Connecting --> Offline : Connection timeout
+    
+    Online --> Offline : Disconnect command
+    Idle --> Working : Start job
+    Working --> Idle : Job completed
+    Working --> Error : Job failure
+    
+    Idle --> Maintenance : Maintenance request
+    Maintenance --> Idle : Maintenance complete
+    
+    Error --> Idle : Error cleared
+    Error --> Offline : Critical failure
+    
+    Online -[dashed]-> Offline : Connection lost
+}
+
+@enduml
+
+@startuml State_Diagram_Job
+title Job Lifecycle State Machine
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+    ArrowColor #0D47A1
+    FontColor #1565C0
+}
+
+[*] --> Pending : Job created
+
+state "Pending" as Pending #FFF9C4
+Pending : Job queued
+Pending : Awaiting robot
+
+state "Active" as Active #C8E6C9
+Active : Job executing
+Active : Progress updating
+Active : items_done / items_total
+
+state "Paused" as Paused #FFE0B2
+Paused : Execution halted
+Paused : Can resume
+
+state "Completed" as Completed #A5D6A7
+Completed : Successfully finished
+Completed : 100% complete
+
+state "Failed" as Failed #EF9A9A
+Failed : Error occurred
+Failed : Requires intervention
+
+state "Cancelled" as Cancelled #BDBDBD
+Cancelled : Manually stopped
+Cancelled : User action
+
+Pending --> Active : Start job
+
+Active --> Completed : All items processed
+Active --> Failed : Error occurred
+Active --> Paused : Pause command
+Active --> Cancelled : Cancel command
+
+Paused --> Active : Resume command
+Paused --> Cancelled : Cancel command
+
+Failed --> Pending : Retry job
+
+Completed --> [*]
+Failed --> [*]
+Cancelled --> [*]
+
+note right of Active
+  Job progress is tracked:
+  - items_done
+  - items_total
+  - percent_complete
+  - last_item (JSON)
+end note
+
+@enduml
+
+@startuml State_Diagram_Alert
+title Alert Lifecycle State Machine
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #FFF3E0
+    BorderColor #FF9800
+    ArrowColor #E65100
+    FontColor #E65100
+}
+
+[*] --> Created : Threshold exceeded
+
+state "Created" as Created #FFECB3
+Created : Alert generated
+Created : Not yet viewed
+
+state "Unacknowledged" as Unack #FFB74D
+Unack : Requiring attention
+Unack : Awaiting response
+
+state "Acknowledged" as Ack #FFE082
+Ack : Operator notified
+Ack : acknowledged = true
+
+state "Resolved" as Resolved #A5D6A7
+Resolved : Issue fixed
+Resolved : resolved = true
+
+state "Deleted" as Deleted #BDBDBD
+Deleted : Removed from system
+
+Created --> Unack : Auto-transition
+
+Unack --> Ack : User acknowledges
+Unack --> Resolved : Auto-resolve
+
+Ack --> Resolved : Mark resolved
+
+Created --> Deleted : Delete
+Unack --> Deleted : Delete
+Ack --> Deleted : Delete
+Resolved --> Deleted : Delete
+
+Resolved --> [*]
+Deleted --> [*]
+
+note right of Ack
+  Alert Types:
+  - temperature (CPU/Servo)
+  - battery (Low/Critical)
+  - system (Resource usage)
+  - servo (Voltage/Temp)
+  - connection (Network)
+  
+  Severity Levels:
+  - Critical: Immediate action
+  - Warning: Attention needed
+  - Info: Informational
+end note
+
+@enduml
+
+@startuml State_Diagram_User_Session
+title User Session State Machine
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #E8EAF6
+    BorderColor #3F51B5
+    ArrowColor #1A237E
+    FontColor #283593
+}
+
+[*] --> LoggedOut
+
+state "LoggedOut" as LoggedOut #FFCDD2
+LoggedOut : No active session
+LoggedOut : Token = null
+
+state "Authenticating" as Authenticating #FFF9C4
+Authenticating : Validating credentials
+Authenticating : Checking password hash
+
+state "Authenticated" as Authenticated #C8E6C9
+Authenticated : Active session
+Authenticated : JWT token valid
+
+state "Expired" as Expired #FFCC80
+Expired : Token expired
+Expired : Re-authentication needed
+
+state "Locked" as Locked #EF9A9A
+Locked : Too many failures
+Locked : Temporary lockout
+
+LoggedOut --> Authenticating : Login attempt
+
+Authenticating --> Authenticated : Auth success
+Authenticating --> LoggedOut : Auth failure
+Authenticating --> Locked : Too many failures
+
+Authenticated --> Expired : Token expired
+Authenticated --> LoggedOut : Logout
+
+Expired --> Authenticating : Re-login
+Expired --> LoggedOut : Session clear
+
+Locked --> LoggedOut : Lock timeout
+
+note right of Authenticated
+  JWT Token contains:
+  - user_id
+  - username
+  - role
+  - exp (expiration)
+  
+  User Roles:
+  - Admin: Full access
+  - Operator: Robot control
+  - Viewer: Read-only
+end note
+
+@enduml
+
+@startuml State_Diagram_MQTT
+title MQTT Connection State Machine
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #E0F7FA
+    BorderColor #00ACC1
+    ArrowColor #006064
+    FontColor #00695C
+}
+
+state "MQTT Connection" as MQTTConnection {
+    [*] --> Disconnected
+    
+    state "Disconnected" as Disconnected #FFCDD2
+    Disconnected : No broker connection
+    Disconnected : client = null
+    
+    state "Connecting" as MQTTConnecting #FFF9C4 {
+        MQTTConnecting : TCP handshake
+        MQTTConnecting : MQTT CONNECT sent
+        
+        state "TCPConnect" as TCPConnect
+        state "MQTTHandshake" as MQTTHandshake
+        state "MQTTAuth" as MQTTAuth
+        
+        [*] --> TCPConnect
+        TCPConnect --> MQTTHandshake : Socket open
+        MQTTHandshake --> MQTTAuth : CONNECT sent
+        MQTTAuth --> [*] : CONNACK received
+    }
+    
+    state "Connected" as Connected #C8E6C9
+    Connected : Broker connection active
+    Connected : Ready for operations
+    
+    state "Subscribing" as Subscribing #BBDEFB {
+        Subscribing : Subscribing to topics
+        
+        state "SubTopics" as SubTopics
+        SubTopics : tonypi/sensors/+
+        SubTopics : tonypi/status/+
+        SubTopics : tonypi/commands/+
+    }
+    
+    state "Ready" as Ready #A5D6A7 {
+        Ready : Fully operational
+        
+        state "Publishing" as Publishing
+        Publishing : Sensor data
+        Publishing : Status updates
+        
+        state "Receiving" as Receiving
+        Receiving : Commands
+        Receiving : Config updates
+        
+        Publishing --> Receiving
+        Receiving --> Publishing
+    }
+    
+    state "Reconnecting" as Reconnecting #FFE0B2
+    Reconnecting : Connection lost
+    Reconnecting : Attempting recovery
+    
+    Disconnected --> MQTTConnecting : Connect request
+    
+    MQTTConnecting --> Connected : CONNACK success
+    MQTTConnecting --> Disconnected : Connection refused
+    
+    Connected --> Subscribing : Connection ready
+    Subscribing --> Ready : All subscribed
+    
+    Ready --> Reconnecting : Connection lost
+    Reconnecting --> MQTTConnecting : Retry attempt
+    Reconnecting --> Disconnected : Max retries
+    
+    Ready --> Disconnected : Disconnect command
+}
+
+note right of Ready
+  Topics:
+  - tonypi/sensors/{robot_id}
+  - tonypi/status/{robot_id}
+  - tonypi/commands/{robot_id}
+  - tonypi/battery
+  - tonypi/job_progress
+end note
+
+@enduml
+
+@startuml State_Diagram_System_Health
+title System Health State Machine
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #F3E5F5
+    BorderColor #9C27B0
+    ArrowColor #6A1B9A
+    FontColor #7B1FA2
+}
+
+[*] --> Initializing
+
+state "Initializing" as Initializing #FFF9C4
+Initializing : Starting services
+Initializing : Health checks running
+
+state "Healthy" as Healthy #A5D6A7
+Healthy : All components operational
+Healthy : PostgreSQL, InfluxDB OK
+Healthy : MQTT, Grafana, API OK
+
+state "Degraded" as Degraded #FFE082
+Degraded : Some issues detected
+Degraded : Partial functionality
+
+state "Critical" as HealthCritical #EF9A9A
+HealthCritical : Major failures
+HealthCritical : Core services down
+
+state "SystemOffline" as SystemOffline #BDBDBD
+SystemOffline : System not operational
+SystemOffline : All services down
+
+Initializing --> Healthy : All checks pass
+Initializing --> Degraded : Some checks fail
+Initializing --> HealthCritical : Critical checks fail
+
+Healthy --> Degraded : Component warning
+Degraded --> Healthy : Issues resolved
+
+Degraded --> HealthCritical : Multiple failures
+HealthCritical --> Degraded : Partial recovery
+
+HealthCritical --> SystemOffline : Total failure
+SystemOffline --> HealthCritical : Partial startup
+SystemOffline --> Initializing : Full restart
+
+note right of Healthy
+  Health Check Endpoints:
+  - /api/health
+  - PostgreSQL: pg_isready
+  - InfluxDB: /ping
+  - MQTT: connected status
+  - Grafana: /api/health
+end note
+
+@enduml
+
+@startuml State_Diagram_QR_Scanning
+title QR Code Scanning State Machine
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #E8F5E9
+    BorderColor #4CAF50
+    ArrowColor #2E7D32
+    FontColor #1B5E20
+}
+
+state "QR Scanning Process" as QRScanning {
+    [*] --> ScanIdle
+    
+    state "ScanIdle" as ScanIdle #E0E0E0
+    ScanIdle : Camera inactive
+    ScanIdle : No scan in progress
+    
+    state "ScanInit" as ScanInit #FFF9C4
+    ScanInit : Camera warming up
+    ScanInit : Setting exposure
+    ScanInit : Configuring decoder
+    
+    state "Scanning" as Scanning #BBDEFB {
+        Scanning : Looking for QR codes
+        
+        state "FrameCapture" as FrameCapture
+        state "QRDetect" as QRDetect
+        state "BoundaryAnalysis" as BoundaryAnalysis
+        
+        [*] --> FrameCapture
+        FrameCapture --> QRDetect : Frame acquired
+        QRDetect --> BoundaryAnalysis : Pattern found
+        BoundaryAnalysis --> FrameCapture : No valid QR
+        BoundaryAnalysis --> [*] : QR located
+    }
+    
+    state "Detected" as Detected #FFF59D {
+        Detected : QR code found
+        
+        state "Decode" as Decode
+        state "Parse" as Parse
+        
+        [*] --> Decode
+        Decode --> Parse : Raw data extracted
+        Parse --> [*] : Data structured
+    }
+    
+    state "Processing" as Processing #C5E1A5 {
+        Processing : Validating data
+        
+        state "FormatCheck" as FormatCheck
+        state "ContentValidation" as ContentValidation
+        state "DuplicateCheck" as DuplicateCheck
+        
+        [*] --> FormatCheck
+        FormatCheck --> ContentValidation : Valid format
+        ContentValidation --> DuplicateCheck : Content OK
+        DuplicateCheck --> [*] : Not duplicate
+    }
+    
+    state "ScanSuccess" as ScanSuccess #A5D6A7
+    ScanSuccess : Valid QR processed
+    ScanSuccess : Item recorded
+    ScanSuccess : Progress updated
+    
+    state "ScanError" as ScanError #EF9A9A {
+        ScanError : Invalid/unreadable
+        
+        state "DecodeErr" as DecodeErr
+        state "ValidErr" as ValidErr
+        state "DupErr" as DupErr
+    }
+    
+    ScanIdle --> ScanInit : Start scan
+    ScanInit --> Scanning : Camera ready
+    ScanInit --> ScanError : Init failed
+    
+    Scanning --> Detected : QR found
+    Scanning --> ScanIdle : Stop scan
+    
+    Detected --> Processing : Decode success
+    Detected --> ScanError : Decode failed
+    
+    Processing --> ScanSuccess : Validation passed
+    Processing --> ScanError : Validation failed
+    
+    ScanSuccess --> Scanning : Continue
+    ScanSuccess --> ScanIdle : Complete
+    
+    ScanError --> Scanning : Retry
+    ScanError --> ScanIdle : Abort
+}
+
+note right of ScanSuccess
+  On Success:
+  - items_done++
+  - percent_complete updated
+  - last_item = scanned data
+  - MQTT publish progress
+end note
+
+@enduml
+
+@startuml State_Diagram_Complete_Overview
+title TonyPi Monitoring System - Complete State Overview
+
+skinparam backgroundColor #FEFEFE
+skinparam state {
+    BackgroundColor #ECEFF1
+    BorderColor #607D8B
+}
+
+state "Robot States" as RobotLayer #E3F2FD {
+    [*] --> R_Offline
+    R_Offline --> R_Online : Connect
+    R_Online --> R_Working : Job start
+    R_Working --> R_Idle : Job done
+    R_Online --> R_Error : Fault
+    R_Error --> R_Offline : Shutdown
+}
+
+state "Job States" as JobLayer #E8F5E9 {
+    [*] --> J_Pending
+    J_Pending --> J_Active : Start
+    J_Active --> J_Completed : Done
+    J_Active --> J_Failed : Error
+    J_Completed --> [*]
+}
+
+state "Alert States" as AlertLayer #FFF3E0 {
+    [*] --> A_Created
+    A_Created --> A_Active : Auto
+    A_Active --> A_Acknowledged : Ack
+    A_Acknowledged --> A_Resolved : Fix
+    A_Resolved --> [*]
+}
+
+state "Session States" as UserLayer #F3E5F5 {
+    [*] --> U_LoggedOut
+    U_LoggedOut --> U_Auth : Login
+    U_Auth --> U_LoggedOut : Logout
+    U_Auth --> U_Expired : Timeout
+    U_Expired --> U_LoggedOut : Clear
+}
+
+state "MQTT States" as CommLayer #E0F7FA {
+    [*] --> M_Disconnected
+    M_Disconnected --> M_Connecting : Start
+    M_Connecting --> M_Ready : Connected
+    M_Ready --> M_Reconnecting : Lost
+    M_Reconnecting --> M_Connecting : Retry
+}
+
+state "Health States" as SysLayer #FFEBEE {
+    [*] --> H_Init
+    H_Init --> H_Healthy : OK
+    H_Healthy --> H_Degraded : Warning
+    H_Degraded --> H_Critical : Fail
+    H_Critical --> H_Healthy : Recover
+}
+
+RobotLayer -[hidden]down-> JobLayer
+JobLayer -[hidden]down-> AlertLayer
+AlertLayer -[hidden]down-> UserLayer
+UserLayer -[hidden]down-> CommLayer
+CommLayer -[hidden]down-> SysLayer
+
+note bottom of SysLayer
+  State Machine Summary:
+  - Robot: 7 states (Offline to Online to Working to Idle)
+  - Job: 6 states (Pending to Active to Completed/Failed)
+  - Alert: 5 states (Created to Active to Acknowledged to Resolved)
+  - Session: 5 states (LoggedOut to Authenticated to Expired)
+  - MQTT: 6 states (Disconnected to Connected to Ready)
+  - Health: 4 states (Healthy to Degraded to Critical)
+end note
+
+@enduml

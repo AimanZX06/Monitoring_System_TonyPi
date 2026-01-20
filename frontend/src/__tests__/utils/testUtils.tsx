@@ -2,17 +2,29 @@
  * Test utilities and custom render function.
  * 
  * Use these utilities across all tests for consistent setup.
+ * This is a utility file, not a test file.
  */
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { NotificationProvider } from '../../contexts/NotificationContext';
+import { ThemeProvider } from '../../contexts/ThemeContext';
+
+// Dummy test to prevent "test suite must contain at least one test" error
+// This file is a utility module, not a test file
+describe('Test Utilities', () => {
+  it('exports render function', () => {
+    expect(typeof render).toBe('function');
+  });
+});
 
 // All providers that wrap the app
 const AllTheProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <NotificationProvider>
-      {children}
-    </NotificationProvider>
+    <ThemeProvider>
+      <NotificationProvider>
+        {children}
+      </NotificationProvider>
+    </ThemeProvider>
   );
 };
 

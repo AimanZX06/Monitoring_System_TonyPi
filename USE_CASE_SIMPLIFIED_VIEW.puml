@@ -1,0 +1,187 @@
+@startuml Use_Case_Simplified_Monitoring
+
+title TonyPi Monitoring System - Simplified View
+
+skinparam shadowing false
+skinparam backgroundColor white
+
+skinparam package {
+    BackgroundColor #FAFAFA
+    BorderColor #1976D2
+}
+
+skinparam rectangle {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+    FontColor #333333
+}
+
+package "Human Actors" {
+    actor Admin as "Admin"
+    actor Operator as "Operator"
+    actor Viewer as "Viewer"
+}
+
+package "TonyPi Monitoring System" {
+    rectangle "Authentication\nLogin, Logout, Profile" as Auth
+    rectangle "User Management\nCRUD Users, Roles" as UserMgmt
+    rectangle "Robot Management\nRegister, Configure, Delete" as RobotMgmt
+    rectangle "Robot Control\nCommands, Emergency Stop" as Control
+    rectangle "Monitoring\nDashboard, Sensors, Servos" as Monitor
+    rectangle "Alerts\nView, Acknowledge, Resolve" as AlertMgmt
+    rectangle "Reports\nGenerate, Download, AI Analysis" as ReportGen
+    rectangle "Logs\nView, Filter, Export" as LogView
+    rectangle "Jobs\nProgress, Summary" as JobTrack
+}
+
+package "External Actors" {
+    actor Robot as "TonyPi Robot"
+    actor AI as "Gemini AI"
+}
+
+Admin --> Auth : full access
+Admin --> UserMgmt : manage
+Admin --> RobotMgmt : configure
+Admin --> Control : control
+Admin --> Monitor : view
+Admin --> AlertMgmt : manage
+Admin --> ReportGen : generate
+Admin --> LogView : view
+Admin --> JobTrack : track
+
+Operator --> Auth : access
+Operator --> RobotMgmt : view
+Operator --> Control : control
+Operator --> Monitor : view
+Operator --> AlertMgmt : manage
+Operator --> ReportGen : generate
+Operator --> LogView : view
+Operator --> JobTrack : track
+
+Viewer --> Auth : access
+Viewer --> Monitor : view only
+Viewer --> AlertMgmt : view
+Viewer --> ReportGen : view
+Viewer --> LogView : view
+Viewer --> JobTrack : view
+
+Robot --> Monitor : telemetry
+Robot --> Control : receives
+Robot --> AlertMgmt : triggers
+Robot --> JobTrack : updates
+
+AI --> ReportGen : analyzes
+
+@enduml
+
+@startuml Use_Case_Simplified_Packaging
+
+title TonyPi Autonomous Packaging - Simplified View
+
+skinparam shadowing false
+skinparam backgroundColor white
+
+skinparam package {
+    BackgroundColor #FAFAFA
+    BorderColor #4CAF50
+}
+
+skinparam rectangle {
+    BackgroundColor #E8F5E9
+    BorderColor #4CAF50
+    FontColor #333333
+}
+
+actor Operator
+
+package "TonyPi Autonomous Packaging System" {
+    rectangle "Voice Commands\nIssue commands, Navigate" as Voice
+    rectangle "Safety Controls\nEmergency Stop, Obstacle Detection" as Safety
+    rectangle "Environment Sensing\nDarkness Detection, Target Detection" as Sensing
+    rectangle "Packaging Execution\nMain task workflow" as Packaging
+    rectangle "Servo Operations\nMaterial handling actions" as Servo
+    rectangle "Feedback\nAudio responses" as Feedback
+}
+
+Operator --> Voice : issues
+Operator --> Safety : triggers
+Operator --> Packaging : initiates
+Operator --> Feedback : receives
+
+Voice --> Packaging : triggers
+Safety --> Packaging : interrupts
+Sensing --> Packaging : informs
+Packaging --> Servo : controls
+Packaging --> Sensing : uses
+
+note right of Packaging
+  Coordinates all robot
+  actions for packaging
+  workflow
+end note
+
+note right of Servo
+  Includes:
+  - Transport Light Material
+  - Diecut Peeling
+  - Sheet Flip Over
+  - Label Insertion
+end note
+
+@enduml
+
+@startuml Use_Case_Role_Access_Matrix
+
+title TonyPi System - Role Access Matrix
+
+skinparam shadowing false
+skinparam backgroundColor white
+
+skinparam class {
+    BackgroundColor #FFFDE7
+    BorderColor #F9A825
+}
+
+class "Admin" as AdminRole {
+    + Authentication (Full)
+    + User Management (Full)
+    + Robot Management (Full)
+    + Robot Control (Full)
+    + Monitoring (Full)
+    + Alert Management (Full)
+    + Reports (Full)
+    + Logs (Full)
+    + Jobs (Full)
+}
+
+class "Operator" as OperatorRole {
+    + Authentication (Access)
+    + Robot Management (View)
+    + Robot Control (Limited)
+    + Monitoring (Full)
+    + Alert Management (Manage)
+    + Reports (Generate)
+    + Logs (View/Filter)
+    + Jobs (Track)
+    + Packaging Tasks (Execute)
+}
+
+class "Viewer" as ViewerRole {
+    + Authentication (Access)
+    + Robot Management (View)
+    + Monitoring (View Only)
+    + Alert Management (View)
+    + Reports (View)
+    + Logs (View)
+    + Jobs (View)
+}
+
+note "Full system access\nincluding user management" as N1
+note "Operational access\nwith robot control" as N2
+note "Read-only access\nfor monitoring" as N3
+
+AdminRole .. N1
+OperatorRole .. N2
+ViewerRole .. N3
+
+@enduml

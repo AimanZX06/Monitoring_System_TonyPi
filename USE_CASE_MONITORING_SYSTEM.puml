@@ -1,0 +1,257 @@
+@startuml Use_Case_Monitoring_System
+
+title TonyPi Monitoring System - Use Case Diagram
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam usecase {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+}
+
+' Actors
+actor Admin as "Admin"
+actor Operator as "Operator"
+actor Viewer as "Viewer"
+actor Robot as "TonyPi Robot"
+actor System as "System/Backend"
+actor AI as "Gemini AI"
+
+' Authentication Use Cases
+rectangle "Authentication" {
+    usecase UC1 as "Login"
+    usecase UC2 as "Logout"
+    usecase UC3 as "View Profile"
+}
+
+' User Management Use Cases
+rectangle "User Management" {
+    usecase UC4 as "Create User"
+    usecase UC5 as "Update User"
+    usecase UC6 as "Delete User"
+    usecase UC7 as "View Users"
+    usecase UC8 as "Assign Role"
+}
+
+' Robot Management Use Cases
+rectangle "Robot Management" {
+    usecase UC9 as "View Robot List"
+    usecase UC10 as "Register Robot"
+    usecase UC11 as "Update Robot Settings"
+    usecase UC12 as "Delete Robot"
+    usecase UC13 as "View Robot Details"
+}
+
+' Robot Control Use Cases
+rectangle "Robot Control" {
+    usecase UC14 as "Send Movement Command"
+    usecase UC15 as "Emergency Stop"
+    usecase UC16 as "Request Status"
+    usecase UC17 as "Send Head Commands"
+    usecase UC18 as "Shutdown Robot"
+}
+
+' Monitoring Use Cases
+rectangle "Real-Time Monitoring" {
+    usecase UC19 as "View Dashboard"
+    usecase UC20 as "View System Performance"
+    usecase UC21 as "View Sensor Data"
+    usecase UC22 as "View Servo Status"
+    usecase UC23 as "View Camera Stream"
+    usecase UC24 as "View Robot Location"
+    usecase UC25 as "View Battery Status"
+}
+
+' Alert Management Use Cases
+rectangle "Alert Management" {
+    usecase UC26 as "View Alerts"
+    usecase UC27 as "Acknowledge Alert"
+    usecase UC28 as "Resolve Alert"
+    usecase UC29 as "Configure Thresholds"
+    usecase UC30 as "View Alert Statistics"
+}
+
+' Reports Use Cases
+rectangle "Reports" {
+    usecase UC31 as "View Reports"
+    usecase UC32 as "Generate Report"
+    usecase UC33 as "Download PDF"
+    usecase UC34 as "AI Performance Analysis"
+}
+
+' System Logs Use Cases
+rectangle "System Logs" {
+    usecase UC35 as "View System Logs"
+    usecase UC36 as "Filter Logs"
+    usecase UC37 as "Export Logs"
+}
+
+' Job Tracking Use Cases
+rectangle "Job Tracking" {
+    usecase UC38 as "View Job Progress"
+    usecase UC39 as "View Job Summary"
+    usecase UC40 as "Track Items Scanned"
+}
+
+' Robot Client Operations Use Cases
+rectangle "Robot Client Operations" {
+    usecase UC41 as "Connect to MQTT"
+    usecase UC42 as "Publish Telemetry"
+    usecase UC43 as "Receive Commands"
+    usecase UC44 as "Execute Actions"
+    usecase UC45 as "Scan QR Code"
+    usecase UC46 as "Stream Camera"
+    usecase UC47 as "Report Job Progress"
+}
+
+' Automated Operations Use Cases
+rectangle "Automated Operations" {
+    usecase UC48 as "Process Telemetry Data"
+    usecase UC49 as "Check Thresholds"
+    usecase UC50 as "Generate Alerts"
+    usecase UC51 as "Update Robot Status"
+    usecase UC52 as "Store Time-Series Data"
+}
+
+' Authentication - All users
+Admin --> UC1
+Admin --> UC2
+Admin --> UC3
+Operator --> UC1
+Operator --> UC2
+Operator --> UC3
+Viewer --> UC1
+Viewer --> UC2
+Viewer --> UC3
+
+' User Management - Admin only
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC7
+Admin --> UC8
+
+' Robot Management
+Admin --> UC10
+Admin --> UC11
+Admin --> UC12
+Admin --> UC9
+Admin --> UC13
+Operator --> UC9
+Operator --> UC13
+Viewer --> UC9
+Viewer --> UC13
+
+' Robot Control - Admin and Operator
+Admin --> UC14
+Admin --> UC15
+Admin --> UC16
+Admin --> UC17
+Admin --> UC18
+Operator --> UC14
+Operator --> UC15
+Operator --> UC16
+Operator --> UC17
+
+' Monitoring - All users
+Admin --> UC19
+Admin --> UC20
+Admin --> UC21
+Admin --> UC22
+Admin --> UC23
+Admin --> UC24
+Admin --> UC25
+Operator --> UC19
+Operator --> UC20
+Operator --> UC21
+Operator --> UC22
+Operator --> UC23
+Operator --> UC24
+Operator --> UC25
+Viewer --> UC19
+Viewer --> UC20
+Viewer --> UC21
+Viewer --> UC22
+Viewer --> UC23
+Viewer --> UC24
+Viewer --> UC25
+
+' Alerts
+Admin --> UC26
+Admin --> UC27
+Admin --> UC28
+Admin --> UC29
+Admin --> UC30
+Operator --> UC26
+Operator --> UC27
+Operator --> UC28
+Operator --> UC30
+Viewer --> UC26
+Viewer --> UC30
+
+' Reports
+Admin --> UC31
+Admin --> UC32
+Admin --> UC33
+Admin --> UC34
+Operator --> UC31
+Operator --> UC32
+Operator --> UC33
+Operator --> UC34
+Viewer --> UC31
+Viewer --> UC33
+
+' Logs
+Admin --> UC35
+Admin --> UC36
+Admin --> UC37
+Operator --> UC35
+Operator --> UC36
+Viewer --> UC35
+
+' Jobs
+Admin --> UC38
+Admin --> UC39
+Admin --> UC40
+Operator --> UC38
+Operator --> UC39
+Operator --> UC40
+Viewer --> UC38
+Viewer --> UC39
+
+' Robot Client
+Robot --> UC41
+Robot --> UC42
+Robot --> UC43
+Robot --> UC44
+Robot --> UC45
+Robot --> UC46
+Robot --> UC47
+
+' System Operations
+System --> UC48
+System --> UC49
+System --> UC50
+System --> UC51
+System --> UC52
+
+' AI Integration
+AI --> UC34
+UC32 ..> AI : uses
+
+' Include relationships
+UC32 ..> UC34 : <<include>>
+UC50 ..> UC49 : <<include>>
+
+note right of UC32
+  Generate Report includes
+  AI Performance Analysis
+  (when AI is enabled)
+end note
+
+note right of UC50
+  Generate Alerts includes
+  Check Thresholds
+end note
+
+@enduml

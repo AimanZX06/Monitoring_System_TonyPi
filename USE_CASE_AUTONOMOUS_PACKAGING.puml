@@ -1,0 +1,170 @@
+@startuml Use_Case_Autonomous_Packaging
+
+title TonyPi Autonomous Packaging System - Use Case Diagram
+
+skinparam shadowing false
+skinparam backgroundColor #1a1a2e
+skinparam defaultFontColor white
+
+skinparam usecase {
+    BackgroundColor #2d2d44
+    BorderColor #6c6c8a
+    FontColor white
+}
+
+skinparam rectangle {
+    BackgroundColor #1a1a2e
+    BorderColor #4a4a6a
+    FontColor white
+}
+
+skinparam actor {
+    BackgroundColor #2d2d44
+    BorderColor #6c6c8a
+    FontColor white
+}
+
+' Actor
+actor Operator
+
+rectangle "TonyPi Autonomous Packaging System" {
+    
+    ' Voice and Navigation Use Cases
+    usecase UC_VOICE as "Issue Voice\nCommand"
+    usecase UC_NAVIGATE as "Navigate\nto Station"
+    
+    ' Emergency and Safety Use Cases
+    usecase UC_ESTOP as "Trigger\nEmergency\nStop"
+    usecase UC_OBSTACLE as "Detect Obstacle\nDuring Movement"
+    
+    ' Environment Detection Use Cases
+    usecase UC_DARKNESS as "Detect Darkness In\nEnvironment"
+    usecase UC_TARGET as "Detect Target\nObject"
+    
+    ' Main Packaging Task
+    usecase UC_PACKAGING as "Execute\nPackaging\nTask"
+    
+    ' Feedback
+    usecase UC_AUDIO as "Receive Audio\nFeedback"
+    
+    ' Servo Actions
+    usecase UC_SERVO as "Perform Servo\nAction"
+    usecase UC_TRANSPORT as "Transport\nLight Material"
+    usecase UC_DIECUT as "Perform\nDiecut Peeling"
+    usecase UC_FLIP as "Perform Sheet\nFlip Over"
+    usecase UC_LABEL as "Perform Label\nInsertion"
+}
+
+' Actor Relationships
+Operator --> UC_VOICE
+Operator --> UC_ESTOP
+Operator --> UC_OBSTACLE
+Operator --> UC_PACKAGING
+Operator --> UC_AUDIO
+
+' Extend Relationships
+UC_VOICE ..> UC_NAVIGATE : <<extend>>
+UC_ESTOP ..> UC_DARKNESS : <<extend>>
+UC_OBSTACLE ..> UC_ESTOP : <<extend>>
+UC_OBSTACLE ..> UC_PACKAGING : <<extend>>
+UC_TARGET ..> UC_DARKNESS : <<extend>>
+
+' Include Relationships
+UC_PACKAGING ..> UC_TARGET : <<include>>
+UC_PACKAGING ..> UC_SERVO : <<include>>
+UC_SERVO ..> UC_TRANSPORT : <<include>>
+UC_SERVO ..> UC_DIECUT : <<include>>
+UC_SERVO ..> UC_FLIP : <<include>>
+UC_SERVO ..> UC_LABEL : <<include>>
+
+@enduml
+
+@startuml Use_Case_Autonomous_Packaging_Light
+
+title TonyPi Autonomous Packaging System - Use Case Diagram (Light Theme)
+
+skinparam shadowing false
+skinparam backgroundColor white
+
+skinparam usecase {
+    BackgroundColor #E8F4FD
+    BorderColor #2196F3
+    FontColor #333333
+}
+
+skinparam rectangle {
+    BackgroundColor #FAFAFA
+    BorderColor #2196F3
+    FontColor #333333
+}
+
+skinparam actor {
+    BackgroundColor white
+    BorderColor #2196F3
+}
+
+' Actor
+actor Operator
+
+rectangle "TonyPi Autonomous Packaging System" {
+    
+    ' Voice and Navigation Use Cases
+    usecase UC_VOICE as "Issue Voice\nCommand"
+    usecase UC_NAVIGATE as "Navigate\nto Station"
+    
+    ' Emergency and Safety Use Cases
+    usecase UC_ESTOP as "Trigger\nEmergency\nStop"
+    usecase UC_OBSTACLE as "Detect Obstacle\nDuring Movement"
+    
+    ' Environment Detection Use Cases
+    usecase UC_DARKNESS as "Detect Darkness In\nEnvironment"
+    usecase UC_TARGET as "Detect Target\nObject"
+    
+    ' Main Packaging Task
+    usecase UC_PACKAGING as "Execute\nPackaging\nTask"
+    
+    ' Feedback
+    usecase UC_AUDIO as "Receive Audio\nFeedback"
+    
+    ' Servo Actions
+    usecase UC_SERVO as "Perform Servo\nAction"
+    usecase UC_TRANSPORT as "Transport\nLight Material"
+    usecase UC_DIECUT as "Perform\nDiecut Peeling"
+    usecase UC_FLIP as "Perform Sheet\nFlip Over"
+    usecase UC_LABEL as "Perform Label\nInsertion"
+}
+
+' Actor Relationships
+Operator --> UC_VOICE
+Operator --> UC_ESTOP
+Operator --> UC_OBSTACLE
+Operator --> UC_PACKAGING
+Operator --> UC_AUDIO
+
+' Extend Relationships
+UC_VOICE ..> UC_NAVIGATE : <<extend>>
+UC_ESTOP ..> UC_DARKNESS : <<extend>>
+UC_OBSTACLE ..> UC_ESTOP : <<extend>>
+UC_OBSTACLE ..> UC_PACKAGING : <<extend>>
+UC_TARGET ..> UC_DARKNESS : <<extend>>
+
+' Include Relationships
+UC_PACKAGING ..> UC_TARGET : <<include>>
+UC_PACKAGING ..> UC_SERVO : <<include>>
+UC_SERVO ..> UC_TRANSPORT : <<include>>
+UC_SERVO ..> UC_DIECUT : <<include>>
+UC_SERVO ..> UC_FLIP : <<include>>
+UC_SERVO ..> UC_LABEL : <<include>>
+
+note bottom of UC_PACKAGING
+  Main packaging workflow that
+  coordinates detection and
+  servo actions
+end note
+
+note right of UC_SERVO
+  Servo actions for material
+  handling operations
+end note
+
+@enduml

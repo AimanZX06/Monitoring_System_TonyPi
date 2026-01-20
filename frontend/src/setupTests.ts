@@ -6,19 +6,35 @@
  */
 import '@testing-library/jest-dom';
 
-// Mock window.matchMedia (used by some UI components)
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(() => null),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+  length: 0,
+  key: jest.fn(),
+};
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+});
+
+// Mock window.matchMedia (used by ThemeContext and UI components)
+const matchMediaMock = jest.fn().mockImplementation((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addListener: jest.fn(),
+  removeListener: jest.fn(),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+  dispatchEvent: jest.fn(),
+}));
+
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
+  value: matchMediaMock,
 });
 
 // Mock ResizeObserver (used by Recharts)
@@ -27,7 +43,10 @@ class ResizeObserverMock {
   unobserve() {}
   disconnect() {}
 }
-window.ResizeObserver = ResizeObserverMock;
+Object.defineProperty(window, 'ResizeObserver', {
+  writable: true,
+  value: ResizeObserverMock,
+});
 
 // Mock scrollTo
 window.scrollTo = jest.fn();

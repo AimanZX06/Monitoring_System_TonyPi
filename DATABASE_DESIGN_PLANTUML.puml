@@ -1,0 +1,603 @@
+@startuml TonyPi_Database_ERD
+skinparam backgroundColor White
+skinparam defaultFontName Arial
+skinparam entityBackgroundColor White
+skinparam entityBorderColor Black
+title TonyPi Robot Monitoring System - Database Design
+
+' ============================================
+' POSTGRESQL ENTITY RELATIONSHIP DIAGRAM
+' ============================================
+
+package "PostgreSQL Database" {
+    
+    entity "users" as users {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * username : VARCHAR(50) <<UK>>
+        * email : VARCHAR(100) <<UK>>
+        * password_hash : VARCHAR(255)
+        role : VARCHAR(20) = 'viewer'
+        is_active : BOOLEAN = TRUE
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+    
+    entity "robots" as robots {
+        * **id** : SERIAL <<PK>>
+        --
+        * robot_id : VARCHAR(50) <<UK>>
+        name : VARCHAR(100)
+        description : TEXT
+        location : JSONB
+        status : VARCHAR(20) = 'offline'
+        ip_address : VARCHAR(45)
+        camera_url : VARCHAR(255)
+        battery_threshold_low : FLOAT = 20.0
+        battery_threshold_critical : FLOAT = 10.0
+        temp_threshold_warning : FLOAT = 70.0
+        temp_threshold_critical : FLOAT = 80.0
+        settings : JSONB
+        last_seen : TIMESTAMP
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+        is_active : BOOLEAN = TRUE
+    }
+    
+    entity "jobs" as jobs {
+        * **id** : SERIAL <<PK>>
+        --
+        * robot_id : VARCHAR(50) <<FK>>
+        * start_time : TIMESTAMP
+        end_time : TIMESTAMP
+        items_total : INTEGER
+        items_done : INTEGER = 0
+        percent_complete : FLOAT = 0.0
+        last_item : JSONB
+        status : VARCHAR(20) = 'active'
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+    
+    entity "alerts" as alerts {
+        * **id** : SERIAL <<PK>>
+        --
+        robot_id : VARCHAR(50) <<FK>>
+        * alert_type : VARCHAR(50)
+        * severity : VARCHAR(20)
+        * title : VARCHAR(200)
+        * message : TEXT
+        source : VARCHAR(100)
+        value : FLOAT
+        threshold : FLOAT
+        acknowledged : BOOLEAN = FALSE
+        acknowledged_by : VARCHAR(50)
+        acknowledged_at : TIMESTAMP
+        resolved : BOOLEAN = FALSE
+        resolved_at : TIMESTAMP
+        details : JSONB
+        created_at : TIMESTAMP
+    }
+    
+    entity "alert_thresholds" as alert_thresholds {
+        * **id** : SERIAL <<PK>>
+        --
+        robot_id : VARCHAR(50) <<FK>>
+        * metric_type : VARCHAR(50)
+        * warning_threshold : FLOAT
+        * critical_threshold : FLOAT
+        enabled : BOOLEAN = TRUE
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+    
+    entity "reports" as reports {
+        * **id** : SERIAL <<PK>>
+        --
+        * title : VARCHAR(200)
+        description : TEXT
+        robot_id : VARCHAR(50) <<FK>>
+        * report_type : VARCHAR(50)
+        data : JSONB
+        file_path : VARCHAR(500)
+        created_at : TIMESTAMP
+        created_by : VARCHAR(100)
+    }
+    
+    entity "system_logs" as system_logs {
+        * **id** : SERIAL <<PK>>
+        --
+        * level : VARCHAR(20)
+        * category : VARCHAR(50)
+        * message : TEXT
+        robot_id : VARCHAR(50) <<FK>>
+        details : JSONB
+        timestamp : TIMESTAMP
+    }
+}
+
+' Relationships
+robots ||--o{ jobs : "has"
+robots ||--o{ alerts : "generates"
+robots ||--o{ alert_thresholds : "configures"
+robots ||--o{ reports : "about"
+robots ||--o{ system_logs : "produces"
+
+@enduml
+
+
+@startuml TonyPi_InfluxDB_Schema
+skinparam backgroundColor White
+skinparam defaultFontName Arial
+skinparam entityBackgroundColor White
+skinparam entityBorderColor Black
+title TonyPi Robot Monitoring System - InfluxDB Time-Series Schema
+
+package "InfluxDB (robot_metrics bucket)" {
+    
+    entity "sensors" as sensors <<Measurement>> {
+        **Tags**
+        --
+        robot_id : string
+        sensor_type : string
+        unit : string
+        ==
+        **Fields**
+        --
+        value : float
+        ==
+        **Timestamp**
+        --
+        _time : nanoseconds
+    }
+    
+    entity "performance" as performance <<Measurement>> {
+        **Tags**
+        --
+        robot_id : string
+        metric_type : string
+        ==
+        **Fields**
+        --
+        cpu_percent : float
+        memory_percent : float
+        memory_used : integer
+        memory_total : integer
+        disk_percent : float
+        disk_used : integer
+        disk_total : integer
+        ==
+        **Timestamp**
+        --
+        _time : nanoseconds
+    }
+    
+    entity "servos" as servos <<Measurement>> {
+        **Tags**
+        --
+        robot_id : string
+        servo_id : string
+        ==
+        **Fields**
+        --
+        position : integer
+        temperature : float
+        load : float
+        voltage : float
+        speed : integer
+        ==
+        **Timestamp**
+        --
+        _time : nanoseconds
+    }
+    
+    entity "battery" as battery <<Measurement>> {
+        **Tags**
+        --
+        robot_id : string
+        ==
+        **Fields**
+        --
+        voltage : float
+        percentage : float
+        current : float
+        charging : boolean
+        ==
+        **Timestamp**
+        --
+        _time : nanoseconds
+    }
+    
+    entity "imu" as imu <<Measurement>> {
+        **Tags**
+        --
+        robot_id : string
+        ==
+        **Fields**
+        --
+        accel_x : float
+        accel_y : float
+        accel_z : float
+        gyro_x : float
+        gyro_y : float
+        gyro_z : float
+        mag_x : float
+        mag_y : float
+        mag_z : float
+        ==
+        **Timestamp**
+        --
+        _time : nanoseconds
+    }
+}
+
+note right of sensors
+  **Sensor Types:**
+  - temperature
+  - humidity
+  - pressure
+  - distance
+  - light
+end note
+
+note right of performance
+  **Metric Types:**
+  - cpu
+  - memory
+  - disk
+  - network
+end note
+
+@enduml
+
+
+@startuml TonyPi_Data_Flow
+skinparam backgroundColor White
+skinparam defaultFontName Arial
+title TonyPi Robot Monitoring System - Data Flow Diagram
+
+skinparam rectangle {
+    BackgroundColor<<robot>> LightBlue
+    BackgroundColor<<service>> LightGreen
+    BackgroundColor<<database>> LightYellow
+    BackgroundColor<<frontend>> LightPink
+}
+
+' Components
+rectangle "TonyPi Robot\n(Python Client)" as robot <<robot>>
+rectangle "MQTT Broker\n(Mosquitto)" as mqtt <<service>>
+rectangle "Backend API\n(FastAPI)" as backend <<service>>
+rectangle "Frontend\n(React)" as frontend <<frontend>>
+
+database "PostgreSQL" as postgres <<database>> {
+    [users]
+    [robots]
+    [jobs]
+    [alerts]
+    [reports]
+    [system_logs]
+}
+
+database "InfluxDB" as influxdb <<database>> {
+    [sensors]
+    [performance]
+    [servos]
+    [battery]
+    [imu]
+}
+
+rectangle "Grafana\n(Dashboards)" as grafana <<service>>
+
+' Data Flow - Write Path
+robot -right-> mqtt : "Publish\ntelemetry"
+mqtt -right-> backend : "Subscribe\n& process"
+backend -down-> influxdb : "Write\ntime-series"
+backend -down-> postgres : "Write\nmetadata"
+
+' Data Flow - Read Path
+frontend -down-> backend : "REST API\nrequests"
+backend -down-> influxdb : "Query\nmetrics"
+backend -down-> postgres : "Query\nentities"
+grafana -down-> influxdb : "Query\nvisualization"
+grafana -down-> postgres : "Query\ndata"
+
+' Command Flow
+frontend ..> backend : "Send\ncommands"
+backend ..> mqtt : "Publish\ncommands"
+mqtt ..> robot : "Deliver\ncommands"
+
+@enduml
+
+
+@startuml TonyPi_Database_Relationships_Detailed
+skinparam backgroundColor White
+skinparam defaultFontName Arial
+title TonyPi Database - Detailed Relationships
+
+' Style
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+class robots {
+    + id : SERIAL [PK]
+    + robot_id : VARCHAR(50) [UK]
+    + name : VARCHAR(100)
+    + status : VARCHAR(20)
+    + ip_address : VARCHAR(45)
+    + battery_threshold_low : FLOAT
+    + battery_threshold_critical : FLOAT
+    + temp_threshold_warning : FLOAT
+    + temp_threshold_critical : FLOAT
+    + last_seen : TIMESTAMP
+    + is_active : BOOLEAN
+}
+
+class jobs {
+    + id : SERIAL [PK]
+    + robot_id : VARCHAR(50) [FK]
+    + start_time : TIMESTAMP
+    + end_time : TIMESTAMP
+    + items_total : INTEGER
+    + items_done : INTEGER
+    + percent_complete : FLOAT
+    + status : VARCHAR(20)
+}
+
+class alerts {
+    + id : SERIAL [PK]
+    + robot_id : VARCHAR(50) [FK]
+    + alert_type : VARCHAR(50)
+    + severity : VARCHAR(20)
+    + title : VARCHAR(200)
+    + message : TEXT
+    + value : FLOAT
+    + threshold : FLOAT
+    + acknowledged : BOOLEAN
+    + resolved : BOOLEAN
+}
+
+class alert_thresholds {
+    + id : SERIAL [PK]
+    + robot_id : VARCHAR(50) [FK]
+    + metric_type : VARCHAR(50)
+    + warning_threshold : FLOAT
+    + critical_threshold : FLOAT
+    + enabled : BOOLEAN
+}
+
+class reports {
+    + id : SERIAL [PK]
+    + robot_id : VARCHAR(50) [FK]
+    + title : VARCHAR(200)
+    + report_type : VARCHAR(50)
+    + data : JSONB
+    + created_by : VARCHAR(100)
+}
+
+class system_logs {
+    + id : SERIAL [PK]
+    + robot_id : VARCHAR(50) [FK]
+    + level : VARCHAR(20)
+    + category : VARCHAR(50)
+    + message : TEXT
+}
+
+class users {
+    + id : VARCHAR(36) [PK]
+    + username : VARCHAR(50) [UK]
+    + email : VARCHAR(100) [UK]
+    + password_hash : VARCHAR(255)
+    + role : VARCHAR(20)
+    + is_active : BOOLEAN
+}
+
+' Relationships with cardinality
+robots "1" -- "0..*" jobs : robot_id
+robots "1" -- "0..*" alerts : robot_id
+robots "1" -- "0..*" alert_thresholds : robot_id
+robots "1" -- "0..*" reports : robot_id
+robots "1" -- "0..*" system_logs : robot_id
+
+note bottom of robots
+  **Status Values:**
+  - online
+  - offline
+  - error
+  - maintenance
+end note
+
+note bottom of alerts
+  **Severity Levels:**
+  - critical (Red)
+  - warning (Yellow)
+  - info (Blue)
+end note
+
+note bottom of users
+  **Roles:**
+  - admin
+  - operator
+  - viewer
+end note
+
+@enduml
+
+
+@startuml TonyPi_Write_Path
+skinparam backgroundColor White
+skinparam defaultFontName Arial
+skinparam sequenceMessageAlign center
+title Data Write Path - Robot Telemetry to Databases
+
+actor "TonyPi Robot" as robot
+participant "MQTT Broker\n(Mosquitto)" as mqtt
+participant "Backend\n(FastAPI)" as backend
+database "InfluxDB" as influx
+database "PostgreSQL" as postgres
+
+robot -> mqtt : Publish to\ntonypi/{robot_id}/telemetry
+activate mqtt
+
+mqtt -> backend : Message delivered\n(subscribed topic)
+activate backend
+
+backend -> backend : Parse & validate\ntelemetry data
+
+alt Time-series data (sensors, performance)
+    backend -> influx : Write measurement\n(sensors, servos, battery)
+    influx --> backend : Write confirmed
+end
+
+alt Metadata updates (status, last_seen)
+    backend -> postgres : UPDATE robots\nSET last_seen = NOW()
+    postgres --> backend : Update confirmed
+end
+
+alt Alert condition detected
+    backend -> postgres : INSERT INTO alerts\n(severity, message, ...)
+    postgres --> backend : Insert confirmed
+    backend -> mqtt : Publish alert notification
+end
+
+deactivate backend
+deactivate mqtt
+
+@enduml
+
+
+@startuml TonyPi_Read_Path
+skinparam backgroundColor White
+skinparam defaultFontName Arial
+skinparam sequenceMessageAlign center
+title Data Read Path - Frontend Query to Databases
+
+actor "User" as user
+participant "Frontend\n(React)" as frontend
+participant "Backend\n(FastAPI)" as backend
+database "PostgreSQL" as postgres
+database "InfluxDB" as influx
+
+user -> frontend : View Dashboard
+activate frontend
+
+frontend -> backend : GET /api/v1/robots
+activate backend
+backend -> postgres : SELECT * FROM robots
+postgres --> backend : Robot list
+backend --> frontend : JSON response
+deactivate backend
+
+frontend -> backend : GET /api/v1/robot/sensors?range=1h
+activate backend
+backend -> influx : Flux query:\nfrom(bucket: "robot_metrics")\n|> range(start: -1h)\n|> filter(measurement: "sensors")
+influx --> backend : Time-series data
+backend --> frontend : JSON response
+deactivate backend
+
+frontend -> backend : GET /api/v1/alerts?unacknowledged=true
+activate backend
+backend -> postgres : SELECT * FROM alerts\nWHERE acknowledged = FALSE
+postgres --> backend : Alert list
+backend --> frontend : JSON response
+deactivate backend
+
+frontend --> user : Render Dashboard
+deactivate frontend
+
+@enduml
+
+
+@startuml TonyPi_Database_Indexes
+skinparam backgroundColor White
+skinparam defaultFontName Arial
+skinparam classBackgroundColor White
+skinparam classBorderColor Black
+title PostgreSQL Index Strategy
+
+package "Table Indexes" {
+    
+    class "robots" {
+        <<Table>>
+        --
+        **Primary Key**
+        idx_robots_pkey (id)
+        --
+        **Unique**
+        idx_robots_robot_id_key (robot_id)
+        --
+        **Performance**
+        idx_robots_status (status)
+        idx_robots_is_active (is_active)
+    }
+    
+    class "jobs" {
+        <<Table>>
+        --
+        **Primary Key**
+        idx_jobs_pkey (id)
+        --
+        **Foreign Key**
+        idx_jobs_robot_id (robot_id)
+        --
+        **Performance**
+        idx_jobs_status (status)
+        idx_jobs_start_time (start_time)
+        idx_jobs_created_at (created_at)
+    }
+    
+    class "alerts" {
+        <<Table>>
+        --
+        **Primary Key**
+        idx_alerts_pkey (id)
+        --
+        **Foreign Key**
+        idx_alerts_robot_id (robot_id)
+        --
+        **Performance**
+        idx_alerts_alert_type (alert_type)
+        idx_alerts_severity (severity)
+        idx_alerts_acknowledged (acknowledged)
+        idx_alerts_resolved (resolved)
+        idx_alerts_created_at (created_at)
+    }
+    
+    class "system_logs" {
+        <<Table>>
+        --
+        **Primary Key**
+        idx_system_logs_pkey (id)
+        --
+        **Performance**
+        idx_system_logs_level (level)
+        idx_system_logs_category (category)
+        idx_system_logs_robot_id (robot_id)
+        idx_system_logs_timestamp (timestamp)
+    }
+    
+    class "users" {
+        <<Table>>
+        --
+        **Primary Key**
+        idx_users_pkey (id)
+        --
+        **Unique**
+        idx_users_username_key (username)
+        idx_users_email_key (email)
+        --
+        **Performance**
+        idx_users_role (role)
+    }
+}
+
+note bottom
+  **Index Types:**
+  - B-tree (default) - equality and range queries
+  - Unique - enforces uniqueness constraint
+  - Partial - for filtered queries (e.g., WHERE acknowledged = FALSE)
+end note
+
+@enduml

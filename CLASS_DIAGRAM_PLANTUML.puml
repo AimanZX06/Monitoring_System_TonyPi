@@ -1,0 +1,435 @@
+@startuml Class_Diagram
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor black
+
+' ============================================
+' DATABASE MODELS (PostgreSQL via SQLAlchemy)
+' ============================================
+
+abstract class Base {
+  +metadata
+}
+
+class Robot {
+  -id : int
+  -robot_id : String
+  -name : String
+  -description : String
+  -location : JSON
+  -status : String
+  -ip_address : String
+  -camera_url : String
+  -battery_threshold_low : float
+  -battery_threshold_critical : float
+  -temp_threshold_warning : float
+  -temp_threshold_critical : float
+  -settings : JSON
+  -last_seen : DateTime
+  -created_at : DateTime
+  -updated_at : DateTime
+  -is_active : bool
+  +to_dict() : dict
+}
+
+class User {
+  -id : String
+  -username : String
+  -email : String
+  -password_hash : String
+  -role : String
+  -is_active : bool
+  -created_at : DateTime
+  -updated_at : DateTime
+  +to_dict() : dict
+}
+
+class Job {
+  -id : int
+  -robot_id : String
+  -start_time : DateTime
+  -end_time : DateTime
+  -items_total : int
+  -items_done : int
+  -percent_complete : float
+  -last_item : JSON
+  -status : String
+  -created_at : DateTime
+  -updated_at : DateTime
+  +to_dict() : dict
+}
+
+class Report {
+  -id : int
+  -title : String
+  -description : String
+  -robot_id : String
+  -report_type : String
+  -data : JSON
+  -file_path : String
+  -created_at : DateTime
+  -created_by : String
+  +to_dict() : dict
+}
+
+class Alert {
+  -id : int
+  -robot_id : String
+  -alert_type : String
+  -severity : String
+  -title : String
+  -message : String
+  -source : String
+  -value : float
+  -threshold : float
+  -acknowledged : bool
+  -acknowledged_by : String
+  -acknowledged_at : DateTime
+  -resolved : bool
+  -resolved_at : DateTime
+  -details : JSON
+  -created_at : DateTime
+  +to_dict() : dict
+}
+
+class AlertThreshold {
+  -id : int
+  -robot_id : String
+  -metric_type : String
+  -warning_threshold : float
+  -critical_threshold : float
+  -enabled : bool
+  -created_at : DateTime
+  -updated_at : DateTime
+  +to_dict() : dict
+}
+
+class SystemLog {
+  -id : int
+  -level : String
+  -category : String
+  -message : String
+  -robot_id : String
+  -details : JSON
+  -timestamp : DateTime
+  +to_dict() : dict
+}
+
+' Model Inheritance
+Base <|-- Robot
+Base <|-- User
+Base <|-- Job
+Base <|-- Report
+Base <|-- Alert
+Base <|-- AlertThreshold
+Base <|-- SystemLog
+
+' ============================================
+' DATABASE SERVICES
+' ============================================
+
+class DatabaseConnection {
+  {static} -POSTGRES_URL : String
+  {static} -engine : Engine
+  {static} -SessionLocal : sessionmaker
+  {static} -Base : declarative_base
+  {static} +get_db() : Generator
+}
+
+class InfluxClient {
+  -url : String
+  -token : String
+  -org : String
+  -bucket : String
+  -client : InfluxDBClient
+  -write_api : WriteApi
+  -query_api : QueryApi
+  {static} -SENSOR_TYPES : dict
+  {static} -LOG_LEVELS : list
+  +write_sensor_data(measurement, tags, fields) : bool
+  +write_validated_sensor(robot_id, sensor_type, value) : bool
+  +write_servo_data(robot_id, servo_id, ...) : bool
+  +write_vision_data(robot_id, detection, state, ...) : bool
+  +write_log_entry(robot_id, level, message, source) : bool
+  +write_battery_status(robot_id, percentage, voltage) : bool
+  +write_location(robot_id, x, y, z) : bool
+  +query_recent_data(measurement, time_range, robot_id) : list
+  +query_sensor_history(robot_id, sensor_type, time_range) : list
+  +query_vision_events(robot_id, time_range) : list
+  +query_robot_logs(robot_id, time_range, level) : list
+  +get_latest_status(robot_id) : dict
+  +close()
+}
+
+' ============================================
+' MQTT CLIENT
+' ============================================
+
+class MQTTClient {
+  -broker_host : String
+  -broker_port : int
+  -username : String
+  -password : String
+  -client : mqtt.Client
+  -topics : list
+  {static} -DEFAULT_THRESHOLDS : dict
+  +on_connect(client, userdata, flags, rc)
+  +on_message(client, userdata, msg)
+  +on_disconnect(client, userdata, rc)
+  +handle_sensor_data(topic, payload)
+  +handle_status_data(topic, payload)
+  +handle_location_data(payload)
+  +handle_battery_data(payload)
+  +handle_servo_data(topic, payload)
+  +handle_vision_data(topic, payload)
+  +handle_log_data(topic, payload)
+  +handle_scan(topic, payload)
+  +handle_job_event(topic, payload)
+  +handle_command_response(payload)
+  +start() : async
+  +stop() : async
+  +publish_command(topic, data) : bool
+  +publish(topic, payload) : async
+  -_update_robot_status(robot_id, status, ip, camera_url)
+  -_log_system_event(level, category, message, ...)
+  -_get_threshold(metric_type, robot_id) : dict
+  -_check_and_create_alert(robot_id, metric_type, value, ...)
+  -_create_alert(robot_id, alert_type, severity, ...)
+}
+
+' ============================================
+' AI ANALYTICS SERVICE
+' ============================================
+
+class GeminiAnalytics {
+  -api_key : String
+  -model : GenerativeModel
+  +is_available() : bool
+  +analyze_performance_data(data) : async dict
+  +analyze_job_data(data) : async dict
+  +analyze_servo_data(servo_data) : async dict
+  +generate_summary(performance_data, job_data, robot_id) : async str
+}
+
+' ============================================
+' FASTAPI APPLICATION
+' ============================================
+
+class FastAPIApp {
+  -title : String
+  -description : String
+  -version : String
+  +lifespan(app) : asynccontextmanager
+  +init_database()
+  +wait_for_db(max_retries, delay) : bool
+}
+
+interface Router {
+  +router : APIRouter
+}
+
+class HealthRouter {
+  +get_health() : dict
+  +get_detailed_health() : dict
+}
+
+class RobotDataRouter {
+  +get_robots() : list
+  +get_robot_data(robot_id) : dict
+  +get_sensor_data(robot_id, sensor_type) : list
+  +get_servo_data(robot_id) : list
+}
+
+class ReportsRouter {
+  +get_reports() : list
+  +create_report(data) : Report
+  +get_report(id) : Report
+  +generate_pdf_report(robot_id, report_type) : bytes
+}
+
+class AlertsRouter {
+  +get_alerts(filters) : list
+  +get_alert_stats() : AlertStats
+  +acknowledge_alert(id, user) : Alert
+  +resolve_alert(id) : Alert
+  +get_thresholds() : list
+  +update_threshold(id, data) : AlertThreshold
+}
+
+class LogsRouter {
+  +get_logs(filters) : list
+  +get_log_stats() : LogStats
+}
+
+class UsersRouter {
+  +login(credentials) : Token
+  +get_current_user(token) : User
+  +get_users() : list
+  +create_user(data) : User
+  +update_user(id, data) : User
+}
+
+class ManagementRouter {
+  +send_command(robot_id, command) : CommandResponse
+  +get_robot_status(robot_id) : dict
+}
+
+class RobotsDBRouter {
+  +get_robots() : list
+  +get_robot(robot_id) : Robot
+  +create_robot(data) : Robot
+  +update_robot(robot_id, data) : Robot
+  +delete_robot(robot_id) : bool
+}
+
+Router <|.. HealthRouter
+Router <|.. RobotDataRouter
+Router <|.. ReportsRouter
+Router <|.. AlertsRouter
+Router <|.. LogsRouter
+Router <|.. UsersRouter
+Router <|.. ManagementRouter
+Router <|.. RobotsDBRouter
+
+' ============================================
+' ROBOT CLIENT (Runs on TonyPi/Raspberry Pi)
+' ============================================
+
+class TonyPiRobotClient {
+  -mqtt_broker : String
+  -mqtt_port : int
+  -robot_id : String
+  -client : mqtt.Client
+  -is_connected : bool
+  -running : bool
+  -hardware_available : bool
+  -light_sensor : LightSensor
+  -battery_level : float
+  -location : dict
+  -sensors : dict
+  -status : String
+  -servo_data : dict
+  -topics : dict
+  {static} -SERVO_NAMES : list
+  {static} -SERVO_COUNT : int
+  +on_connect(client, userdata, flags, rc)
+  +on_disconnect(client, userdata, flags, rc)
+  +on_message(client, userdata, msg)
+  +handle_move_command(payload) : dict
+  +handle_stop_command(payload) : dict
+  +handle_head_nod(payload) : dict
+  +handle_head_shake(payload) : dict
+  +handle_status_request(payload) : dict
+  +handle_battery_request(payload) : dict
+  +handle_shutdown_command(payload) : dict
+  +get_system_info() : dict
+  +get_cpu_temperature() : float
+  +get_local_ip() : String
+  +get_battery_percentage() : float
+  +read_sensors() : dict
+  +get_servo_status() : dict
+  +send_sensor_data()
+  +send_servo_data()
+  +send_battery_status()
+  +send_location_update()
+  +send_status_update()
+  +send_vision_data(detection_result)
+  +send_log_message(level, message, source)
+  +connect() : async
+  +disconnect() : async
+  +run() : async
+}
+
+class LightSensor {
+  -pin : int
+  -initialized : bool
+  +is_dark() : bool
+  +get_light_level() : int
+  +cleanup()
+}
+
+package "External SDK" {
+  class HiwonderSDK {
+    +board : Board
+    +controller : Controller
+    +sonar : Sonar
+    +runActionGroup(action)
+    +stopActionGroup()
+    +executeMovement(direction)
+  }
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+' FastAPI App relationships
+FastAPIApp --> DatabaseConnection : uses
+FastAPIApp --> MQTTClient : manages
+FastAPIApp --> HealthRouter : includes
+FastAPIApp --> RobotDataRouter : includes
+FastAPIApp --> ReportsRouter : includes
+FastAPIApp --> AlertsRouter : includes
+FastAPIApp --> LogsRouter : includes
+FastAPIApp --> UsersRouter : includes
+FastAPIApp --> ManagementRouter : includes
+FastAPIApp --> RobotsDBRouter : includes
+
+' MQTT Client relationships
+MQTTClient --> InfluxClient : writes data to
+MQTTClient --> DatabaseConnection : uses
+MQTTClient --> Robot : creates/updates
+MQTTClient --> Alert : creates
+MQTTClient --> AlertThreshold : reads
+MQTTClient --> SystemLog : creates
+
+' Router relationships
+ReportsRouter --> GeminiAnalytics : uses
+ReportsRouter --> InfluxClient : queries
+RobotDataRouter --> InfluxClient : queries
+AlertsRouter --> Alert : manages
+AlertsRouter --> AlertThreshold : manages
+LogsRouter --> SystemLog : queries
+RobotsDBRouter --> Robot : manages
+UsersRouter --> User : manages
+
+' Robot Client relationships
+TonyPiRobotClient --> LightSensor : uses
+TonyPiRobotClient ..> HiwonderSDK : uses (optional)
+
+' Foreign Key relationships
+Robot "1" --> "*" Job : robot_id
+Robot "1" --> "*" Report : robot_id
+Robot "1" --> "*" Alert : robot_id
+Robot "1" --> "*" AlertThreshold : robot_id
+Robot "1" --> "*" SystemLog : robot_id
+
+' MQTT Communication (dashed line for async communication)
+TonyPiRobotClient ..> MQTTClient : publishes to\n(via MQTT broker)
+
+note right of MQTTClient
+  Handles all robot telemetry:
+  - Sensor data
+  - Servo status
+  - Vision detections
+  - Battery status
+  - System logs
+end note
+
+note right of InfluxClient
+  Time-series database for:
+  - Real-time sensor readings
+  - Historical data queries
+  - Performance metrics
+end note
+
+note right of TonyPiRobotClient
+  Runs on Raspberry Pi
+  Sends telemetry via MQTT
+  Receives commands from server
+end note
+
+@enduml

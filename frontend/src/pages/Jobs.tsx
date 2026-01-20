@@ -5,16 +5,9 @@ import {
   Loader, 
   Package,
   Calendar,
-  TrendingUp,
-  ChevronDown,
-  ChevronUp,
-  Bot,
-  BarChart3,
-  Timer,
-  Target
+  TrendingUp
 } from 'lucide-react';
-import { apiService, handleApiError } from '../utils/api';
-import { useTheme } from '../contexts/ThemeContext';
+import { apiService } from '../utils/api';
 
 interface JobSummary {
   robot_id: string;
@@ -27,43 +20,34 @@ interface JobSummary {
   history: Array<{time: string, item: any}>;
 }
 
-interface OverallStats {
-  totalRobots: number;
-  activeJobs: number;
-  completedJobs: number;
-  notStartedJobs: number;
-  totalItemsProcessed: number;
-  totalItemsTarget: number;
-  averageCompletion: number;
-  totalDuration: string;
-}
-
 const Jobs: React.FC = () => {
-  const { isDark } = useTheme();
   const [robots, setRobots] = useState<string[]>([]);
   const [jobSummaries, setJobSummaries] = useState<{[key: string]: JobSummary}>({});
   const [loading, setLoading] = useState(true);
-  const [expandedRobots, setExpandedRobots] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
+        // Get all robots
         const robotStatus = await apiService.getRobotStatus();
         const robotIds = robotStatus.map(r => r.robot_id);
         setRobots(robotIds);
 
+        // Fetch job summary for each robot
         const summaries: {[key: string]: JobSummary} = {};
         for (const robotId of robotIds) {
           try {
-            const jobData = await apiService.getJobSummary(robotId);
-            summaries[robotId] = jobData;
-          } catch (err) {
-            console.error(`Error fetching job for ${robotId}:`, handleApiError(err));
+            const response = await fetch(`http://localhost:8000/api/robot-data/job-summary/${robotId}`);
+            if (response.ok) {
+              summaries[robotId] = await response.json();
+            }
+          } catch (error) {
+            console.error(`Error fetching job for ${robotId}:`, error);
           }
         }
         setJobSummaries(summaries);
-      } catch (err) {
-        console.error('Error fetching jobs:', handleApiError(err));
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
       } finally {
         setLoading(false);
       }
@@ -79,7 +63,7 @@ const Jobs: React.FC = () => {
     return new Date(dateStr).toLocaleString();
   };
 
-  const calculateDuration = (start: string | null, end: string | null): string => {
+  const calculateDuration = (start: string | null, end: string | null) => {
     if (!start) return 'N/A';
     const startTime = new Date(start);
     const endTime = end ? new Date(end) : new Date();
@@ -94,86 +78,17 @@ const Jobs: React.FC = () => {
     return `${seconds}s`;
   };
 
-  const calculateDurationSeconds = (start: string | null, end: string | null): number => {
-    if (!start) return 0;
-    const startTime = new Date(start);
-    const endTime = end ? new Date(end) : new Date();
-    return Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-  };
-
-  const formatTotalDuration = (totalSeconds: number): string => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
-  };
-
-  const getOverallStats = (): OverallStats => {
-    const jobs = Object.values(jobSummaries);
-    const activeJobs = jobs.filter(j => j.start_time && !j.end_time);
-    const completedJobs = jobs.filter(j => j.end_time);
-    const jobsWithProgress = jobs.filter(j => j.start_time);
-    
-    const totalItemsProcessed = jobs.reduce((sum, j) => sum + (j.items_done || 0), 0);
-    const totalItemsTarget = jobs.reduce((sum, j) => sum + (j.items_total || 0), 0);
-    
-    const averageCompletion = jobsWithProgress.length > 0
-      ? jobsWithProgress.reduce((sum, j) => sum + (j.percent_complete || 0), 0) / jobsWithProgress.length
-      : 0;
-
-    const totalDurationSeconds = jobs.reduce((sum, j) => 
-      sum + calculateDurationSeconds(j.start_time, j.end_time), 0);
-
-    return {
-      totalRobots: robots.length,
-      activeJobs: activeJobs.length,
-      completedJobs: completedJobs.length,
-      notStartedJobs: robots.length - jobsWithProgress.length,
-      totalItemsProcessed,
-      totalItemsTarget,
-      averageCompletion,
-      totalDuration: formatTotalDuration(totalDurationSeconds)
-    };
-  };
-
-  const getStatusBadge = (job: JobSummary | undefined) => {
-    if (!job) {
-      return <span className={`px-3 py-1 rounded-full text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-800'}`}>No Data</span>;
-    }
+  const getStatusBadge = (job: JobSummary) => {
     if (job.end_time) {
-      return <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-800'}`}>
-        <CheckCircle className="h-4 w-4" />
-        Completed
-      </span>;
+      return <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Completed</span>;
     }
     if (job.start_time) {
-      return <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800'}`}>
+      return <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium flex items-center gap-1">
         <Loader className="h-4 w-4 animate-spin" />
         In Progress
       </span>;
     }
-    return <span className={`px-3 py-1 rounded-full text-sm font-medium ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-800'}`}>Not Started</span>;
-  };
-
-  const toggleRobotExpansion = (robotId: string) => {
-    setExpandedRobots(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(robotId)) {
-        newSet.delete(robotId);
-      } else {
-        newSet.add(robotId);
-      }
-      return newSet;
-    });
-  };
-
-  const getRobotStatus = (job: JobSummary | undefined): 'active' | 'completed' | 'idle' => {
-    if (!job || !job.start_time) return 'idle';
-    if (job.end_time) return 'completed';
-    return 'active';
+    return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">Not Started</span>;
   };
 
   if (loading) {
@@ -184,400 +99,175 @@ const Jobs: React.FC = () => {
     );
   }
 
-  const stats = getOverallStats();
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="card">
-        <h2 className={`text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Package className="h-6 w-6" />
           Job Tracking & Summary
         </h2>
-        <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+        <p className="text-gray-600 mt-1">
           Monitor job progress, completion percentage, and timing for all robots
         </p>
       </div>
 
-      {/* Overall Summary */}
-      <div className="card">
-        <div className="flex items-center gap-2 mb-6">
-          <BarChart3 className="h-5 w-5 text-primary-600" />
-          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Overall Summary (All Robots)</h3>
-        </div>
-
-        {/* Main Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className={`rounded-xl p-4 border ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                <Bot className={`h-5 w-5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
-              </div>
-              <div>
-                <p className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Total Robots</p>
-                <p className={`text-xl font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{stats.totalRobots}</p>
-              </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-blue-50">
+              <Loader className="h-6 w-6 text-blue-600" />
             </div>
-          </div>
-
-          <div className={`rounded-xl p-4 border ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isDark ? 'bg-blue-800' : 'bg-blue-200'}`}>
-                <Loader className={`h-5 w-5 ${isDark ? 'text-blue-400' : 'text-blue-700'}`} />
-              </div>
-              <div>
-                <p className={`text-xs font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Active Jobs</p>
-                <p className={`text-xl font-bold ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>{stats.activeJobs}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`rounded-xl p-4 border ${isDark ? 'bg-green-900/20 border-green-800' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isDark ? 'bg-green-800' : 'bg-green-200'}`}>
-                <CheckCircle className={`h-5 w-5 ${isDark ? 'text-green-400' : 'text-green-700'}`} />
-              </div>
-              <div>
-                <p className={`text-xs font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>Completed Jobs</p>
-                <p className={`text-xl font-bold ${isDark ? 'text-green-300' : 'text-green-900'}`}>{stats.completedJobs}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`rounded-xl p-4 border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                <Clock className={`h-5 w-5 ${isDark ? 'text-gray-400' : 'text-gray-700'}`} />
-              </div>
-              <div>
-                <p className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Idle / No Job</p>
-                <p className={`text-xl font-bold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{stats.notStartedJobs}</p>
-              </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Active Jobs</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {Object.values(jobSummaries).filter(j => j.start_time && !j.end_time).length}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Secondary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className={`rounded-xl p-4 border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${isDark ? 'bg-purple-900/30' : 'bg-purple-100'}`}>
-                  <TrendingUp className={`h-5 w-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                </div>
-                <div>
-                  <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Items Processed</p>
-                  <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {stats.totalItemsProcessed}
-                    {stats.totalItemsTarget > 0 && (
-                      <span className={`text-sm font-normal ${isDark ? 'text-gray-500' : 'text-gray-500'}`}> / {stats.totalItemsTarget}</span>
-                    )}
-                  </p>
-                </div>
-              </div>
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-green-50">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Completed Jobs</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {Object.values(jobSummaries).filter(j => j.end_time).length}
+              </p>
             </div>
           </div>
+        </div>
 
-          <div className={`rounded-xl p-4 border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-900/30' : 'bg-amber-100'}`}>
-                <Target className={`h-5 w-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Average Completion</p>
-                <div className="flex items-center gap-2">
-                  <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.averageCompletion.toFixed(1)}%</p>
-                  <div className={`flex-1 rounded-full h-2 max-w-24 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                    <div 
-                      className="bg-amber-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${stats.averageCompletion}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 rounded-lg bg-purple-50">
+              <TrendingUp className="h-6 w-6 text-purple-600" />
             </div>
-          </div>
-
-          <div className={`rounded-xl p-4 border shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isDark ? 'bg-indigo-900/30' : 'bg-indigo-100'}`}>
-                <Timer className={`h-5 w-5 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
-              </div>
-              <div>
-                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Run Time</p>
-                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.totalDuration}</p>
-              </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Items Processed</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {Object.values(jobSummaries).reduce((sum, j) => sum + j.items_done, 0)}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Per Robot Breakdown */}
-      <div className="card">
-        <div className="flex items-center gap-2 mb-6">
-          <Bot className="h-5 w-5 text-primary-600" />
-          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Per Robot Breakdown</h3>
-          <span className={`ml-auto text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{robots.length} robot(s)</span>
+      {/* Job List */}
+      {robots.length === 0 ? (
+        <div className="card text-center py-12">
+          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">No robots connected. Start a robot to see job data.</p>
         </div>
-
-        {robots.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className={`h-12 w-12 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No robots connected. Start a robot to see job data.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {robots.map(robotId => {
-              const job = jobSummaries[robotId];
-              const status = getRobotStatus(job);
-              const isExpanded = expandedRobots.has(robotId);
-              
+      ) : (
+        <div className="space-y-4">
+          {robots.map(robotId => {
+            const job = jobSummaries[robotId];
+            
+            if (!job || !job.start_time) {
               return (
-                <div 
-                  key={robotId} 
-                  className={`rounded-xl border transition-all duration-200 ${
-                    status === 'active' ? (isDark ? 'border-blue-700 bg-blue-900/20' : 'border-blue-200 bg-blue-50/50') :
-                    status === 'completed' ? (isDark ? 'border-green-700 bg-green-900/20' : 'border-green-200 bg-green-50/50') :
-                    isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50/50'
-                  }`}
-                >
-                  {/* Robot Header */}
-                  <div 
-                    className={`p-4 cursor-pointer transition-colors rounded-xl ${isDark ? 'hover:bg-gray-700/50' : 'hover:bg-white/50'}`}
-                    onClick={() => toggleRobotExpansion(robotId)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-3 h-3 rounded-full ${
-                          status === 'active' ? 'bg-blue-500 animate-pulse' :
-                          status === 'completed' ? 'bg-green-500' :
-                          'bg-gray-400'
-                        }`} />
-                        
-                        <div>
-                          <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{robotId}</h4>
-                          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                            {job?.start_time 
-                              ? `Duration: ${calculateDuration(job.start_time, job.end_time)}`
-                              : 'No active job'
-                            }
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        {job?.start_time && (
-                          <div className="hidden sm:flex items-center gap-4 text-sm">
-                            <div className="text-center">
-                              <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Items</p>
-                              <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                {job.items_done}{job.items_total > 0 && `/${job.items_total}`}
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <p className={isDark ? 'text-gray-500' : 'text-gray-500'}>Progress</p>
-                              <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                {(job.percent_complete || 0).toFixed(1)}%
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {getStatusBadge(job)}
-
-                        <button className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}>
-                          {isExpanded ? (
-                            <ChevronUp className={`h-5 w-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                          ) : (
-                            <ChevronDown className={`h-5 w-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                          )}
-                        </button>
-                      </div>
+                <div key={robotId} className="card">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{robotId}</h3>
+                      <p className="text-sm text-gray-500">No active or recent jobs</p>
                     </div>
-
-                    {job?.items_total > 0 && (
-                      <div className="mt-3">
-                        <div className={`w-full rounded-full h-2 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                          <div
-                            className={`h-2 rounded-full transition-all duration-300 ${
-                              job.end_time ? 'bg-green-500' : 'bg-blue-500'
-                            }`}
-                            style={{ width: `${job.percent_complete || 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                    {getStatusBadge(job || {} as JobSummary)}
                   </div>
-
-                  {/* Expanded Details */}
-                  {isExpanded && job?.start_time && (
-                    <div className={`px-4 pb-4 border-t ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'}`}>
-                      <div className="pt-4 space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <div className={`rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                            <p className={`text-xs mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Items Done</p>
-                            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{job.items_done}</p>
-                          </div>
-                          <div className={`rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                            <p className={`text-xs mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Total Items</p>
-                            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{job.items_total || 'N/A'}</p>
-                          </div>
-                          <div className={`rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                            <p className={`text-xs mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Completion</p>
-                            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{(job.percent_complete || 0).toFixed(1)}%</p>
-                          </div>
-                          <div className={`rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                            <p className={`text-xs mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Duration</p>
-                            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{calculateDuration(job.start_time, job.end_time)}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <div className={`flex items-center gap-2 rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-600'}`}>
-                            <Calendar className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-                            <div>
-                              <span className="font-medium">Start Time:</span>{' '}
-                              {formatDateTime(job.start_time)}
-                            </div>
-                          </div>
-                          <div className={`flex items-center gap-2 rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-600'}`}>
-                            <Clock className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-                            <div>
-                              <span className="font-medium">End Time:</span>{' '}
-                              {formatDateTime(job.end_time)}
-                            </div>
-                          </div>
-                        </div>
-
-                        {job.last_item && (
-                          <div className={`rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                            <p className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Last Processed Item:</p>
-                            <pre className={`text-xs p-3 rounded overflow-x-auto ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
-                              {JSON.stringify(job.last_item, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-
-                        {job.history && job.history.length > 0 && (
-                          <div className={`rounded-lg p-3 border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                            <p className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                              Recent History ({job.history.length} items):
-                            </p>
-                            <div className="max-h-48 overflow-y-auto space-y-2">
-                              {job.history.slice(-5).reverse().map((entry, idx) => (
-                                <div key={idx} className={`text-xs p-2 rounded flex items-center gap-2 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-                                  <span className={`whitespace-nowrap ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                                    {new Date(entry.time).toLocaleTimeString()}
-                                  </span>
-                                  <span className={`truncate ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                                    {JSON.stringify(entry.item)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {isExpanded && (!job || !job.start_time) && (
-                    <div className={`px-4 pb-4 border-t ${isDark ? 'border-gray-700/50' : 'border-gray-200/50'}`}>
-                      <div className={`pt-4 text-center ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                        <Package className={`h-8 w-8 mx-auto mb-2 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-                        <p className="text-sm">No job data available for this robot</p>
-                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Start a job to see tracking information</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
-            })}
-          </div>
-        )}
-      </div>
+            }
 
-      {/* Quick Comparison Table */}
-      {robots.length > 0 && Object.keys(jobSummaries).length > 0 && (
-        <div className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-5 w-5 text-primary-600" />
-            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Quick Comparison</h3>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <th className={`text-left py-3 px-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Robot ID</th>
-                  <th className={`text-left py-3 px-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Status</th>
-                  <th className={`text-right py-3 px-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Items Done</th>
-                  <th className={`text-right py-3 px-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Total Items</th>
-                  <th className={`text-right py-3 px-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Progress</th>
-                  <th className={`text-right py-3 px-4 font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Duration</th>
-                </tr>
-              </thead>
-              <tbody>
-                {robots.map(robotId => {
-                  const job = jobSummaries[robotId];
-                  const status = getRobotStatus(job);
-                  
-                  return (
-                    <tr key={robotId} className={`border-b ${isDark ? 'border-gray-800 hover:bg-gray-800/50' : 'border-gray-100 hover:bg-gray-50'}`}>
-                      <td className={`py-3 px-4 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{robotId}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          status === 'active' ? (isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800') :
-                          status === 'completed' ? (isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-800') :
-                          isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {status === 'active' && <Loader className="h-3 w-3 mr-1 animate-spin" />}
-                          {status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
+            return (
+              <div key={robotId} className="card">
+                <div className="space-y-4">
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{robotId}</h3>
+                      <p className="text-sm text-gray-500">
+                        Duration: {calculateDuration(job.start_time, job.end_time)}
+                      </p>
+                    </div>
+                    {getStatusBadge(job)}
+                  </div>
+
+                  {/* Progress Bar */}
+                  {job.items_total > 0 && (
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-600">
+                          Progress: {job.items_done} / {job.items_total} items
                         </span>
-                      </td>
-                      <td className={`py-3 px-4 text-right ${isDark ? 'text-white' : 'text-gray-900'}`}>{job?.items_done || 0}</td>
-                      <td className={`py-3 px-4 text-right ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{job?.items_total || '-'}</td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className={`w-16 rounded-full h-1.5 ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                            <div 
-                              className={`h-1.5 rounded-full ${
-                                status === 'completed' ? 'bg-green-500' :
-                                status === 'active' ? 'bg-blue-500' :
-                                'bg-gray-400'
-                              }`}
-                              style={{ width: `${job?.percent_complete || 0}%` }}
-                            />
+                        <span className="font-semibold text-gray-900">
+                          {job.percent_complete?.toFixed(1) || 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className={`h-3 rounded-full transition-all duration-300 ${
+                            job.end_time ? 'bg-green-600' : 'bg-blue-600'
+                          }`}
+                          style={{ width: `${job.percent_complete || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Time Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Calendar className="h-4 w-4" />
+                      <div>
+                        <span className="font-medium">Start Time:</span>{' '}
+                        {formatDateTime(job.start_time)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Clock className="h-4 w-4" />
+                      <div>
+                        <span className="font-medium">End Time:</span>{' '}
+                        {formatDateTime(job.end_time)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Last Item */}
+                  {job.last_item && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Last Processed Item:</p>
+                      <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
+                        {JSON.stringify(job.last_item, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Recent History */}
+                  {job.history && job.history.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        Recent History ({job.history.length} items):
+                      </p>
+                      <div className="max-h-48 overflow-y-auto space-y-2">
+                        {job.history.slice(-5).reverse().map((entry, idx) => (
+                          <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
+                            <span className="text-gray-500">{new Date(entry.time).toLocaleTimeString()}</span>
+                            <span className="text-gray-700 ml-2">
+                              {JSON.stringify(entry.item)}
+                            </span>
                           </div>
-                          <span className={`w-12 text-right ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {(job?.percent_complete || 0).toFixed(1)}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className={`py-3 px-4 text-right ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {job?.start_time ? calculateDuration(job.start_time, job.end_time) : '-'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className={`font-semibold ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
-                  <td className={`py-3 px-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Total</td>
-                  <td className="py-3 px-4">
-                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {stats.activeJobs} active, {stats.completedJobs} done
-                    </span>
-                  </td>
-                  <td className={`py-3 px-4 text-right ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.totalItemsProcessed}</td>
-                  <td className={`py-3 px-4 text-right ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stats.totalItemsTarget || '-'}</td>
-                  <td className={`py-3 px-4 text-right ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.averageCompletion.toFixed(1)}% avg</td>
-                  <td className={`py-3 px-4 text-right ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stats.totalDuration}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

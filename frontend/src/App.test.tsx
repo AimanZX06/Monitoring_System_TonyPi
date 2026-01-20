@@ -13,9 +13,9 @@ function App() {
         marginTop: '20px'
       }}>
         <h2>System Status</h2>
-        <p>React App Loading</p>
-        <p>JavaScript Enabled</p>
-        <p>Basic Styling Working</p>
+        <p>✅ React App Loading</p>
+        <p>✅ JavaScript Enabled</p>
+        <p>✅ Basic Styling Working</p>
       </div>
     </div>
   );

@@ -35,11 +35,9 @@ CREATE TABLE IF NOT EXISTS reports (
     id SERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     description TEXT,
-    robot_id VARCHAR(50),
+    robot_id VARCHAR(50) REFERENCES robots(robot_id) ON DELETE CASCADE,
     report_type VARCHAR(50) NOT NULL,
     data JSONB,
-    file_path VARCHAR(500),
-    created_by VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

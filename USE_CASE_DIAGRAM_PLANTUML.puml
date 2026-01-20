@@ -1,0 +1,928 @@
+@startuml Use_Case_Diagram
+
+title TonyPi Monitoring System - Use Case Diagram
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 200
+skinparam defaultFontSize 10
+
+left to right direction
+
+' ============================================
+' ACTORS
+' ============================================
+actor "Admin" as Admin #C8E6C9
+actor "Operator" as Operator #BBDEFB
+actor "Viewer" as Viewer #E0E0E0
+
+' ============================================
+' SYSTEM
+' ============================================
+rectangle "TonyPi Monitoring System" {
+    
+    usecase "Login/Logout" as UC_AUTH #E3F2FD
+    usecase "View Profile" as UC_PROFILE #E3F2FD
+    
+    usecase "Manage Users" as UC_USER #C8E6C9
+    
+    usecase "View Robots" as UC_VIEW_ROBOT #FFF3E0
+    usecase "Configure Robot" as UC_CFG_ROBOT #FFF3E0
+    
+    usecase "Send Commands" as UC_CMD #FFCDD2
+    usecase "Emergency Stop" as UC_ESTOP #FFCDD2
+    
+    usecase "View Dashboard" as UC_DASH #E1BEE7
+    usecase "View Sensors" as UC_SENSORS #E1BEE7
+    usecase "View Servos" as UC_SERVOS #E1BEE7
+    usecase "View Camera" as UC_CAM #E1BEE7
+    
+    usecase "View Alerts" as UC_ALERTS #FFCCBC
+    usecase "Manage Alerts" as UC_MGR_ALERT #FFCCBC
+    usecase "Configure Thresholds" as UC_THRESH #FFCCBC
+    
+    usecase "View Reports" as UC_VIEW_RPT #B2EBF2
+    usecase "Generate Report" as UC_GEN_RPT #B2EBF2
+    usecase "Download PDF" as UC_PDF #B2EBF2
+    
+    usecase "View Logs" as UC_LOGS #F5F5F5
+    usecase "Export Logs" as UC_EXPORT #F5F5F5
+    
+    usecase "Track Jobs" as UC_JOBS #FFF9C4
+}
+
+' ============================================
+' ADMIN - Full Access (Green lines)
+' ============================================
+Admin --> UC_AUTH
+Admin --> UC_PROFILE
+Admin --> UC_USER
+Admin --> UC_VIEW_ROBOT
+Admin --> UC_CFG_ROBOT
+Admin --> UC_CMD
+Admin --> UC_ESTOP
+Admin --> UC_DASH
+Admin --> UC_SENSORS
+Admin --> UC_SERVOS
+Admin --> UC_CAM
+Admin --> UC_ALERTS
+Admin --> UC_MGR_ALERT
+Admin --> UC_THRESH
+Admin --> UC_VIEW_RPT
+Admin --> UC_GEN_RPT
+Admin --> UC_PDF
+Admin --> UC_LOGS
+Admin --> UC_EXPORT
+Admin --> UC_JOBS
+
+' ============================================
+' OPERATOR - Control + View (Blue lines)
+' ============================================
+Operator --> UC_AUTH
+Operator --> UC_PROFILE
+Operator --> UC_VIEW_ROBOT
+Operator --> UC_CMD
+Operator --> UC_ESTOP
+Operator --> UC_DASH
+Operator --> UC_SENSORS
+Operator --> UC_SERVOS
+Operator --> UC_CAM
+Operator --> UC_ALERTS
+Operator --> UC_MGR_ALERT
+Operator --> UC_VIEW_RPT
+Operator --> UC_GEN_RPT
+Operator --> UC_PDF
+Operator --> UC_LOGS
+Operator --> UC_JOBS
+
+' ============================================
+' VIEWER - Read Only (Gray lines)
+' ============================================
+Viewer --> UC_AUTH
+Viewer --> UC_PROFILE
+Viewer --> UC_VIEW_ROBOT
+Viewer --> UC_DASH
+Viewer --> UC_SENSORS
+Viewer --> UC_SERVOS
+Viewer --> UC_CAM
+Viewer --> UC_ALERTS
+Viewer --> UC_VIEW_RPT
+Viewer --> UC_PDF
+Viewer --> UC_LOGS
+Viewer --> UC_JOBS
+
+@enduml
+
+
+@startuml Use_Case_Detailed_By_Module
+
+title TonyPi System - Detailed Use Cases by Module
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+
+left to right direction
+
+actor "Admin" as Admin #C8E6C9
+actor "Operator" as Operator #BBDEFB  
+actor "Viewer" as Viewer #E0E0E0
+
+rectangle "Authentication & User Management" #E3F2FD {
+    usecase "Login" as UC1
+    usecase "Logout" as UC2
+    usecase "View Profile" as UC3
+    usecase "Create User" as UC4
+    usecase "Update User" as UC5
+    usecase "Delete User" as UC6
+    usecase "Assign Role" as UC7
+}
+
+Admin --> UC1
+Admin --> UC2
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC7
+
+Operator --> UC1
+Operator --> UC2
+Operator --> UC3
+
+Viewer --> UC1
+Viewer --> UC2
+Viewer --> UC3
+
+note right of UC4
+  Admin Only
+end note
+
+@enduml
+
+
+@startuml Use_Case_Monitoring_Module
+
+title TonyPi System - Monitoring & Control Use Cases
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+
+left to right direction
+
+actor "Admin" as Admin #C8E6C9
+actor "Operator" as Operator #BBDEFB  
+actor "Viewer" as Viewer #E0E0E0
+actor "TonyPi Robot" as Robot #FFE0B2
+
+rectangle "Robot Management & Control" #FFF3E0 {
+    usecase "View Robot List" as UC_LIST
+    usecase "Register Robot" as UC_REG
+    usecase "Update Settings" as UC_SET
+    usecase "Delete Robot" as UC_DEL
+    usecase "Send Movement" as UC_MOVE
+    usecase "Emergency Stop" as UC_STOP
+    usecase "Request Status" as UC_STATUS
+}
+
+rectangle "Real-Time Monitoring" #E1BEE7 {
+    usecase "View Dashboard" as UC_DASH
+    usecase "View Performance" as UC_PERF
+    usecase "View Sensors" as UC_SENS
+    usecase "View Servos" as UC_SERVO
+    usecase "View Camera" as UC_CAM
+    usecase "View Location" as UC_LOC
+    usecase "View Battery" as UC_BAT
+}
+
+Admin --> UC_LIST
+Admin --> UC_REG
+Admin --> UC_SET
+Admin --> UC_DEL
+Admin --> UC_MOVE
+Admin --> UC_STOP
+Admin --> UC_STATUS
+Admin --> UC_DASH
+Admin --> UC_PERF
+Admin --> UC_SENS
+Admin --> UC_SERVO
+Admin --> UC_CAM
+Admin --> UC_LOC
+Admin --> UC_BAT
+
+Operator --> UC_LIST
+Operator --> UC_MOVE
+Operator --> UC_STOP
+Operator --> UC_STATUS
+Operator --> UC_DASH
+Operator --> UC_PERF
+Operator --> UC_SENS
+Operator --> UC_SERVO
+Operator --> UC_CAM
+Operator --> UC_LOC
+Operator --> UC_BAT
+
+Viewer --> UC_LIST
+Viewer --> UC_DASH
+Viewer --> UC_PERF
+Viewer --> UC_SENS
+Viewer --> UC_SERVO
+Viewer --> UC_CAM
+Viewer --> UC_LOC
+Viewer --> UC_BAT
+
+Robot --> UC_DASH : sends telemetry
+Robot --> UC_SENS : publishes data
+Robot --> UC_SERVO : reports status
+Robot --> UC_BAT : reports level
+
+@enduml
+
+
+@startuml Use_Case_Alerts_Reports
+
+title TonyPi System - Alerts, Reports & Logs Use Cases
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+
+left to right direction
+
+actor "Admin" as Admin #C8E6C9
+actor "Operator" as Operator #BBDEFB  
+actor "Viewer" as Viewer #E0E0E0
+actor "Gemini AI" as AI #D1C4E9
+
+rectangle "Alert Management" #FFCCBC {
+    usecase "View Alerts" as UC_VIEW_A
+    usecase "Acknowledge Alert" as UC_ACK
+    usecase "Resolve Alert" as UC_RES
+    usecase "Configure Thresholds" as UC_THRESH
+    usecase "View Statistics" as UC_STATS
+}
+
+rectangle "Reports & Analytics" #B2EBF2 {
+    usecase "View Reports" as UC_VIEW_R
+    usecase "Generate Report" as UC_GEN
+    usecase "Download PDF" as UC_PDF
+    usecase "AI Analysis" as UC_AI
+}
+
+rectangle "System Logs & Jobs" #F5F5F5 {
+    usecase "View Logs" as UC_LOGS
+    usecase "Filter Logs" as UC_FILTER
+    usecase "Export Logs" as UC_EXPORT
+    usecase "View Job Progress" as UC_JOB
+    usecase "Job Summary" as UC_SUM
+}
+
+Admin --> UC_VIEW_A
+Admin --> UC_ACK
+Admin --> UC_RES
+Admin --> UC_THRESH
+Admin --> UC_STATS
+Admin --> UC_VIEW_R
+Admin --> UC_GEN
+Admin --> UC_PDF
+Admin --> UC_AI
+Admin --> UC_LOGS
+Admin --> UC_FILTER
+Admin --> UC_EXPORT
+Admin --> UC_JOB
+Admin --> UC_SUM
+
+Operator --> UC_VIEW_A
+Operator --> UC_ACK
+Operator --> UC_RES
+Operator --> UC_STATS
+Operator --> UC_VIEW_R
+Operator --> UC_GEN
+Operator --> UC_PDF
+Operator --> UC_AI
+Operator --> UC_LOGS
+Operator --> UC_FILTER
+Operator --> UC_JOB
+Operator --> UC_SUM
+
+Viewer --> UC_VIEW_A
+Viewer --> UC_STATS
+Viewer --> UC_VIEW_R
+Viewer --> UC_PDF
+Viewer --> UC_LOGS
+Viewer --> UC_JOB
+Viewer --> UC_SUM
+
+AI --> UC_AI
+UC_GEN ..> UC_AI : <<include>>
+
+@enduml
+
+
+@startuml Use_Case_Robot_System
+
+title TonyPi Robot & Backend - Use Case Diagram
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+
+left to right direction
+
+' ============================================
+' ACTORS
+' ============================================
+actor "TonyPi Robot" as Robot #FFE0B2
+actor "Backend System" as System #B3E5FC
+actor "Gemini AI" as AI #D1C4E9
+
+' ============================================
+' ROBOT CLIENT OPERATIONS
+' ============================================
+rectangle "Robot Client Operations" as RobotOps #FFF3E0 {
+    usecase "Connect to MQTT" as UC41
+    usecase "Publish Telemetry" as UC42
+    usecase "Receive Commands" as UC43
+    usecase "Execute Actions" as UC44
+    usecase "Scan QR Code" as UC45
+    usecase "Stream Camera" as UC46
+    usecase "Report Job Progress" as UC47
+}
+
+' ============================================
+' AUTOMATED BACKEND OPERATIONS
+' ============================================
+rectangle "Backend Automated Operations" as BackendOps #E3F2FD {
+    usecase "Process Telemetry" as UC48
+    usecase "Check Thresholds" as UC49
+    usecase "Generate Alerts" as UC50
+    usecase "Update Robot Status" as UC51
+    usecase "Store Time-Series Data" as UC52
+}
+
+' ============================================
+' AI OPERATIONS
+' ============================================
+rectangle "AI Analytics" as AIOps #EDE7F6 {
+    usecase "Analyze Performance" as UC53
+    usecase "Generate Insights" as UC54
+    usecase "Predict Maintenance" as UC55
+}
+
+' ============================================
+' CONNECTIONS
+' ============================================
+Robot --> UC41
+Robot --> UC42
+Robot --> UC43
+Robot --> UC44
+Robot --> UC45
+Robot --> UC46
+Robot --> UC47
+
+System --> UC48
+System --> UC49
+System --> UC50
+System --> UC51
+System --> UC52
+
+AI --> UC53
+AI --> UC54
+AI --> UC55
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+UC42 ..> UC48 : triggers
+UC48 ..> UC49 : <<include>>
+UC49 ..> UC50 : <<extend>>\n[threshold exceeded]
+UC48 ..> UC51 : <<include>>
+UC48 ..> UC52 : <<include>>
+UC53 ..> UC54 : <<include>>
+
+note right of UC42
+  Telemetry includes:
+  - Sensor data
+  - Servo status
+  - Battery level
+  - System metrics
+end note
+
+note right of UC50
+  Alert types:
+  - Temperature
+  - Battery low
+  - Connection lost
+  - Servo warning
+end note
+
+@enduml
+
+
+@startuml Use_Case_Diagram_Simplified_View
+
+title TonyPi System - Simplified Overview
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+skinparam packageStyle rectangle
+
+left to right direction
+
+' ============================================
+' ALL ACTORS
+' ============================================
+actor "Admin" as Admin #E8EAF6
+actor "Operator" as Operator #C5CAE9
+actor "Viewer" as Viewer #9FA8DA
+actor "TonyPi Robot" as Robot #FFE0B2
+actor "Gemini AI" as AI #D1C4E9
+
+' ============================================
+' SYSTEM MODULES
+' ============================================
+rectangle "TonyPi Monitoring System" {
+    
+    rectangle "Authentication &\nUser Management" as Auth #E3F2FD
+    
+    rectangle "Robot Management\n& Configuration" as RobotMgmt #FFF3E0
+    
+    rectangle "Real-Time\nMonitoring" as Monitor #F3E5F5
+    
+    rectangle "Robot\nControl" as Control #FFEBEE
+    
+    rectangle "Alert\nManagement" as Alerts #FBE9E7
+    
+    rectangle "Reports &\nAnalytics" as Reports #E0F7FA
+    
+    rectangle "Logs &\nJob Tracking" as Logs #F5F5F5
+}
+
+' ============================================
+' ACTOR CONNECTIONS
+' ============================================
+Admin --> Auth : manage users
+Admin --> RobotMgmt : full access
+Admin --> Monitor
+Admin --> Control
+Admin --> Alerts : configure
+Admin --> Reports
+Admin --> Logs
+
+Operator --> Auth : login
+Operator --> RobotMgmt : view
+Operator --> Monitor
+Operator --> Control
+Operator --> Alerts : manage
+Operator --> Reports
+Operator --> Logs
+
+Viewer --> Auth : login
+Viewer --> Monitor : view only
+Viewer --> Alerts : view only
+Viewer --> Reports : view only
+Viewer --> Logs : view only
+
+Robot --> Monitor : telemetry
+Robot --> Control : receives
+Robot --> Alerts : triggers
+Robot --> Logs : updates
+
+AI --> Reports : analyzes
+
+@enduml
+
+
+@startuml Use_Case_Autonomous_Packaging_Combined
+
+title TonyPi Autonomous Packaging System - Use Case Diagram
+
+skinparam shadowing false
+skinparam backgroundColor #1a1a2e
+skinparam dpi 150
+skinparam defaultFontColor white
+
+skinparam usecase {
+    BackgroundColor #2d2d44
+    BorderColor #6c6c8a
+    FontColor white
+}
+
+skinparam rectangle {
+    BackgroundColor #1a1a2e
+    BorderColor #4a4a6a
+    FontColor white
+}
+
+skinparam actor {
+    BackgroundColor #2d2d44
+    BorderColor #6c6c8a
+    FontColor white
+}
+
+left to right direction
+
+' Actor
+actor Operator
+
+rectangle "TonyPi Autonomous Packaging System" {
+    
+    ' Voice and Navigation Use Cases
+    usecase UC_VOICE as "Issue Voice\nCommand"
+    usecase UC_NAVIGATE as "Navigate\nto Station"
+    
+    ' Emergency and Safety Use Cases
+    usecase UC_ESTOP as "Trigger\nEmergency\nStop"
+    usecase UC_OBSTACLE as "Detect Obstacle\nDuring Movement"
+    
+    ' Environment Detection Use Cases
+    usecase UC_DARKNESS as "Detect Darkness In\nEnvironment"
+    usecase UC_TARGET as "Detect Target\nObject"
+    
+    ' Main Packaging Task
+    usecase UC_PACKAGING as "Execute\nPackaging\nTask"
+    
+    ' Feedback
+    usecase UC_AUDIO as "Receive Audio\nFeedback"
+    
+    ' Servo Actions
+    usecase UC_SERVO as "Perform Servo\nAction"
+    usecase UC_TRANSPORT as "Transport\nLight Material"
+    usecase UC_DIECUT as "Perform\nDiecut Peeling"
+    usecase UC_FLIP as "Perform Sheet\nFlip Over"
+    usecase UC_LABEL as "Perform Label\nInsertion"
+}
+
+' Actor Relationships
+Operator --> UC_VOICE
+Operator --> UC_ESTOP
+Operator --> UC_OBSTACLE
+Operator --> UC_PACKAGING
+Operator --> UC_AUDIO
+
+' Extend Relationships
+UC_VOICE ..> UC_NAVIGATE : <<extend>>
+UC_ESTOP ..> UC_DARKNESS : <<extend>>
+UC_OBSTACLE ..> UC_ESTOP : <<extend>>
+UC_OBSTACLE ..> UC_PACKAGING : <<extend>>
+UC_TARGET ..> UC_DARKNESS : <<extend>>
+
+' Include Relationships
+UC_PACKAGING ..> UC_TARGET : <<include>>
+UC_PACKAGING ..> UC_SERVO : <<include>>
+UC_SERVO ..> UC_TRANSPORT : <<include>>
+UC_SERVO ..> UC_DIECUT : <<include>>
+UC_SERVO ..> UC_FLIP : <<include>>
+UC_SERVO ..> UC_LABEL : <<include>>
+
+@enduml
+
+
+@startuml Use_Case_Complete_System_Overview
+
+title TonyPi Complete System - High-Level Overview
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+skinparam handwritten false
+
+skinparam package {
+    BackgroundColor #F5F5F5
+    BorderColor #333333
+}
+
+skinparam rectangle {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+}
+
+top to bottom direction
+
+' Human Actors
+actor "Admin" as Admin
+actor "Operator" as Operator
+actor "Viewer" as Viewer
+
+' System Actors
+actor "TonyPi Robot" as Robot
+actor "Gemini AI" as AI
+actor "Backend System" as Backend
+
+package "Web Dashboard (Monitoring System)" {
+    rectangle "Authentication &\nUser Management" as AuthModule
+    rectangle "Robot Management\n& Control" as RobotModule
+    rectangle "Real-Time\nMonitoring" as MonitorModule
+    rectangle "Alerts &\nNotifications" as AlertModule
+    rectangle "Reports &\nAnalytics" as ReportModule
+    rectangle "Logs &\nJob Tracking" as LogModule
+}
+
+package "Robot Operations (Autonomous Packaging)" {
+    rectangle "Voice Commands\n& Navigation" as VoiceModule
+    rectangle "Safety &\nEmergency Stop" as SafetyModule
+    rectangle "Environment\nDetection" as DetectModule
+    rectangle "Packaging Task\nExecution" as PackageModule
+    rectangle "Servo Actions\n& Material Handling" as ServoModule
+}
+
+' Admin connections
+Admin --> AuthModule
+Admin --> RobotModule
+Admin --> MonitorModule
+Admin --> AlertModule
+Admin --> ReportModule
+Admin --> LogModule
+
+' Operator connections (both systems)
+Operator --> AuthModule
+Operator --> RobotModule
+Operator --> MonitorModule
+Operator --> AlertModule
+Operator --> ReportModule
+Operator --> LogModule
+Operator --> VoiceModule
+Operator --> SafetyModule
+Operator --> PackageModule
+
+' Viewer connections
+Viewer --> AuthModule
+Viewer --> MonitorModule
+Viewer --> AlertModule
+Viewer --> ReportModule
+Viewer --> LogModule
+
+' Robot connections
+Robot --> MonitorModule : telemetry
+Robot --> AlertModule : triggers
+Robot --> LogModule : updates
+Robot --> SafetyModule : responds
+Robot --> DetectModule : senses
+Robot --> PackageModule : executes
+Robot --> ServoModule : controls
+
+' AI connections
+AI --> ReportModule : analyzes
+
+' Backend connections
+Backend --> AlertModule : processes
+Backend --> MonitorModule : stores data
+
+' Internal relationships
+PackageModule --> DetectModule : includes
+PackageModule --> ServoModule : includes
+VoiceModule --> PackageModule : triggers
+SafetyModule --> PackageModule : interrupts
+
+@enduml
+
+
+@startuml Use_Case_Admin_Detailed
+
+title Admin User - Detailed Use Cases
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+
+left to right direction
+
+actor "Admin" as Admin #3F51B5
+
+rectangle "Admin Capabilities" {
+    
+    package "User Management" #E8F5E9 {
+        usecase "Create User" as UC_CREATE
+        usecase "Update User" as UC_UPDATE
+        usecase "Delete User" as UC_DELETE
+        usecase "View All Users" as UC_VIEW_USERS
+        usecase "Assign Role" as UC_ROLE
+        usecase "Reset Password" as UC_RESET
+    }
+    
+    package "Robot Configuration" #FFF3E0 {
+        usecase "Register New Robot" as UC_REG
+        usecase "Update Robot Settings" as UC_SETTINGS
+        usecase "Delete Robot" as UC_DEL_ROBOT
+        usecase "Configure Thresholds" as UC_THRESH
+        usecase "View Robot Details" as UC_DETAILS
+    }
+    
+    package "System Administration" #FFEBEE {
+        usecase "Shutdown Robot" as UC_SHUTDOWN
+        usecase "Emergency Stop All" as UC_ESTOP_ALL
+        usecase "Export System Logs" as UC_EXPORT
+        usecase "View System Health" as UC_HEALTH
+    }
+}
+
+Admin --> UC_CREATE
+Admin --> UC_UPDATE
+Admin --> UC_DELETE
+Admin --> UC_VIEW_USERS
+Admin --> UC_ROLE
+Admin --> UC_RESET
+
+Admin --> UC_REG
+Admin --> UC_SETTINGS
+Admin --> UC_DEL_ROBOT
+Admin --> UC_THRESH
+Admin --> UC_DETAILS
+
+Admin --> UC_SHUTDOWN
+Admin --> UC_ESTOP_ALL
+Admin --> UC_EXPORT
+Admin --> UC_HEALTH
+
+UC_CREATE ..> UC_ROLE : <<include>>
+UC_THRESH ..> UC_DETAILS : <<extend>>
+
+note right of UC_ROLE
+  Roles:
+  - Admin
+  - Operator
+  - Viewer
+end note
+
+note right of UC_THRESH
+  Thresholds:
+  - Temperature
+  - Battery level
+  - CPU usage
+  - Servo temp
+end note
+
+@enduml
+
+
+@startuml Use_Case_Operator_Detailed
+
+title Operator User - Detailed Use Cases
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+
+left to right direction
+
+actor "Operator" as Operator #2196F3
+
+rectangle "Operator Capabilities" {
+    
+    package "Robot Control" #FFEBEE {
+        usecase "Send Movement" as UC_MOVE
+        usecase "Emergency Stop" as UC_ESTOP
+        usecase "Request Status" as UC_STATUS
+        usecase "Head Nod/Shake" as UC_HEAD
+        usecase "Start/Stop Job" as UC_JOB_CTRL
+    }
+    
+    package "Monitoring" #F3E5F5 {
+        usecase "View Dashboard" as UC_DASH
+        usecase "View Sensors" as UC_SENSORS
+        usecase "View Servos" as UC_SERVOS
+        usecase "View Camera" as UC_CAM
+        usecase "View Performance" as UC_PERF
+    }
+    
+    package "Alert Handling" #FBE9E7 {
+        usecase "View Alerts" as UC_VIEW_ALERT
+        usecase "Acknowledge Alert" as UC_ACK
+        usecase "Resolve Alert" as UC_RESOLVE
+        usecase "View Statistics" as UC_STATS
+    }
+    
+    package "Reports" #E0F7FA {
+        usecase "Generate Report" as UC_GEN
+        usecase "Download PDF" as UC_PDF
+        usecase "AI Analysis" as UC_AI
+    }
+}
+
+Operator --> UC_MOVE
+Operator --> UC_ESTOP
+Operator --> UC_STATUS
+Operator --> UC_HEAD
+Operator --> UC_JOB_CTRL
+
+Operator --> UC_DASH
+Operator --> UC_SENSORS
+Operator --> UC_SERVOS
+Operator --> UC_CAM
+Operator --> UC_PERF
+
+Operator --> UC_VIEW_ALERT
+Operator --> UC_ACK
+Operator --> UC_RESOLVE
+Operator --> UC_STATS
+
+Operator --> UC_GEN
+Operator --> UC_PDF
+Operator --> UC_AI
+
+UC_GEN ..> UC_AI : <<include>>
+UC_ACK ..> UC_VIEW_ALERT : <<extend>>
+UC_RESOLVE ..> UC_ACK : <<extend>>
+
+note right of UC_MOVE
+  Commands:
+  - Forward/Back
+  - Left/Right
+  - Turn
+  - Stop
+end note
+
+@enduml
+
+
+@startuml Use_Case_Access_Control_Matrix
+
+title Access Control - Role Permissions
+
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam dpi 150
+
+left to right direction
+
+actor "Admin" as Admin #4CAF50
+actor "Operator" as Operator #2196F3
+actor "Viewer" as Viewer #9E9E9E
+
+rectangle "Full Access" #E8F5E9 {
+    usecase "User CRUD" as UC_USER_CRUD
+    usecase "Robot Config" as UC_ROBOT_CFG
+    usecase "Threshold Config" as UC_THRESH_CFG
+    usecase "System Shutdown" as UC_SYS_SHUT
+    usecase "Export Logs" as UC_EXPORT
+}
+
+rectangle "Control Access" #E3F2FD {
+    usecase "Send Commands" as UC_CMD
+    usecase "Emergency Stop" as UC_ESTOP
+    usecase "Acknowledge Alerts" as UC_ACK
+    usecase "Resolve Alerts" as UC_RES
+    usecase "Generate Reports" as UC_GEN
+    usecase "Filter Logs" as UC_FILTER
+}
+
+rectangle "View Access" #F5F5F5 {
+    usecase "View Dashboard" as UC_DASH
+    usecase "View Monitoring" as UC_MON
+    usecase "View Alerts" as UC_ALERT
+    usecase "View Reports" as UC_RPT
+    usecase "View Logs" as UC_LOG
+    usecase "Download PDF" as UC_PDF
+}
+
+' Admin has all
+Admin --> UC_USER_CRUD
+Admin --> UC_ROBOT_CFG
+Admin --> UC_THRESH_CFG
+Admin --> UC_SYS_SHUT
+Admin --> UC_EXPORT
+Admin --> UC_CMD
+Admin --> UC_ESTOP
+Admin --> UC_ACK
+Admin --> UC_RES
+Admin --> UC_GEN
+Admin --> UC_FILTER
+Admin --> UC_DASH
+Admin --> UC_MON
+Admin --> UC_ALERT
+Admin --> UC_RPT
+Admin --> UC_LOG
+Admin --> UC_PDF
+
+' Operator has control + view
+Operator --> UC_CMD
+Operator --> UC_ESTOP
+Operator --> UC_ACK
+Operator --> UC_RES
+Operator --> UC_GEN
+Operator --> UC_FILTER
+Operator --> UC_DASH
+Operator --> UC_MON
+Operator --> UC_ALERT
+Operator --> UC_RPT
+Operator --> UC_LOG
+Operator --> UC_PDF
+
+' Viewer has view only
+Viewer --> UC_DASH
+Viewer --> UC_MON
+Viewer --> UC_ALERT
+Viewer --> UC_RPT
+Viewer --> UC_LOG
+Viewer --> UC_PDF
+
+note bottom
+  Legend:
+  Green = Admin Only
+  Blue = Admin + Operator
+  Gray = All Users
+end note
+
+@enduml

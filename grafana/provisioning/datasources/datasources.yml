@@ -1,32 +1,27 @@
 apiVersion: 1
 
-# NOTE: Configure these datasources in Grafana UI after deployment
-# or set environment variables in docker-compose.yml
 datasources:
   - name: InfluxDB
     type: influxdb
-    uid: influxdb
     access: proxy
     url: http://influxdb:8086
-    isDefault: true
     jsonData:
       version: Flux
-      organization: ${INFLUXDB_ORG}
-      defaultBucket: ${INFLUXDB_BUCKET}
+      organization: tonypi
+      defaultBucket: robot_data
       tlsSkipVerify: true
     secureJsonData:
-      token: ${INFLUXDB_TOKEN}
+      token: my-super-secret-auth-token
     editable: true
 
   - name: PostgreSQL
     type: postgres
-    uid: postgresql
     access: proxy
     url: postgres:5432
-    database: ${POSTGRES_DB}
-    user: ${POSTGRES_USER}
+    database: tonypi_db
+    user: postgres
     secureJsonData:
-      password: ${POSTGRES_PASSWORD}
+      password: postgres
     jsonData:
       sslmode: disable
       maxOpenConns: 100
