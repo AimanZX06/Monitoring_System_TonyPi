@@ -1,6 +1,59 @@
 """
-User management and authentication endpoints
+=============================================================================
+Users Router - User Management and Authentication API
+=============================================================================
+
+This router provides REST API endpoints for user authentication, authorization,
+and account management in the TonyPi Monitoring System.
+
+AUTHENTICATION FLOW:
+    1. User submits credentials to POST /auth/login
+    2. Server validates credentials against password hash
+    3. Server returns JWT access token
+    4. Client includes token in Authorization header for protected routes
+    5. Server validates token on each request
+
+JWT TOKEN:
+    - Algorithm: HS256
+    - Payload: { "sub": username, "role": user_role, "exp": expiry }
+    - Expiry: Configurable (default 24 hours)
+    - Header format: "Authorization: Bearer <token>"
+
+USER ROLES:
+    ┌──────────┬─────────────────────────────────────────────────────────┐
+    │ Role     │ Permissions                                             │
+    ├──────────┼─────────────────────────────────────────────────────────┤
+    │ admin    │ Full access - CRUD users, all system functions          │
+    │ operator │ Robot control, alerts, reports - no user management     │
+    │ viewer   │ Read-only access to dashboards and reports              │
+    └──────────┴─────────────────────────────────────────────────────────┘
+
+API ENDPOINTS:
+    Authentication:
+        POST   /auth/login     - Authenticate and get access token
+        GET    /auth/me        - Get current user info
+    
+    User Management (admin only):
+        GET    /users          - List all users
+        POST   /users          - Create new user
+        GET    /users/{id}     - Get user by ID
+        PUT    /users/{id}     - Update user
+        DELETE /users/{id}     - Delete user
+
+PASSWORD SECURITY:
+    - Passwords are hashed using bcrypt with salt
+    - Plain passwords are never stored or logged
+    - Minimum validation can be added in UserCreate model
+
+DEPENDENCIES:
+    - get_current_user: Extracts and validates JWT from Authorization header
+    - require_admin: Ensures current user has admin role
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -9,8 +62,24 @@ from pydantic import BaseModel, EmailStr
 from database.database import get_db
 from utils.auth import verify_password, get_password_hash, create_access_token, decode_access_token
 import uuid
+from datetime import datetime
+
+# =============================================================================
+# ROUTER SETUP
+# =============================================================================
 
 router = APIRouter()
+
+
+def format_datetime(dt) -> Optional[str]:
+    """Format datetime to ISO string, handling both datetime objects and strings."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        return dt
+    if hasattr(dt, 'isoformat'):
+        return dt.isoformat()
+    return str(dt)
 
 
 # Request/Response models
@@ -201,7 +270,7 @@ async def create_user(
         email=user.email,
         role=user.role,
         is_active=user.is_active,
-        created_at=user.created_at.isoformat() if user.created_at else None
+        created_at=format_datetime(user.created_at)
     )
 
 
@@ -223,8 +292,8 @@ async def list_users(
             email=user.email,
             role=user.role,
             is_active=user.is_active,
-            created_at=user.created_at.isoformat() if user.created_at else None,
-            updated_at=user.updated_at.isoformat() if user.updated_at else None
+            created_at=format_datetime(user.created_at),
+            updated_at=format_datetime(user.updated_at)
         )
         for user in users
     ]
@@ -252,8 +321,8 @@ async def get_user(
         email=user.email,
         role=user.role,
         is_active=user.is_active,
-        created_at=user.created_at.isoformat() if user.created_at else None,
-        updated_at=user.updated_at.isoformat() if user.updated_at else None
+        created_at=format_datetime(user.created_at),
+        updated_at=format_datetime(user.updated_at)
     )
 
 
@@ -327,8 +396,8 @@ async def update_user(
         email=updated_user.email,
         role=updated_user.role,
         is_active=updated_user.is_active,
-        created_at=updated_user.created_at.isoformat() if updated_user.created_at else None,
-        updated_at=updated_user.updated_at.isoformat() if updated_user.updated_at else None
+        created_at=format_datetime(updated_user.created_at),
+        updated_at=format_datetime(updated_user.updated_at)
     )
 
 

@@ -1,27 +1,103 @@
-from influxdb_client import InfluxDBClient, Point
-from influxdb_client.client.write_api import SYNCHRONOUS
-import os
-from dotenv import load_dotenv
-from typing import Dict, Any, Optional, List
-from datetime import datetime
-import logging
+"""
+=============================================================================
+InfluxDB Client - Time-Series Database Integration
+=============================================================================
 
+This module provides the interface to InfluxDB for storing and querying
+time-series telemetry data from TonyPi robots.
+
+WHY INFLUXDB?
+    Time-series databases are optimized for storing timestamped data like
+    sensor readings. Unlike relational databases, they efficiently handle:
+    - High write throughput (many data points per second)
+    - Automatic data retention and downsampling
+    - Time-based queries (e.g., "last hour", "last 7 days")
+    - Aggregation functions (mean, max, min over time windows)
+
+DATA ORGANIZATION:
+    InfluxDB uses a different data model than SQL databases:
+    
+    MEASUREMENT (like a table)     - e.g., "sensor_data", "servo_data"
+        └── TAGS (indexed strings)  - e.g., robot_id="tonypi_01", sensor_type="cpu_temp"
+        └── FIELDS (values)         - e.g., value=65.5, unit="C"
+        └── TIMESTAMP               - e.g., 2026-01-22T10:30:00Z
+
+MEASUREMENTS IN THIS SYSTEM:
+    sensor_data      - IMU, temperature, ultrasonic, light sensor readings
+    servo_data       - Servo position, temperature, voltage
+    vision_data      - Object detection results from camera
+    robot_logs       - Terminal/console output from robots
+    battery_status   - Battery percentage and voltage
+    robot_location   - X, Y, Z position coordinates
+    robot_status     - Online/offline status with system info
+
+GRAFANA INTEGRATION:
+    Grafana connects to InfluxDB to visualize this data in real-time
+    dashboards with graphs, gauges, and alerts.
+
+EXAMPLE FLUX QUERY:
+    from(bucket: "robot_data")
+      |> range(start: -1h)
+      |> filter(fn: (r) => r._measurement == "sensor_data")
+      |> filter(fn: (r) => r.robot_id == "tonypi_01")
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
+# InfluxDB Python client library
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS  # Synchronous write mode
+
+# Standard library
+import os                              # Environment variables
+from dotenv import load_dotenv         # Load .env file
+from typing import Dict, Any, Optional, List  # Type hints
+from datetime import datetime          # Timestamp handling
+import logging                         # Error logging
+
+# Load environment variables
 load_dotenv()
 
+# Configure module logger
 logger = logging.getLogger("InfluxClient")
 
+# =============================================================================
+# INFLUX CLIENT CLASS
+# =============================================================================
 
 class InfluxClient:
     """
-    InfluxDB client for storing TonyPi robot telemetry data.
+    InfluxDB Client for TonyPi Robot Telemetry
     
-    Handles:
-    - Sensor data (IMU, ultrasonic, light sensor, temperature)
-    - Servo data (position, temperature, voltage)
-    - Vision detection data
-    - Robot logs/terminal output
-    - Battery status
-    - Location tracking
+    This class provides validated write methods for all robot telemetry types,
+    ensuring data integrity before storing in InfluxDB.
+    
+    VALIDATION:
+        Each write method validates data against expected ranges and types.
+        Out-of-range values are logged as warnings but still written.
+    
+    DATA TYPES HANDLED:
+        - Sensor data (IMU, ultrasonic, light sensor, temperature)
+        - Servo data (position, temperature, voltage for each servo)
+        - Vision detection data (object labels, confidence, bounding boxes)
+        - Robot logs/terminal output (with log levels)
+        - Battery status (percentage, voltage, charging state)
+        - Location tracking (X, Y, Z coordinates)
+    
+    USAGE:
+        from database.influx_client import influx_client
+        
+        # Write sensor data
+        influx_client.write_validated_sensor(
+            robot_id="tonypi_01",
+            sensor_type="cpu_temperature",
+            value=65.5
+        )
+        
+        # Query recent data
+        data = influx_client.query_recent_data("sensor_data", "1h", "tonypi_01")
     """
     
     # Valid sensor types and their expected units
@@ -132,8 +208,16 @@ class InfluxClient:
             "sensor_type": sensor_type
         }
         
+        # Convert value to float to avoid type conflicts in InfluxDB
+        # InfluxDB requires consistent types for the same field
+        try:
+            numeric_value = float(value)
+        except (ValueError, TypeError):
+            numeric_value = 0.0
+            logger.warning(f"Could not convert sensor value to float: {value}")
+        
         fields = {
-            "value": value,
+            "value": numeric_value,
             "unit": unit or self.SENSOR_TYPES.get(sensor_type, {}).get("unit", "")
         }
         
@@ -338,6 +422,57 @@ class InfluxClient:
         }
         
         return self.write_sensor_data("robot_location", tags, fields)
+
+    def query_data(self, measurement: str, time_range: str = "1h",
+                   filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Query data from InfluxDB with flexible filtering.
+        
+        Args:
+            measurement: Measurement name to query
+            time_range: Time range (e.g., '1h', '24h', '7d')
+            filters: Optional dictionary of tag filters (e.g., {'robot_id': 'tonypi_1'})
+            
+        Returns:
+            List of data records with fields pivoted into single records
+        """
+        query = f'''
+        from(bucket: "{self.bucket}")
+          |> range(start: -{time_range})
+          |> filter(fn: (r) => r._measurement == "{measurement}")
+        '''
+        
+        # Add tag filters
+        if filters:
+            for key, value in filters.items():
+                if value is not None:
+                    query += f'''
+          |> filter(fn: (r) => r.{key} == "{value}")
+        '''
+        
+        # Pivot to get all fields in a single record
+        query += '''
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+        '''
+        
+        try:
+            result = self.query_api.query(query)
+            data = []
+            for table in result:
+                for record in table.records:
+                    record_data = {
+                        "time": record.get_time(),
+                        "measurement": measurement,
+                    }
+                    # Add all values from the record
+                    for k, v in record.values.items():
+                        if not k.startswith('_') and k not in ['result', 'table']:
+                            record_data[k] = v
+                    data.append(record_data)
+            return data
+        except Exception as e:
+            logger.error(f"Error querying from InfluxDB: {e}")
+            return []
 
     def query_recent_data(self, measurement: str, time_range: str = "1h", 
                           robot_id: Optional[str] = None) -> List[Dict[str, Any]]:

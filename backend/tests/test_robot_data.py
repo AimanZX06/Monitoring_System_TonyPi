@@ -1,15 +1,66 @@
 """
-Tests for robot data API endpoints.
+=============================================================================
+Robot Data API Tests - Unit Tests for Robot Data Endpoints
+=============================================================================
 
-Run with: pytest tests/test_robot_data.py -v
+This test module validates the robot data API endpoints including:
+- Robot status retrieval
+- Sensor data queries
+- Job summary fetching
+- Command sending
+- Servo data access
+
+TEST CATEGORIES:
+    TestRobotDataAPI:
+        - test_get_robot_status: Verify /status endpoint returns robot list
+        - test_get_sensor_data: Test sensor data with mocked InfluxDB
+        - test_get_sensor_data_missing_params: Handle missing parameters
+        - test_get_latest_data_for_robot: Get latest data for specific robot
+        - test_get_job_summary: Verify job summary with mocked job_store
+        - test_send_command: Test command sending via MQTT
+        - test_trigger_scan: Test QR scan triggering
+
+    TestServoData:
+        - test_get_servo_data: Verify servo data retrieval endpoint
+
+MOCKING STRATEGY:
+    - InfluxDB client is mocked to avoid time-series database dependency
+    - job_store is mocked to avoid PostgreSQL dependency
+    - MQTT client is implicitly mocked (commands queued even if robot offline)
+
+FIXTURES USED (from conftest.py):
+    - client: FastAPI TestClient instance
+    - sample_sensor_data: Mock sensor readings
+    - sample_robot_data: Mock robot status data
+
+RUN COMMANDS:
+    pytest tests/test_robot_data.py -v
+    pytest tests/test_robot_data.py -v -m api
+    pytest tests/test_robot_data.py --cov=routers.robot_data
+
+NOTE: Tests use @pytest.mark.api for filtering API-specific tests
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 
+# =============================================================================
+# ROBOT DATA API TESTS
+# =============================================================================
+
 class TestRobotDataAPI:
-    """Tests for the robot data API endpoints."""
+    """
+    Tests for the robot data API endpoints.
+    
+    These tests verify the /api/v1/robot-data/* endpoints function correctly,
+    including proper error handling and response formats.
+    """
 
     @pytest.mark.api
     def test_get_robot_status(self, client: TestClient):
@@ -42,8 +93,20 @@ class TestRobotDataAPI:
         assert response.status_code in [200, 404]
 
     @pytest.mark.api
-    def test_get_job_summary(self, client: TestClient):
+    @patch("routers.robot_data.job_store")
+    def test_get_job_summary(self, mock_job_store, client: TestClient):
         """Test getting job summary for a robot."""
+        # Mock the job_store to avoid database connection issues in tests
+        mock_job_store.get_summary.return_value = {
+            'robot_id': 'test_robot_001',
+            'start_time': None,
+            'end_time': None,
+            'items_total': 0,
+            'items_done': 0,
+            'percent_complete': 0.0,
+            'last_item': None
+        }
+        
         response = client.get("/api/v1/robot-data/job-summary/test_robot_001")
         # May return 200 with data or 404 if no job exists
         assert response.status_code in [200, 404]

@@ -1,24 +1,15 @@
 import React from 'react';
+import { render, screen } from '@testing-library/react';
+import App from './App';
 
-function App() {
-  return (
-    <div style={{ padding: '20px', backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
-      <h1 style={{ color: '#333' }}>TonyPi Monitoring System</h1>
-      <p style={{ color: '#666' }}>Test - If you can see this, React is working!</p>
-      <div style={{ 
-        backgroundColor: 'white', 
-        padding: '20px', 
-        border: '1px solid #ccc',
-        borderRadius: '8px',
-        marginTop: '20px'
-      }}>
-        <h2>System Status</h2>
-        <p>React App Loading</p>
-        <p>JavaScript Enabled</p>
-        <p>Basic Styling Working</p>
-      </div>
-    </div>
-  );
-}
+describe('App', () => {
+  it('renders the TonyPi heading', () => {
+    render(<App />);
+    expect(screen.getByText('TonyPi - Clean App Component')).toBeInTheDocument();
+  });
 
-export default App;
+  it('renders informational text', () => {
+    render(<App />);
+    expect(screen.getByText(/This App.tsx is now clean/i)).toBeInTheDocument();
+  });
+});

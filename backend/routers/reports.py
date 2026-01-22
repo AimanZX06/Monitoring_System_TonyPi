@@ -1,3 +1,63 @@
+"""
+=============================================================================
+Reports Router - Report Generation, Storage, and PDF Export
+=============================================================================
+
+This router provides REST API endpoints for generating, storing, and
+exporting robot monitoring reports.
+
+REPORT TYPES:
+    1. Performance Report
+       - CPU, memory, temperature averages
+       - Data point count and time period
+       - AI-powered analysis (if Gemini configured)
+    
+    2. Job Summary Report
+       - Task start/end times
+       - Items processed vs total
+       - Completion percentage
+       - AI efficiency analysis
+    
+    3. Maintenance Report
+       - Servo health status (temperature, voltage)
+       - Per-servo breakdown
+       - AI maintenance recommendations
+
+DATA FLOW:
+    1. User requests report generation via /reports/generate
+    2. Backend queries InfluxDB/PostgreSQL for relevant data
+    3. If Gemini available, AI analysis is generated
+    4. Report is stored in PostgreSQL with data + AI analysis
+    5. User can download as PDF via /reports/{id}/pdf
+
+PDF GENERATION:
+    Uses ReportLab library for professional PDF output:
+    - Styled headers and tables
+    - AI analysis sections highlighted
+    - Timestamp and metadata footer
+
+AI INTEGRATION:
+    When GEMINI_API_KEY is configured:
+    - Performance reports get health analysis + recommendations
+    - Job reports get efficiency assessment
+    - Maintenance reports get prioritized servo issues
+
+API ENDPOINTS:
+    GET    /reports              - List all reports
+    POST   /reports              - Create custom report
+    POST   /reports/generate     - Generate report from live data
+    GET    /reports/ai-status    - Check AI/PDF availability
+    GET    /reports/export/csv   - Export data as CSV
+    GET    /reports/export/json  - Export data as JSON
+    GET    /reports/{id}         - Get specific report
+    DELETE /reports/{id}         - Delete report
+    GET    /reports/{id}/pdf     - Download report as PDF
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 from fastapi import APIRouter, HTTPException, Depends, Response, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -15,7 +75,11 @@ import csv
 import os
 import asyncio
 
-# Import Gemini analytics
+# =============================================================================
+# OPTIONAL DEPENDENCIES
+# =============================================================================
+
+# Gemini AI Analytics - for AI-powered report analysis
 try:
     from services.gemini_analytics import gemini_analytics
     GEMINI_AVAILABLE = gemini_analytics.is_available()
@@ -23,7 +87,7 @@ except ImportError:
     GEMINI_AVAILABLE = False
     gemini_analytics = None
 
-# PDF generation imports
+# ReportLab PDF Generation - for PDF export
 try:
     from reportlab.lib.pagesizes import letter, A4
     from reportlab.lib import colors
@@ -37,6 +101,7 @@ except ImportError:
     PDF_AVAILABLE = False
     print("Warning: reportlab not installed. PDF generation will be disabled.")
 
+# Create router instance
 router = APIRouter()
 
 class ReportResponse(BaseModel):

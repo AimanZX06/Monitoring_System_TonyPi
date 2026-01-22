@@ -1,22 +1,97 @@
+/**
+ * =============================================================================
+ * GrafanaPanel Component - Embedded Grafana Dashboard Panel
+ * =============================================================================
+ * 
+ * This component embeds a Grafana dashboard panel inside the React application
+ * using an iframe. It displays time-series visualizations from the Grafana
+ * service running alongside the monitoring system.
+ * 
+ * PURPOSE:
+ *   Grafana is a powerful visualization tool that connects to InfluxDB to
+ *   display robot telemetry data as charts and graphs. This component allows
+ *   embedding those visualizations directly in the React frontend.
+ * 
+ * HOW TO GET PANEL URL:
+ *   1. Open Grafana dashboard (typically http://localhost:3001)
+ *   2. Click on a panel's title menu → Share → Embed
+ *   3. Copy the iframe src URL (includes panel ID and query params)
+ * 
+ * FEATURES:
+ *   - Loading spinner while panel loads
+ *   - Error fallback when Grafana is unavailable
+ *   - URL validation (must start with http:// or https://)
+ *   - Configurable width and height
+ *   - Auto-refresh support (via Grafana panel settings)
+ * 
+ * COMMON ISSUES:
+ *   - Panel not loading: Check if Grafana service is running
+ *   - CORS errors: Grafana must allow embedding (anonymous access enabled)
+ *   - Empty panel: Check InfluxDB data source connection
+ * 
+ * GRAFANA CONFIGURATION (in docker-compose.yml):
+ *   - GF_AUTH_ANONYMOUS_ENABLED=true   - Allow anonymous access
+ *   - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer - Set anonymous role
+ *   - GF_SECURITY_ALLOW_EMBEDDING=true  - Allow iframe embedding
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management and effects
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icon - error state indicator
 import { AlertCircle } from 'lucide-react';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Props for the GrafanaPanel component
+ */
 interface GrafanaPanelProps {
-  /** Full iframe URL to the Grafana panel (from Share -> Embed) */
+  /** 
+   * Full iframe URL to the Grafana panel (from Share -> Embed)
+   * Example: "http://localhost:3001/d-solo/abc123/dashboard?panelId=2"
+   */
   panelUrl: string;
+  
+  /** Width of the panel container (CSS value or number for pixels) */
   width?: string | number;
+  
+  /** Height of the panel container (CSS value or number for pixels) */
   height?: string | number;
-  /** Show fallback message if panel fails to load */
+  
+  /** Show fallback message if panel fails to load (default: true) */
   showFallback?: boolean;
 }
 
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
+/**
+ * GrafanaPanel Component
+ * 
+ * Embeds a Grafana panel via iframe with loading state and error handling.
+ */
 const GrafanaPanel: React.FC<GrafanaPanelProps> = ({ 
   panelUrl, 
-  width = '100%', 
-  height = 400,
-  showFallback = true 
+  width = '100%',   // Default to full width
+  height = 400,     // Default to 400px height
+  showFallback = true  // Show error message by default
 }) => {
+  // =========================================================================
+  // STATE MANAGEMENT
+  // =========================================================================
+  
+  // Track if the iframe failed to load
   const [hasError, setHasError] = useState(false);
+  
+  // Track loading state for spinner display
   const [isLoading, setIsLoading] = useState(true);
 
   // Basic sanitization: ensure url starts with http

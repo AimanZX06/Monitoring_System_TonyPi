@@ -1,6 +1,58 @@
+"""
+=============================================================================
+Raspberry Pi Performance Router - System Metrics API
+=============================================================================
+
+This router provides an API endpoint for fetching Raspberry Pi system
+performance metrics from InfluxDB. It supports querying by host/robot ID
+and time range.
+
+METRICS AVAILABLE:
+    - system_cpu_percent:    CPU utilization percentage
+    - system_memory_percent: RAM utilization percentage
+    - system_disk_usage:     SD card storage utilization
+    - system_temperature:    CPU temperature in Celsius
+    - system_uptime:         Seconds since boot
+
+DATA SOURCES:
+    1. pi_perf measurement - Dedicated performance measurement
+    2. robot_status measurement - Fallback if pi_perf not available
+       (system_* fields are included in robot status telemetry)
+
+API ENDPOINT:
+    GET /pi/perf/{host}?time_range=5m
+    
+    Parameters:
+        - host: Robot ID or hostname (path parameter)
+        - time_range: InfluxDB time range (default: 5m)
+    
+    Returns:
+        List of data points with fields like:
+        - system_cpu_percent
+        - system_memory_percent
+        - system_disk_usage
+        - system_temperature
+        - system_uptime
+
+USAGE:
+    # Get last 5 minutes of performance data
+    GET /api/v1/pi/perf/tonypi_001?time_range=5m
+    
+    # Get last hour of data
+    GET /api/v1/pi/perf/tonypi_001?time_range=1h
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from database.influx_client import influx_client
+
+# =============================================================================
+# ROUTER SETUP
+# =============================================================================
 
 router = APIRouter()
 

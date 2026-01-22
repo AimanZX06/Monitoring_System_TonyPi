@@ -1,9 +1,44 @@
 """
-Database initialization script
-Creates all tables and initializes the database schema
+=============================================================================
+Database Initialization Script - PostgreSQL Schema Setup
+=============================================================================
+
+This script creates all required database tables for the TonyPi Monitoring
+System. It uses SQLAlchemy's ORM to generate tables from model definitions.
+
+TABLES CREATED:
+    - users:          User accounts and authentication
+    - robots:         Robot configurations and thresholds
+    - jobs:           Job/task tracking records
+    - reports:        Generated report storage
+    - alerts:         System alerts and notifications
+    - alert_thresholds: Alert threshold configurations
+    - system_logs:    Activity and error logs
+
+USAGE:
+    # Create all tables (safe - won't drop existing)
+    python scripts/init_db.py
+    
+    # Drop and recreate all tables (WARNING: deletes all data!)
+    python scripts/init_db.py --drop
+
+WHEN TO RUN:
+    1. First-time setup of the monitoring system
+    2. After adding new models/tables to the codebase
+    3. When resetting the database during development
+
+NOTE: This script is automatically run by docker-compose on first startup.
+For production, use proper database migrations (Alembic) instead.
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 import sys
 import os
+
+# Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.database import engine, Base, SessionLocal

@@ -1,44 +1,135 @@
 """
-Data Validation Router
+=============================================================================
+Data Validation Router - Robot Data Integrity Verification
+=============================================================================
 
-Endpoints to validate and verify robot data integrity.
-Use these to check if data from your robot is being received correctly.
+This module provides REST API endpoints to validate and verify that robot data
+is being correctly received, stored, and formatted in the monitoring system.
+
+PURPOSE:
+    When deploying or troubleshooting robots, you need to verify:
+    1. Is the robot registered in the database?
+    2. Is sensor data arriving in InfluxDB?
+    3. Are data values within expected ranges?
+    4. Is the robot actively communicating?
+
+KEY ENDPOINTS:
+    - GET /validate/robot/{robot_id}  - Full validation for one robot
+    - GET /validate/data-sample/{robot_id} - Raw data inspection
+    - GET /validate/expected-format   - Reference for data format
+    - GET /validate/all-robots        - Quick status of all robots
+
+VALIDATION WORKFLOW:
+    ┌─────────────────────────────────────────────────────────────┐
+    │                    Validation Process                       │
+    ├─────────────────────────────────────────────────────────────┤
+    │  1. Check PostgreSQL → Robot registered?                    │
+    │  2. Check InfluxDB   → Sensor data present?                │
+    │  3. Validate Ranges  → Values within expected bounds?       │
+    │  4. Check Activity   → Recent communication?                │
+    │  5. Return Status    → HEALTHY / PARTIAL / NO_DATA         │
+    └─────────────────────────────────────────────────────────────┘
 """
 
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
+# FastAPI framework components
 from fastapi import APIRouter, HTTPException, Query, Depends
-from sqlalchemy.orm import Session
+# APIRouter: Creates a modular router for grouping related endpoints
+# HTTPException: Raises HTTP errors with status codes
+# Query: Defines query parameters with validation/defaults
+# Depends: Dependency injection for database sessions
+
+# SQLAlchemy ORM for database interactions
+from sqlalchemy.orm import Session  # Database session for queries
+
+# Python type hints for better code documentation
 from typing import Optional, Dict, Any, List
+
+# Date/time handling for activity checks
 from datetime import datetime, timedelta
-from pydantic import BaseModel
 
-from database.database import get_db
-from database.influx_client import influx_client
-from models.robot import Robot
-from models.job import Job
+# Pydantic for request/response data validation
+from pydantic import BaseModel  # Base class for typed data models
 
+# Internal imports - Database and models
+from database.database import get_db        # Database session dependency
+from database.influx_client import influx_client  # InfluxDB client for time-series
+from models.robot import Robot              # Robot SQLAlchemy model
+from models.job import Job                  # Job SQLAlchemy model
+
+# =============================================================================
+# ROUTER CONFIGURATION
+# =============================================================================
+
+# Create router with URL prefix and OpenAPI tag
+# All endpoints in this file will be under /validate/*
+# Tagged as "validation" in API documentation
 router = APIRouter(prefix="/validate", tags=["validation"])
 
 
+# =============================================================================
+# PYDANTIC MODELS (Response Schemas)
+# =============================================================================
+
 class ValidationResult(BaseModel):
-    """Result of data validation check"""
-    valid: bool
-    source: str
-    message: str
-    data_sample: Optional[Dict[str, Any]] = None
-    timestamp: datetime = datetime.now()
-    issues: List[str] = []
+    """
+    Result of a Single Data Validation Check
+    
+    Each validation check (PostgreSQL, InfluxDB, Activity) produces one of these
+    objects to report its findings.
+    
+    ATTRIBUTES:
+        valid (bool): True if this specific check passed
+        source (str): Name of what was validated (e.g., "PostgreSQL", "InfluxDB")
+        message (str): Human-readable description of the result
+        data_sample (Dict): Optional sample of actual data for debugging
+        timestamp (datetime): When this validation was performed
+        issues (List[str]): List of specific problems found (empty if valid=True)
+    """
+    valid: bool                              # Did this check pass?
+    source: str                              # What system was checked?
+    message: str                             # What happened?
+    data_sample: Optional[Dict[str, Any]] = None  # Sample data if available
+    timestamp: datetime = datetime.now()     # When check was performed
+    issues: List[str] = []                   # List of problems found
 
 
 class RobotDataCheck(BaseModel):
-    """Comprehensive robot data validation result"""
-    robot_id: str
-    is_registered: bool
-    has_recent_data: bool
-    last_seen: Optional[datetime]
-    data_sources: Dict[str, bool]
-    validation_results: List[ValidationResult]
-    overall_status: str
+    """
+    Comprehensive Robot Data Validation Result
+    
+    This is the main response model returned by the validation endpoint.
+    It aggregates results from all validation checks for a single robot.
+    
+    OVERALL_STATUS values:
+        - "HEALTHY": All data sources working, no issues found
+        - "PARTIAL": Some data sources working, some problems detected
+        - "NO_DATA": Robot not sending any data or not registered
+    
+    ATTRIBUTES:
+        robot_id (str): The robot being validated
+        is_registered (bool): True if robot exists in PostgreSQL
+        has_recent_data (bool): True if InfluxDB has recent sensor data
+        last_seen (datetime): When robot last communicated (if known)
+        data_sources (Dict): Status of each data source (postgresql, influxdb, etc.)
+        validation_results (List): Detailed results from each check
+        overall_status (str): Summary status - HEALTHY, PARTIAL, or NO_DATA
+    """
+    robot_id: str                            # Robot being validated
+    is_registered: bool                      # Found in PostgreSQL?
+    has_recent_data: bool                    # Has InfluxDB data?
+    last_seen: Optional[datetime]            # Last communication time
+    data_sources: Dict[str, bool]            # Status of each data source
+    validation_results: List[ValidationResult]  # Detailed check results
+    overall_status: str                      # HEALTHY / PARTIAL / NO_DATA
 
+
+# =============================================================================
+# VALIDATION ENDPOINTS
+# =============================================================================
 
 @router.get("/robot/{robot_id}", response_model=RobotDataCheck)
 async def validate_robot_data(
@@ -47,15 +138,33 @@ async def validate_robot_data(
     db: Session = Depends(get_db)
 ):
     """
-    Validate all data sources for a specific robot.
+    Validate All Data Sources for a Specific Robot
     
-    This endpoint checks:
-    1. If the robot is registered in the database
-    2. If sensor data is being received in InfluxDB
-    3. If the data values are within expected ranges
-    4. Last communication timestamp
+    This is the main validation endpoint. It performs a comprehensive check
+    of all systems to verify a robot is properly connected and sending data.
     
-    Use this to verify your robot is sending valid data to the system.
+    VALIDATION CHECKS:
+        1. PostgreSQL Registration - Is the robot in the database?
+        2. InfluxDB Time-Series    - Is sensor data being stored?
+        3. Data Range Validation   - Are values within expected bounds?
+        4. Activity Check          - Has robot communicated recently?
+    
+    PARAMETERS:
+        robot_id (str): The unique identifier of the robot to validate
+        time_range (str): How far back to check for data ("1h", "6h", "24h")
+        db (Session): Database session (automatically injected)
+    
+    RETURNS:
+        RobotDataCheck: Comprehensive validation results
+    
+    USE CASES:
+        - Verify a newly deployed robot is working
+        - Troubleshoot why a robot appears offline
+        - Check data integrity after system changes
+        - Automated health monitoring scripts
+    
+    EXAMPLE REQUEST:
+        GET /validate/robot/tonypi_001?time_range=1h
     """
     validation_results = []
     issues = []
@@ -78,8 +187,8 @@ async def validate_robot_data(
                 "name": robot.name,
                 "status": robot.status,
                 "last_seen": robot.last_seen.isoformat() if robot.last_seen else None,
-                "location": {"x": robot.location_x, "y": robot.location_y} if robot.location_x else None,
-                "battery": robot.battery_percentage
+                "location": robot.location if robot.location else None,
+                "settings": robot.settings
             }
         ))
     else:
@@ -272,6 +381,18 @@ async def get_expected_data_format():
             "location_x": "number (optional)",
             "location_y": "number (optional)"
         },
+        "job_data_format": {
+            "robot_id": "string (required)",
+            "task_name": "string: name of the task (e.g., 'find_red_ball', 'patrol')",
+            "status": "string: started|in_progress|done|cancelled|failed",
+            "phase": "string: scanning|searching|executing|done (optional)",
+            "progress_percent": "number: 0-100 (or use 'percent' for legacy)",
+            "elapsed_time": "number: seconds since job started (optional)",
+            "estimated_duration": "number: expected total duration in seconds (optional)",
+            "action_duration": "number: actual time taken on completion (optional)",
+            "success": "boolean: whether task succeeded (on completion)",
+            "cancel_reason": "string: reason for cancellation (if cancelled)"
+        },
         "example_mqtt_publish": {
             "topic": "tonypi/status/tonypi_raspberrypi",
             "payload": {
@@ -283,11 +404,59 @@ async def get_expected_data_format():
                 "system_temperature": 52.3
             }
         },
+        "example_job_events": {
+            "job_start": {
+                "topic": "tonypi/job/tonypi_01",
+                "payload": {
+                    "robot_id": "tonypi_01",
+                    "task_name": "find_red_ball",
+                    "status": "started",
+                    "phase": "scanning",
+                    "progress_percent": 0,
+                    "estimated_duration": 30.0
+                }
+            },
+            "job_progress": {
+                "topic": "tonypi/job/tonypi_01",
+                "payload": {
+                    "robot_id": "tonypi_01",
+                    "task_name": "find_red_ball",
+                    "status": "in_progress",
+                    "phase": "searching",
+                    "progress_percent": 50,
+                    "elapsed_time": 15.5
+                }
+            },
+            "job_done": {
+                "topic": "tonypi/job/tonypi_01",
+                "payload": {
+                    "robot_id": "tonypi_01",
+                    "task_name": "find_red_ball",
+                    "status": "done",
+                    "phase": "done",
+                    "progress_percent": 100,
+                    "action_duration": 28.3,
+                    "success": True
+                }
+            },
+            "job_cancelled": {
+                "topic": "tonypi/job/tonypi_01",
+                "payload": {
+                    "robot_id": "tonypi_01",
+                    "task_name": "find_red_ball",
+                    "status": "cancelled",
+                    "progress_percent": 35,
+                    "cancel_reason": "obstacle_detected"
+                }
+            }
+        },
         "notes": [
             "All numeric values should be valid JSON numbers (not strings)",
             "Timestamps should be in ISO 8601 format if provided",
             "Robot ID must be consistent across all messages",
-            "MQTT broker: localhost:1883 (or mosquitto:1883 in Docker)"
+            "MQTT broker: localhost:1883 (or mosquitto:1883 in Docker)",
+            "Job status accepts: 'done' or 'completed', 'cancelled' or 'canceled'",
+            "Progress accepts: 'progress_percent' or 'percent' (legacy)"
         ]
     }
 

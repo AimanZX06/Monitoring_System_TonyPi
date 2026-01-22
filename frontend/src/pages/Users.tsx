@@ -1,30 +1,136 @@
+/**
+ * =============================================================================
+ * Users Page Component - User Management Interface (Admin Only)
+ * =============================================================================
+ * 
+ * This component provides a user management interface for administrators to
+ * create, edit, and delete system users. It implements role-based access
+ * control (RBAC) to protect sensitive user data.
+ * 
+ * ACCESS CONTROL:
+ *   - Only users with 'admin' role can access this page
+ *   - Non-admin users see an "Access Denied" message
+ *   - Admins cannot delete their own account (safety feature)
+ * 
+ * USER ROLES:
+ *   - admin:    Full system access, can manage users
+ *   - operator: Can control robots and view all data
+ *   - viewer:   Read-only access to monitoring data
+ * 
+ * FEATURES:
+ *   - User list with search functionality
+ *   - Create new users with username, email, password, role
+ *   - Edit existing user email, password, role
+ *   - Delete users (with confirmation)
+ *   - Visual role indicators (icons and colors)
+ *   - Active/Inactive status display
+ * 
+ * SECURITY CONSIDERATIONS:
+ *   - Passwords are hashed server-side (never sent back to client)
+ *   - Username cannot be changed after creation
+ *   - Self-deletion is prevented
+ *   - All operations require valid admin JWT token
+ * 
+ * DATA FLOW:
+ *   1. Component mounts → checks if current user is admin
+ *   2. If admin, fetches user list from API
+ *   3. CRUD operations call respective API endpoints
+ *   4. Success/error messages shown via local state (not NotificationContext)
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management and lifecycle
 import React, { useState, useEffect } from 'react';
-import { Users as UsersIcon, Plus, Edit2, Trash2, Search, Shield, UserCheck, Eye, X, Check, AlertCircle } from 'lucide-react';
+
+// Lucide React icons - visual elements for user management
+import { 
+  Users as UsersIcon, // Main page header icon (aliased to avoid conflict)
+  Plus,              // Add user button
+  Edit2,             // Edit user button
+  Trash2,            // Delete user button
+  Search,            // Search input icon
+  Shield,            // Admin role icon
+  UserCheck,         // Operator role icon
+  Eye,               // Viewer role icon
+  X,                 // Modal close button
+  Check,             // Success message icon
+  AlertCircle        // Error/warning message icon
+} from 'lucide-react';
+
+// Internal utilities - API client and error handling
 import { apiService, handleApiError } from '../utils/api';
+
+// Authentication context - get current user for role checking
 import { useAuth } from '../contexts/AuthContext';
+
+// Theme context - dark/light mode support
 import { useTheme } from '../contexts/ThemeContext';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Represents a user in the system
+ * 
+ * ROLE HIERARCHY:
+ *   admin > operator > viewer
+ * 
+ * Note: password_hash is never sent from the server for security
+ */
 interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: 'admin' | 'operator' | 'viewer';
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
+  id: string;                            // Unique user identifier (UUID)
+  username: string;                       // Login username (immutable)
+  email: string;                          // User email address
+  role: 'admin' | 'operator' | 'viewer'; // Access level
+  is_active: boolean;                     // Account status
+  created_at?: string;                    // Account creation timestamp
+  updated_at?: string;                    // Last modification timestamp
 }
 
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
+/**
+ * Users Component
+ * 
+ * Admin-only page for managing system users. Provides CRUD operations
+ * for user accounts with role-based access control.
+ */
 const Users: React.FC = () => {
+  // Get current user from auth context to check admin permission
   const { user: currentUser } = useAuth();
+  
+  // Access theme context for dark/light mode styling
   const { isDark } = useTheme();
+  
+  // =========================================================================
+  // STATE MANAGEMENT
+  // =========================================================================
+  
+  // User list data
   const [users, setUsers] = useState<User[]>([]);
+  
+  // Loading state for initial fetch
   const [loading, setLoading] = useState(true);
+  
+  // Search filter
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  
+  // Modal visibility states
+  const [showAddModal, setShowAddModal] = useState(false);   // Add user modal
+  const [showEditModal, setShowEditModal] = useState(false); // Edit user modal
+  
+  // Currently selected user for editing
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  
+  // Feedback messages (displayed inline, not toast)
+  const [error, setError] = useState('');    // Error message
+  const [success, setSuccess] = useState(''); // Success message
 
   // Form state
   const [formData, setFormData] = useState({

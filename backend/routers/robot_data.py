@@ -1,9 +1,55 @@
+"""
+=============================================================================
+Robot Data Router - Real-time Telemetry and Command API
+=============================================================================
+
+This router provides REST API endpoints for accessing real-time robot telemetry
+data from InfluxDB and sending commands to robots via MQTT.
+
+DATA SOURCES:
+    InfluxDB Measurements:
+        - sensor_data:    IMU, temperature, ultrasonic sensor readings
+        - servo_data:     Servo position, temperature, voltage
+        - battery_status: Battery percentage and voltage
+        - robot_status:   Online/offline status, IP address
+        - robot_location: X, Y, Z coordinates
+
+MEASUREMENT ALIASES:
+    The frontend may use different names than InfluxDB:
+        "sensors" → "sensor_data"
+        "servos"  → "servo_data"
+        "battery" → "battery_status"
+
+API ENDPOINTS:
+    GET    /robot-data/sensors         - Get sensor data with time range
+    GET    /robot-data/status          - Get all robot statuses
+    GET    /robot-data/latest/{id}     - Get latest data for specific robot
+    POST   /robot-data/command         - Send command to robot via MQTT
+    GET    /robot-data/job-summary/{id} - Get job progress for robot
+    GET    /robot-data/servos/{id}     - Get servo data for robot
+    POST   /robot-data/trigger-scan    - Trigger QR scan event (testing)
+
+DATA FLOW:
+    1. TonyPi robot publishes telemetry to MQTT
+    2. Backend MQTT client writes data to InfluxDB
+    3. Frontend calls these endpoints to fetch data
+    4. Commands are published back to MQTT for robot execution
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Union
 from pydantic import BaseModel
 from datetime import datetime
 from database.influx_client import influx_client
 from job_store import job_store
+
+# =============================================================================
+# ROUTER SETUP
+# =============================================================================
 
 router = APIRouter()
 

@@ -1,43 +1,120 @@
+/**
+ * =============================================================================
+ * Reports Page Component - Report Generation & PDF Export
+ * =============================================================================
+ * 
+ * This component manages the generation, viewing, and downloading of robot
+ * monitoring reports. Reports can include AI-powered analysis if the Gemini
+ * API is configured.
+ * 
+ * REPORT TYPES:
+ *   1. Performance Report
+ *      - System resource usage (CPU, memory, temperature)
+ *      - Historical trends and patterns
+ *      - AI recommendations for optimization
+ * 
+ *   2. Job Summary Report
+ *      - Task execution statistics
+ *      - Success/failure rates
+ *      - Processing times and efficiency
+ *      - Requires specific robot selection
+ * 
+ *   3. Maintenance Report
+ *      - Servo temperature and voltage analysis
+ *      - Wear and tear predictions
+ *      - Maintenance schedule recommendations
+ *      - Requires specific robot selection
+ * 
+ * KEY FEATURES:
+ *   - Generate reports with configurable time ranges
+ *   - Download as PDF (with or without AI analysis)
+ *   - View reports grouped by robot
+ *   - AI-powered insights (when Gemini API is available)
+ *   - Report statistics dashboard
+ *   - Delete old reports
+ * 
+ * AI INTEGRATION:
+ *   The system can integrate with Google Gemini API for intelligent
+ *   analysis. When enabled (via GEMINI_API_KEY environment variable):
+ *   - Reports include AI-generated insights
+ *   - Trend analysis and predictions
+ *   - Maintenance recommendations
+ *   - Anomaly detection
+ * 
+ * DATA FLOW:
+ *   1. Component mounts → fetch reports, AI status, and robots
+ *   2. User selects parameters and generates report
+ *   3. Backend processes data and stores report
+ *   4. User downloads PDF (calls backend PDF generation endpoint)
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management and lifecycle
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icons - visual elements for report management
 import { 
-  FileText, 
-  Download, 
-  Trash2, 
-  Plus, 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle, 
-  Sparkles, 
-  Wrench,
-  Bot,
-  BarChart3,
-  Clock,
-  ChevronDown,
-  ChevronUp,
-  Activity,
-  Briefcase,
-  Calendar,
-  Filter
+  FileText,      // Main reports page icon
+  Download,      // Download PDF button
+  Trash2,        // Delete report button
+  Plus,          // Generate new report button
+  RefreshCw,     // Refresh/loading spinner
+  AlertCircle,   // Error/warning indicator
+  CheckCircle,   // Success indicator
+  Sparkles,      // AI-powered feature indicator
+  Wrench,        // Maintenance report icon
+  Bot,           // Robot indicator
+  BarChart3,     // Statistics/summary icon
+  Clock,         // Timestamp indicator
+  ChevronDown,   // Expand section
+  ChevronUp,     // Collapse section
+  Activity,      // Performance report icon
+  Briefcase,     // Job report icon
+  Calendar,      // Date-related stats
+  Filter         // View mode filter
 } from 'lucide-react';
+
+// Internal utilities - API client and error handling
 import { apiService, handleApiError } from '../utils/api';
+
+// Notification context - toast messages for user feedback
 import { useNotification } from '../contexts/NotificationContext';
+
+// TypeScript types - Report type definition
 import { Report } from '../types';
+
+// Theme context - dark/light mode support
 import { useTheme } from '../contexts/ThemeContext';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Status of AI features availability
+ * Returned by the /api/v1/reports/ai-status endpoint
+ */
 interface AIStatus {
-  gemini_available: boolean;
-  pdf_available: boolean;
-  message: string;
+  gemini_available: boolean;  // Is Gemini API key configured?
+  pdf_available: boolean;     // Is PDF generation working?
+  message: string;            // Status message for display
 }
 
+/**
+ * Computed statistics about reports in the system
+ * Calculated client-side from the reports array
+ */
 interface ReportStats {
-  totalReports: number;
-  performanceReports: number;
-  jobReports: number;
-  maintenanceReports: number;
-  reportsToday: number;
-  reportsThisWeek: number;
-  robotsWithReports: number;
+  totalReports: number;        // Total count of all reports
+  performanceReports: number;  // Count of performance reports
+  jobReports: number;          // Count of job summary reports
+  maintenanceReports: number;  // Count of maintenance reports
+  reportsToday: number;        // Reports generated today
+  reportsThisWeek: number;     // Reports generated this week
+  robotsWithReports: number;   // Unique robots with reports
 }
 
 const Reports: React.FC = () => {

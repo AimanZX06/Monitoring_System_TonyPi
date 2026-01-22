@@ -1,6 +1,53 @@
 """
-API router for robot configuration and management with PostgreSQL
+=============================================================================
+Robots Database Router - Robot Configuration and Management API
+=============================================================================
+
+This router provides CRUD (Create, Read, Update, Delete) operations for robot
+configuration stored in PostgreSQL. It manages robot metadata, thresholds,
+and provides database statistics.
+
+DIFFERENCE FROM robot_data.py:
+    - robot_data.py:  Real-time telemetry from InfluxDB (sensor readings)
+    - robots_db.py:   Static configuration in PostgreSQL (thresholds, names)
+
+FEATURES:
+    - Robot CRUD operations (create, read, update, soft-delete)
+    - Configurable alert thresholds per robot
+    - System log retrieval
+    - Job history from PostgreSQL
+    - Database statistics dashboard
+
+ROBOT CONFIGURATION FIELDS:
+    Basic Info:
+        - robot_id:    Unique identifier (e.g., "tonypi_001")
+        - name:        Human-readable name (e.g., "TonyPi #1")
+        - description: Optional description
+        - location:    Physical location
+    
+    Alert Thresholds:
+        - battery_threshold_low:      Low battery warning (default: 20%)
+        - battery_threshold_critical: Critical battery alert (default: 10%)
+        - temp_threshold_warning:     Temperature warning (default: 70°C)
+        - temp_threshold_critical:    Critical temperature (default: 80°C)
+
+API ENDPOINTS:
+    GET    /robots-db/robots          - List all active robots
+    GET    /robots-db/robots/{id}     - Get specific robot
+    POST   /robots-db/robots          - Create new robot
+    PUT    /robots-db/robots/{id}     - Update robot configuration
+    DELETE /robots-db/robots/{id}     - Soft-delete robot (is_active=False)
+    GET    /robots-db/logs            - Get system logs with filters
+    GET    /robots-db/jobs/history    - Get job history
+    GET    /robots-db/stats           - Get database statistics
+
+NOTE: Delete is soft-delete (sets is_active=False) to preserve history.
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.database import get_db
@@ -9,6 +56,10 @@ from models.system_log import SystemLog
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
+
+# =============================================================================
+# ROUTER SETUP
+# =============================================================================
 
 router = APIRouter(prefix="/robots-db", tags=["robots-database"])
 

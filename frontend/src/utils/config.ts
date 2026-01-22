@@ -1,9 +1,35 @@
 /**
- * Centralized configuration for the TonyPi Monitoring System
- * All URLs and settings should be configured here
+ * =============================================================================
+ * Configuration - Centralized Settings for TonyPi Monitoring System
+ * =============================================================================
+ * 
+ * This file contains all configuration values for the frontend application.
+ * Values can be overridden using environment variables (REACT_APP_* prefix).
+ * 
+ * ENVIRONMENT VARIABLES:
+ *   - REACT_APP_API_URL        - Backend API URL (default: http://localhost:8000)
+ *   - REACT_APP_MQTT_BROKER_URL - WebSocket MQTT URL (default: ws://localhost:9001)
+ *   - REACT_APP_GRAFANA_URL    - Grafana dashboard URL (default: http://localhost:3000)
+ * 
+ * CONFIGURATION SECTIONS:
+ *   1. API Configuration     - Backend REST API settings
+ *   2. MQTT Configuration    - Real-time message broker settings
+ *   3. Grafana Configuration - Dashboard visualization settings
+ *   4. Polling Intervals     - Auto-refresh timing settings
+ *   5. Alert Thresholds      - Frontend warning/danger thresholds
+ * 
+ * DOCKER vs LOCAL DEVELOPMENT:
+ *   - In Docker: Services communicate via container names
+ *   - Local: Services run on localhost with different ports
+ *   - Environment variables should be set in .env or docker-compose.yml
  */
 
-// API Configuration
+// =============================================================================
+// API CONFIGURATION
+// =============================================================================
+
+// Base URL for the FastAPI backend server
+// In Docker: http://backend:8000, Local: http://localhost:8000
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 export const API_VERSION = 'v1';
 export const API_PREFIX = `/api/${API_VERSION}`;

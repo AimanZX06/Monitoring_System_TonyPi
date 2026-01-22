@@ -1,5 +1,51 @@
+/**
+ * =============================================================================
+ * Sensors Page Component - IMU and Environmental Sensor Dashboard
+ * =============================================================================
+ * 
+ * This component displays real-time sensor data from TonyPi robots, including
+ * IMU readings (accelerometer, gyroscope) and environmental sensors.
+ * 
+ * KEY FEATURES:
+ *   - Real-time sensor data with auto-refresh (5 seconds)
+ *   - Embedded Grafana panels for historical visualization
+ *   - Grouped sensor readings by type
+ *   - Robot selection dropdown
+ *   - Responsive card grid layout
+ * 
+ * SENSOR TYPES DISPLAYED:
+ *   IMU Sensors:
+ *     - Accelerometer (X, Y, Z) - Motion/tilt detection
+ *     - Gyroscope (X, Y, Z) - Angular velocity
+ *   
+ *   Environmental Sensors:
+ *     - Distance (Ultrasonic) - Obstacle detection
+ *     - Light Level - Ambient light detection
+ * 
+ * DATA FLOW:
+ *   1. Fetch robot list from /api/v1/robot-data/status
+ *   2. Fetch sensor data from /api/v1/robot-data/sensors
+ *   3. Group readings by sensor_type
+ *   4. Display latest values in cards
+ *   5. Auto-refresh every 5 seconds
+ * 
+ * GRAFANA PANELS:
+ *   - Panel 4: Accelerometer X, Y, Z
+ *   - Panel 5: Gyroscope X, Y, Z
+ *   - Panel 6: Distance sensor
+ *   - Panel 7: Light level
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icons for sensor types
 import { Activity, Compass, Gauge, Sun, Ruler, RefreshCw } from 'lucide-react';
+
+// Internal utilities and components
 import { apiService } from '../utils/api';
 import GrafanaPanel from '../components/GrafanaPanel';
 import { getGrafanaPanelUrl } from '../utils/config';

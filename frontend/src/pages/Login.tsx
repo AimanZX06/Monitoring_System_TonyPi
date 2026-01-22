@@ -1,13 +1,78 @@
+/**
+ * =============================================================================
+ * Login Page Component - User Authentication Interface
+ * =============================================================================
+ * 
+ * This component provides the login interface for the TonyPi Monitoring System.
+ * It's displayed when users are not authenticated and handles the full login flow.
+ * 
+ * FEATURES:
+ *   - Username and password input fields
+ *   - Password visibility toggle (show/hide)
+ *   - Loading state during authentication
+ *   - Error message display for failed logins
+ *   - Responsive design with gradient background
+ * 
+ * AUTHENTICATION FLOW:
+ *   1. User enters credentials
+ *   2. Form submission triggers handleSubmit
+ *   3. Validates inputs (non-empty check)
+ *   4. Calls login() from AuthContext
+ *   5. On success: AuthContext redirects to Dashboard
+ *   6. On failure: Displays error message
+ * 
+ * SECURITY NOTES:
+ *   - Password is not stored in component state after submission
+ *   - Uses AuthContext which stores JWT in localStorage
+ *   - HTTPS should be used in production for credential transmission
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management
 import React, { useState } from 'react';
-import { Activity, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
+
+// Lucide React icons - visual elements for the login form
+import { 
+  Activity,     // Logo icon (TonyPi activity indicator)
+  Lock,         // Password field icon
+  User,         // Username field icon
+  Eye,          // Show password icon
+  EyeOff,       // Hide password icon
+  AlertCircle   // Error message icon
+} from 'lucide-react';
+
+// Authentication context - provides login function and auth state
 import { useAuth } from '../contexts/AuthContext';
 
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
+/**
+ * Login Component
+ * 
+ * Renders the login page with a centered card containing the login form.
+ * Uses glass-morphism design with a gradient background.
+ */
 const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // =========================================================================
+  // STATE MANAGEMENT
+  // =========================================================================
+  
+  // Form field values
+  const [username, setUsername] = useState('');    // Username input value
+  const [password, setPassword] = useState('');    // Password input value
+  
+  // UI state
+  const [showPassword, setShowPassword] = useState(false);  // Toggle password visibility
+  const [error, setError] = useState('');                   // Error message to display
+  const [isLoading, setIsLoading] = useState(false);        // Loading state during auth
+  
+  // Get login function from auth context
+  // login() returns true on success, false on failure
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {

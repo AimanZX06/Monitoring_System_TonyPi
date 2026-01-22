@@ -1,5 +1,58 @@
+/**
+ * =============================================================================
+ * Servos Page Component - Servo Motor Health Monitoring Dashboard
+ * =============================================================================
+ * 
+ * This component provides detailed monitoring of TonyPi robot servo motors,
+ * displaying real-time position, temperature, voltage, and health status.
+ * 
+ * KEY FEATURES:
+ *   - Real-time servo data with auto-refresh (5 seconds)
+ *   - Color-coded alert levels (normal/warning/critical)
+ *   - Individual servo cards with all metrics
+ *   - Summary statistics (total, normal, warning, critical)
+ *   - Embedded Grafana panel for angle history
+ *   - Robot selection dropdown
+ * 
+ * SERVO METRICS:
+ *   - Position:     Current angle in degrees (0-180)
+ *   - Temperature:  Motor temperature in Celsius
+ *   - Voltage:      Input voltage in Volts
+ *   - Torque:       Enabled/Disabled status
+ *   - Alert Level:  Health status (normal/warning/critical)
+ * 
+ * ALERT THRESHOLDS:
+ *   Temperature:
+ *     - Normal:   < 50°C (green)
+ *     - Warning:  50-70°C (yellow)
+ *     - Critical: > 70°C (red)
+ * 
+ * TONYPI SERVO IDS:
+ *   Bus Servos (ID 1-6):
+ *     - 1: Right hip
+ *     - 2: Right knee
+ *     - 3: Right ankle
+ *     - 4: Left hip
+ *     - 5: Left knee
+ *     - 6: Left ankle
+ * 
+ * DATA FLOW:
+ *   1. Fetch robot list from /api/v1/robot-data/status
+ *   2. Select robot → fetch servo data from /api/v1/robot-data/servos/{id}
+ *   3. Display individual servo cards with metrics
+ *   4. Auto-refresh every 5 seconds
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icons for servo metrics
 import { Activity, Thermometer, Zap, Settings, AlertCircle, RefreshCw, TrendingUp } from 'lucide-react';
+
+// Internal utilities and components
 import { apiService, handleApiError } from '../utils/api';
 import { useNotification } from '../contexts/NotificationContext';
 import GrafanaPanel from '../components/GrafanaPanel';

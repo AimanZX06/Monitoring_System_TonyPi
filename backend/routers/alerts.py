@@ -1,6 +1,66 @@
 """
-Alerts Router - Manage alerts, notifications, and thresholds
+=============================================================================
+Alerts Router - Alert Management and Threshold Configuration
+=============================================================================
+
+This router provides REST API endpoints for managing system alerts and
+configuring alert thresholds for the TonyPi monitoring system.
+
+ALERT SYSTEM OVERVIEW:
+    Alerts are generated automatically when sensor values exceed thresholds:
+    
+    Robot Telemetry → MQTT Client → Threshold Check → Alert Created
+                                         ↓
+                                    PostgreSQL
+                                         ↓
+                                    Frontend Display
+
+ALERT LIFECYCLE:
+    1. Created     - Alert generated when threshold exceeded
+    2. Active      - Alert visible in dashboard (unacknowledged)
+    3. Acknowledged - User has seen the alert
+    4. Resolved    - Issue has been fixed
+
+SEVERITY LEVELS:
+    critical - Requires immediate attention (red)
+    warning  - Should be addressed soon (yellow)
+    info     - Informational only (blue)
+
+ALERT TYPES:
+    cpu         - CPU usage alert
+    memory      - Memory usage alert
+    temperature - CPU/system temperature
+    battery     - Low battery warning
+    servo_temp  - Servo motor overheating
+    servo_voltage - Low servo voltage
+    emergency_stop - Emergency stop activated
+
+THRESHOLD CONFIGURATION:
+    Thresholds can be set globally or per-robot:
+    - Global thresholds apply to all robots without specific settings
+    - Robot-specific thresholds override global settings
+
+API ENDPOINTS:
+    GET    /alerts              - List alerts with filtering
+    GET    /alerts/stats        - Get alert statistics
+    POST   /alerts              - Create new alert
+    POST   /alerts/{id}/acknowledge - Acknowledge alert
+    POST   /alerts/{id}/resolve - Mark alert resolved
+    POST   /alerts/acknowledge-all - Acknowledge all alerts
+    DELETE /alerts/{id}         - Delete alert
+    
+    GET    /alerts/thresholds   - List thresholds
+    GET    /alerts/thresholds/defaults - Get default values
+    POST   /alerts/thresholds   - Create/update threshold
+    PUT    /alerts/thresholds/{id} - Update threshold
+    DELETE /alerts/thresholds/{id} - Delete threshold
+    POST   /alerts/thresholds/init-defaults - Initialize defaults
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
@@ -10,6 +70,7 @@ from datetime import datetime, timedelta
 from database.database import get_db
 from models.alert import Alert, AlertThreshold
 
+# Create router instance
 router = APIRouter()
 
 

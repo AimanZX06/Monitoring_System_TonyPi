@@ -1,22 +1,96 @@
+/**
+ * =============================================================================
+ * Dashboard Page Component - Main Monitoring Overview
+ * =============================================================================
+ * 
+ * This is the main dashboard page that displays a comprehensive overview of
+ * the entire TonyPi robot monitoring system. It's the first page users see
+ * after logging in.
+ * 
+ * KEY FEATURES:
+ *   - Real-time robot status display (online/offline)
+ *   - Battery level monitoring with color indicators
+ *   - Job statistics (active, completed, items processed)
+ *   - System services health (MQTT, InfluxDB, PostgreSQL, etc.)
+ *   - Resource usage monitoring (CPU, memory)
+ * 
+ * DATA FLOW:
+ *   1. On mount, fetches robot status and system status from API
+ *   2. Calculates job statistics by querying each robot's job summary
+ *   3. Sets up auto-refresh interval (every 5 seconds)
+ *   4. Updates state and re-renders with fresh data
+ * 
+ * REFRESH CYCLE:
+ *   └─> fetchData() ─> API calls ─> setState ─> render ─> wait 5s ─> repeat
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management and lifecycle
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icons - visual indicators for dashboard cards
 import { 
-  Activity, 
-  Battery, 
-  MapPin, 
-  CheckCircle,
-  Clock
+  Activity,     // Robot activity icon
+  Battery,      // Battery level indicator
+  MapPin,       // Location/position marker
+  CheckCircle,  // Completed/success indicator
+  Clock         // Time/last seen indicator
 } from 'lucide-react';
+
+// Internal utilities - API client and error handling
 import { apiService, handleApiError } from '../utils/api';
+
+// TypeScript types - type definitions for robot data
 import { RobotData } from '../types';
+
+// Theme context - dark/light mode support
 import { useTheme } from '../contexts/ThemeContext';
 
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Formats an ISO date string into a localized human-readable format
+ * Example: "2026-01-22T10:30:00Z" -> "1/22/2026, 10:30:00 AM"
+ */
 const formatDate = (date: string) => new Date(date).toLocaleString();
 
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
+/**
+ * Dashboard Component
+ * 
+ * Main dashboard page displaying system overview, robot status cards,
+ * and system health information.
+ */
 const Dashboard: React.FC = () => {
+  // Access theme context to check if dark mode is enabled
   const { isDark } = useTheme();
+  
+  // =========================================================================
+  // STATE MANAGEMENT
+  // =========================================================================
+  
+  // Array of all robots and their current status data
   const [robotData, setRobotData] = useState<RobotData[]>([]);
+  
+  // System-wide status including services health and resource usage
   const [systemStatus, setSystemStatus] = useState<any>(null);
-  const [jobStats, setJobStats] = useState<any>({ activeJobs: 0, completedToday: 0, totalItems: 0 });
+  
+  // Aggregated job statistics across all robots
+  const [jobStats, setJobStats] = useState<any>({ 
+    activeJobs: 0,      // Number of jobs currently in progress
+    completedToday: 0,  // Jobs finished today
+    totalItems: 0       // Total items processed across all jobs
+  });
+  
+  // Loading state for initial data fetch
   const [loading, setLoading] = useState(true);
 
   const getStatusColor = (status: string) => status === 'online' 

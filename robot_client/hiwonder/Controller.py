@@ -1,10 +1,66 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 """
-High-level Controller for TonyPi servos and sensors.
-Provides easy-to-use methods for reading servo data (position, temperature, voltage)
-and controlling servo movements.
+=============================================================================
+HiWonder Controller - High-Level Robot Control Interface
+=============================================================================
+
+This module provides a high-level interface for controlling the TonyPi robot's
+servos and reading sensor data. It wraps the low-level Board class with
+easier-to-use methods.
+
+SERVO TYPES ON TONYPI:
+    Bus Servos (ID 1-6): Main body joints
+        - ID 1: Right hip
+        - ID 2: Right knee
+        - ID 3: Right ankle
+        - ID 4: Left hip
+        - ID 5: Left knee
+        - ID 6: Left ankle
+    
+    PWM Servos (ID 1-4): Head and auxiliary
+        - ID 1: Head pan (left/right)
+        - ID 2: Head tilt (up/down)
+
+METHODS:
+    Reading Servo Data:
+        - get_bus_servo_pulse(id)   - Get position (0-1000)
+        - get_bus_servo_temp(id)    - Get temperature (°C)
+        - get_bus_servo_vin(id)     - Get voltage (mV)
+        - get_bus_servo_deviation(id) - Get offset value
+    
+    Setting Servo Position:
+        - set_bus_servo_pulse(id, pulse, time) - Move bus servo
+        - set_pwm_servo_pulse(id, pulse, time) - Move PWM servo
+    
+    Configuration:
+        - set_bus_servo_temp_limit(id, temp)
+        - set_bus_servo_angle_limit(id, limits)
+        - set_bus_servo_vin_limit(id, limits)
+    
+    Other:
+        - get_imu() - Read IMU accelerometer/gyroscope data
+        - set_buzzer(freq, on, off, repeat) - Control buzzer
+
+USAGE:
+    from hiwonder.Controller import Controller
+    
+    ctl = Controller()
+    
+    # Read servo temperature
+    temp = ctl.get_bus_servo_temp(1)
+    print(f"Servo 1 temp: {temp}°C")
+    
+    # Move servo to position
+    ctl.set_bus_servo_pulse(1, 500, 1000)  # ID 1, position 500, 1 second
+
+NOTE: This module requires the ros_robot_controller_sdk which communicates
+with the HiWonder expansion board via serial/I2C.
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
 import time
 from . import ros_robot_controller_sdk as rrc

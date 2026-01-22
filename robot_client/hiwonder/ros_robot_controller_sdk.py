@@ -1,14 +1,91 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 """
-STM32 Robot Controller SDK
-Handles serial communication with the TonyPi's STM32 board for:
-- Servo control (bus servos and PWM servos)
-- IMU data (accelerometer and gyroscope)
-- Battery voltage monitoring
-- LED and buzzer control
-- Motor control
+=============================================================================
+HiWonder STM32 Robot Controller SDK - Low-Level Hardware Interface
+=============================================================================
+
+This module provides the low-level serial communication interface with the
+TonyPi's STM32 expansion board. It handles all hardware communication for
+servo control, sensor reading, and peripheral management.
+
+HARDWARE ARCHITECTURE:
+    ┌─────────────────┐     Serial      ┌─────────────────┐
+    │   Raspberry Pi  │ ────────────► │  STM32 Board    │
+    │   (This SDK)    │  1Mbaud UART   │  (Expansion)    │
+    └─────────────────┘                 └─────────────────┘
+                                              │
+                ┌─────────────┬───────────────┼───────────────┬─────────────┐
+                │             │               │               │             │
+           Bus Servos    PWM Servos       IMU Sensor      Battery      LEDs/Buzzer
+           (ID 1-6)      (ID 1-4)        (Accel+Gyro)    Voltage
+
+SERIAL PROTOCOL:
+    Format: 0xAA 0x55 Function Length Data... Checksum
+    
+    - Start bytes: 0xAA 0x55
+    - Function: Command type (see PacketFunction enum)
+    - Length: Number of data bytes
+    - Data: Function-specific payload
+    - Checksum: CRC8 of Function + Length + Data
+
+FUNCTIONS SUPPORTED:
+    PACKET_FUNC_SYS (0):       System info (battery voltage)
+    PACKET_FUNC_LED (1):       LED control
+    PACKET_FUNC_BUZZER (2):    Buzzer control
+    PACKET_FUNC_MOTOR (3):     Motor control
+    PACKET_FUNC_PWM_SERVO (4): PWM servo control
+    PACKET_FUNC_BUS_SERVO (5): Bus servo control
+    PACKET_FUNC_KEY (6):       Button input
+    PACKET_FUNC_IMU (7):       IMU sensor data
+    PACKET_FUNC_GAMEPAD (8):   Gamepad input
+    PACKET_FUNC_SBUS (9):      RC receiver (SBUS)
+    PACKET_FUNC_OLED (10):     OLED display
+    PACKET_FUNC_RGB (11):      RGB LED control
+
+MAIN CLASS:
+    Board - Main communication class
+    
+    Key Methods:
+        Servo Control:
+            - bus_servo_set_position(duration, positions)
+            - bus_servo_read_position(servo_id)
+            - bus_servo_read_temp(servo_id)
+            - bus_servo_read_vin(servo_id)
+            - pwm_servo_set_position(duration, positions)
+        
+        Sensors:
+            - get_imu() - Accelerometer and gyroscope data
+            - get_battery() - Battery voltage
+        
+        Peripherals:
+            - set_buzzer(freq, on_time, off_time, repeat)
+            - set_led(on_time, off_time, repeat)
+            - set_rgb(pixels)
+
+SIMULATION MODE:
+    When pyserial is not available or hardware not connected,
+    the SDK runs in simulation mode with mock data.
+
+USAGE:
+    from hiwonder.ros_robot_controller_sdk import Board
+    
+    board = Board()
+    board.enable_reception(True)
+    
+    # Read IMU
+    imu = board.get_imu()
+    print(f"Acceleration: {imu[0]}, {imu[1]}, {imu[2]}")
+    
+    # Move servo
+    board.bus_servo_set_position(1.0, [[1, 500]])  # ID 1, pos 500, 1 sec
+
+NOTE: This is a low-level SDK. For easier usage, see Controller.py
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
 import enum
 import time

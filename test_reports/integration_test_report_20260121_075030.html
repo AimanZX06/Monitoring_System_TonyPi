@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TonyPi Integration Test Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 30px; 
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+        .header h1 { font-size: 24px; margin-bottom: 10px; }
+        .header .subtitle { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { 
+            color: #667eea; 
+            border-bottom: 2px solid #667eea; 
+            padding-bottom: 10px; 
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .info-item { background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        .info-item label { font-size: 12px; color: #666; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        .info-item value { font-size: 16px; font-weight: 600; }
+        .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .card { 
+            padding: 20px; 
+            border-radius: 10px; 
+            text-align: center;
+            color: white;
+        }
+        .card.total { background: #6c757d; }
+        .card.passed { background: #28a745; }
+        .card.failed { background: #dc3545; }
+        .card.warnings { background: #ffc107; color: #333; }
+        .card .number { font-size: 32px; font-weight: bold; }
+        .card .label { font-size: 12px; text-transform: uppercase; opacity: 0.9; }
+        .status-badge { 
+            display: inline-block; 
+            padding: 8px 20px; 
+            border-radius: 20px; 
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .status-badge.passed { background: #d4edda; color: #155724; }
+        .status-badge.failed { background: #f8d7da; color: #721c24; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        th { background: #f8f9fa; font-weight: 600; color: #495057; }
+        tr:hover { background: #f8f9fa; }
+        .status { 
+            display: inline-block; 
+            padding: 4px 10px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            font-weight: 600;
+        }
+        .status.pass { background: #d4edda; color: #155724; }
+        .status.fail { background: #f8d7da; color: #721c24; }
+        .status.warn { background: #fff3cd; color: #856404; }
+        .footer { 
+            text-align: center; 
+            padding: 20px; 
+            color: #666; 
+            font-size: 12px;
+            border-top: 1px solid #dee2e6;
+        }
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 TonyPi Monitoring System</h1>
+            <div class="subtitle">Integration Test Report</div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>📊 Test Summary</h2>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span class="status-badge passed">
+                        PASSED - 85.7% Pass Rate
+                    </span>
+                </div>
+                <div class="summary-cards">
+                    <div class="card total">
+                        <div class="number">21</div>
+                        <div class="label">Total Tests</div>
+                    </div>
+                    <div class="card passed">
+                        <div class="number">18</div>
+                        <div class="label">Passed</div>
+                    </div>
+                    <div class="card failed">
+                        <div class="number">0</div>
+                        <div class="label">Failed</div>
+                    </div>
+                    <div class="card warnings">
+                        <div class="number">3</div>
+                        <div class="label">Warnings</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>ℹ️ Test Information</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Test Date</label>
+                        <value>2026-01-21</value>
+                    </div>
+                    <div class="info-item">
+                        <label>Test Time</label>
+                        <value>07:50:03</value>
+                    </div>
+                    <div class="info-item">
+                        <label>Duration</label>
+                        <value>26.34 seconds</value>
+                    </div>
+                    <div class="info-item">
+                        <label>Robot ID</label>
+                        <value>tonypi_raspberrypi</value>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🖥️ System Information</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Platform</label>
+                        <value>Windows</value>
+                    </div>
+                    <div class="info-item">
+                        <label>Python Version</label>
+                        <value>3.13.1</value>
+                    </div>
+                    <div class="info-item">
+                        <label>Hostname</label>
+                        <value>AimanNaufal</value>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>⚙️ Configuration</h2>
+                <div class="info-grid">
+                    <div class="info-item"><label>backend_url</label><value>http://localhost:8000</value></div><div class="info-item"><label>frontend_url</label><value>http://localhost:3001</value></div><div class="info-item"><label>mqtt_broker</label><value>localhost</value></div><div class="info-item"><label>mqtt_port</label><value>1883</value></div><div class="info-item"><label>influxdb_url</label><value>http://localhost:8086</value></div><div class="info-item"><label>grafana_url</label><value>http://localhost:3000</value></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📋 Detailed Test Results</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Test Name</th>
+                            <th>Status</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td>1</td>
+                            <td>Backend API is running</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>http://localhost:8000/api/v1/health</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>2</td>
+                            <td>Frontend is running</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>http://localhost:3001</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>3</td>
+                            <td>InfluxDB is running</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>http://localhost:8086/ping</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>4</td>
+                            <td>Grafana is running</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>http://localhost:3000/api/health</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>5</td>
+                            <td>MQTT Broker is running</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>localhost:1883</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>6</td>
+                            <td>Robot is sending data</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>robot_id: tonypi_raspberrypi</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>7</td>
+                            <td>Battery data not found in message</td>
+                            <td><span class="status warn">WARN</span></td>
+                            <td>Robot may be externally powered</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>8</td>
+                            <td>System metrics not found</td>
+                            <td><span class="status warn">WARN</span></td>
+                            <td>-</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>9</td>
+                            <td>Health endpoint</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>/api/v1/health</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>10</td>
+                            <td>Robot status endpoint</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>Found 1 robot(s)</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>11</td>
+                            <td>Latest data for tonypi_raspberrypi</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>Data retrieved</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>12</td>
+                            <td>Reports endpoint</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>/api/v1/reports</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>13</td>
+                            <td>InfluxDB empty</td>
+                            <td><span class="status warn">WARN</span></td>
+                            <td>No data in last hour - robot may need more time</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>14</td>
+                            <td>Servo data available</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>For tonypi_raspberrypi</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>15</td>
+                            <td>Command sent successfully</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>status_request to tonypi_raspberrypi</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>16</td>
+                            <td>Frontend is accessible</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>http://localhost:3001</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>17</td>
+                            <td>React app detected</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>-</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>18</td>
+                            <td>Grafana is healthy</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>http://localhost:3000</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>19</td>
+                            <td>Data endpoint working</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>Received response</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>20</td>
+                            <td>Field 'robot_id' present</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>tonypi_raspberrypi</td>
+                        </tr>
+                        
+                        <tr>
+                            <td>21</td>
+                            <td>Field 'status' present</td>
+                            <td><span class="status pass">PASS</span></td>
+                            <td>{'camera_url': 'http://192.168.1.99:8081/?action=s</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Generated on 2026-01-21T07:50:30.183422 | TonyPi Monitoring System Integration Tests</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,29 +1,124 @@
+/**
+ * =============================================================================
+ * NotificationContext - Global Toast Notification System
+ * =============================================================================
+ * 
+ * This context provides a global notification/toast system for the application.
+ * It manages a queue of notifications and provides methods to add, remove,
+ * and automatically dismiss notifications.
+ * 
+ * ARCHITECTURE:
+ *   ┌─────────────────────────────────────────────────────────────┐
+ *   │                    NotificationProvider                     │
+ *   │  ┌─────────────────────────────────────────────────────┐   │
+ *   │  │ notifications: Notification[]   (state)             │   │
+ *   │  │ addNotification()   - Add to queue                  │   │
+ *   │  │ removeNotification() - Remove from queue            │   │
+ *   │  │ success/error/warning/info() - Convenience methods  │   │
+ *   │  └─────────────────────────────────────────────────────┘   │
+ *   └─────────────────────────────────────────────────────────────┘
+ *                              │
+ *                              ▼
+ *   ┌─────────────────────────────────────────────────────────────┐
+ *   │           useNotification() Hook (Consumer)                 │
+ *   │  Any component can call success(), error(), etc.           │
+ *   └─────────────────────────────────────────────────────────────┘
+ *                              │
+ *                              ▼
+ *   ┌─────────────────────────────────────────────────────────────┐
+ *   │               ToastContainer Component                      │
+ *   │  Renders notifications array as toast UI elements          │
+ *   └─────────────────────────────────────────────────────────────┘
+ * 
+ * USAGE:
+ *   // In any component
+ *   const { success, error, warning, info } = useNotification();
+ *   
+ *   success('Saved!', 'Your changes have been saved.');
+ *   error('Failed', 'Could not connect to server.');
+ *   warning('Low Battery', 'Robot battery below 20%');
+ *   info('Update', 'New data available');
+ * 
+ * AUTO-DISMISS:
+ *   - Success, warning, info: 5 seconds (5000ms)
+ *   - Error: 8 seconds (8000ms) - longer to ensure user sees it
+ *   - Set duration: 0 to disable auto-dismiss
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - context API and hooks
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Notification types - determines color and icon
+ * - success: Green - operation completed successfully
+ * - error:   Red   - something went wrong
+ * - warning: Yellow - caution/attention needed
+ * - info:    Blue  - general information
+ */
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
+/**
+ * Individual notification object stored in state
+ */
 export interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message?: string;
-  duration?: number;
+  id: string;              // Unique identifier for removal
+  type: NotificationType;  // Determines styling (success/error/warning/info)
+  title: string;           // Bold header text
+  message?: string;        // Optional body text
+  duration?: number;       // Auto-dismiss time in ms (0 = manual only)
 }
 
+/**
+ * Context type - all values and methods available to consumers
+ */
 interface NotificationContextType {
+  // Current notifications array
   notifications: Notification[];
+  
+  // Core methods
   addNotification: (notification: Omit<Notification, 'id'>) => void;
   removeNotification: (id: string) => void;
   clearAllNotifications: () => void;
-  // Convenience methods
+  
+  // Convenience methods (most commonly used)
   success: (title: string, message?: string) => void;
   error: (title: string, message?: string) => void;
   warning: (title: string, message?: string) => void;
   info: (title: string, message?: string) => void;
 }
 
+// =============================================================================
+// CONTEXT CREATION
+// =============================================================================
+
+// Create context with undefined default (will be provided by NotificationProvider)
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+// =============================================================================
+// CUSTOM HOOK
+// =============================================================================
+
+/**
+ * useNotification Hook
+ * 
+ * Access the notification system from any component.
+ * Must be used within a NotificationProvider.
+ * 
+ * @returns NotificationContextType - all notification methods and state
+ * @throws Error if used outside NotificationProvider
+ * 
+ * @example
+ * const { success, error } = useNotification();
+ * success('Saved!');
+ */
 export const useNotification = () => {
   const context = useContext(NotificationContext);
   if (!context) {

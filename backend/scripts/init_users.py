@@ -1,9 +1,51 @@
 """
-Initialize default users in the database
-Creates admin, operator, and viewer users if they don't exist
+=============================================================================
+User Initialization Script - Create Default User Accounts
+=============================================================================
+
+This script creates the default user accounts for the TonyPi Monitoring System.
+Users are created with predefined roles for different access levels.
+
+DEFAULT USERS CREATED:
+    ┌──────────┬──────────────┬──────────────────────────────────────────┐
+    │ Username │ Password     │ Role & Permissions                       │
+    ├──────────┼──────────────┼──────────────────────────────────────────┤
+    │ admin    │ admin123     │ admin - Full system access               │
+    │ operator │ operator123  │ operator - Robot control, no user mgmt   │
+    │ viewer   │ viewer123    │ viewer - Read-only access                │
+    └──────────┴──────────────┴──────────────────────────────────────────┘
+
+ROLE PERMISSIONS:
+    admin:    Full access - users, robots, alerts, reports, system config
+    operator: Robot control, view alerts, generate reports
+    viewer:   View-only access to dashboards and reports
+
+USAGE:
+    # Run from backend directory
+    python scripts/init_users.py
+    
+    # Or via Docker
+    docker-compose exec backend python scripts/init_users.py
+
+SECURITY WARNING:
+    These are default development credentials!
+    For production deployments:
+    1. Change all passwords immediately after first login
+    2. Use strong, unique passwords
+    3. Consider disabling the operator and viewer accounts
+    4. Set up proper authentication (OAuth, LDAP, etc.)
+
+NOTE: Script is idempotent - running multiple times won't duplicate users.
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 import sys
 import os
+
+# Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.database import SessionLocal, engine

@@ -1,20 +1,87 @@
 """
-Gemini AI Analytics Service for Robot Data Analysis
+=============================================================================
+Gemini AI Analytics Service - AI-Powered Data Analysis
+=============================================================================
 
-This service uses Google's Gemini API (free tier) to analyze robot sensor data
-and generate insights for PDF reports.
+This service integrates Google's Gemini API (free tier) to provide intelligent
+analysis of robot telemetry data and generate insights for reports.
+
+PURPOSE:
+    - Analyze performance metrics and identify potential issues
+    - Generate natural language summaries for reports
+    - Provide maintenance recommendations based on servo data
+    - Assess job efficiency and suggest improvements
+
+API SETUP:
+    1. Get a free API key from https://makersuite.google.com/app/apikey
+    2. Set GEMINI_API_KEY in your .env file or docker-compose.yml
+    3. The service will automatically configure itself on startup
+
+MODEL SELECTION:
+    The service tries multiple Gemini models in order of preference:
+    1. gemini-2.0-flash  (latest, fast)
+    2. gemini-1.5-flash  (previous flash)
+    3. gemini-1.5-pro    (more capable)
+    4. gemini-pro        (legacy)
+
+ANALYSIS TYPES:
+    1. Performance Analysis
+       - CPU, memory, temperature trends
+       - System health assessment
+       - Optimization recommendations
+    
+    2. Job Analysis
+       - Processing efficiency
+       - Throughput assessment
+       - Workflow improvements
+    
+    3. Servo/Maintenance Analysis
+       - Temperature and voltage health
+       - Maintenance priorities
+       - Preventive care recommendations
+    
+    4. Executive Summary
+       - Natural language overview
+       - Key highlights and concerns
+       - Actionable next steps
+
+USAGE:
+    from services.gemini_analytics import gemini_analytics
+    
+    # Check if AI is available
+    if gemini_analytics.is_available():
+        result = await gemini_analytics.analyze_performance_data(data)
+        print(result['analysis'])
+    else:
+        print("AI not configured")
+
+RESPONSE FORMAT:
+    All analysis methods return dictionaries with:
+    - status: "success", "unavailable", "error", "no_data"
+    - analysis: Main analysis text
+    - recommendations: List of actionable items
+    - Plus type-specific fields (concerns, efficiency, etc.)
 """
 
-import os
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-import json
-from dotenv import load_dotenv
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
-# Load environment variables from .env file
+import os                                    # Environment variable access
+from typing import Dict, List, Any, Optional # Type hints
+from datetime import datetime                # Timestamp handling
+import json                                  # JSON parsing for AI responses
+from dotenv import load_dotenv               # Load .env file
+
+# Load environment variables
 load_dotenv()
 
-# Try to import google generativeai
+# =============================================================================
+# GEMINI SDK IMPORT
+# =============================================================================
+
+# Try to import the Google Generative AI library
+# If not installed, AI features will be disabled gracefully
 try:
     import google.generativeai as genai
     GEMINI_AVAILABLE = True

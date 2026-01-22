@@ -1,0 +1,158 @@
+{
+  "report_title": "TonyPi Monitoring System - Integration Test Report",
+  "generated_at": "2026-01-21T07:50:30.177988",
+  "test_date": "2026-01-21",
+  "test_time": "07:50:03",
+  "duration_seconds": 26.34,
+  "system_info": {
+    "platform": "Windows",
+    "platform_version": "10.0.26200",
+    "python_version": "3.13.1",
+    "hostname": "AimanNaufal"
+  },
+  "configuration": {
+    "backend_url": "http://localhost:8000",
+    "frontend_url": "http://localhost:3001",
+    "mqtt_broker": "localhost",
+    "mqtt_port": 1883,
+    "influxdb_url": "http://localhost:8086",
+    "grafana_url": "http://localhost:3000"
+  },
+  "robot_id": "tonypi_raspberrypi",
+  "summary": {
+    "total": 21,
+    "passed": 18,
+    "failed": 0,
+    "warnings": 3,
+    "pass_rate": "85.7%",
+    "status": "PASSED"
+  },
+  "tests": [
+    {
+      "name": "Backend API is running",
+      "status": "PASS",
+      "message": "http://localhost:8000/api/v1/health",
+      "timestamp": "2026-01-21T07:50:03.861893"
+    },
+    {
+      "name": "Frontend is running",
+      "status": "PASS",
+      "message": "http://localhost:3001",
+      "timestamp": "2026-01-21T07:50:03.890024"
+    },
+    {
+      "name": "InfluxDB is running",
+      "status": "PASS",
+      "message": "http://localhost:8086/ping",
+      "timestamp": "2026-01-21T07:50:03.898150"
+    },
+    {
+      "name": "Grafana is running",
+      "status": "PASS",
+      "message": "http://localhost:3000/api/health",
+      "timestamp": "2026-01-21T07:50:03.908170"
+    },
+    {
+      "name": "MQTT Broker is running",
+      "status": "PASS",
+      "message": "localhost:1883",
+      "timestamp": "2026-01-21T07:50:08.257641"
+    },
+    {
+      "name": "Robot is sending data",
+      "status": "PASS",
+      "message": "robot_id: tonypi_raspberrypi",
+      "timestamp": "2026-01-21T07:50:12.550070"
+    },
+    {
+      "name": "Battery data not found in message",
+      "status": "WARN",
+      "message": "Robot may be externally powered",
+      "timestamp": "2026-01-21T07:50:12.550307"
+    },
+    {
+      "name": "System metrics not found",
+      "status": "WARN",
+      "message": "",
+      "timestamp": "2026-01-21T07:50:12.550502"
+    },
+    {
+      "name": "Health endpoint",
+      "status": "PASS",
+      "message": "/api/v1/health",
+      "timestamp": "2026-01-21T07:50:12.559421"
+    },
+    {
+      "name": "Robot status endpoint",
+      "status": "PASS",
+      "message": "Found 1 robot(s)",
+      "timestamp": "2026-01-21T07:50:12.704773"
+    },
+    {
+      "name": "Latest data for tonypi_raspberrypi",
+      "status": "PASS",
+      "message": "Data retrieved",
+      "timestamp": "2026-01-21T07:50:13.264801"
+    },
+    {
+      "name": "Reports endpoint",
+      "status": "PASS",
+      "message": "/api/v1/reports",
+      "timestamp": "2026-01-21T07:50:13.312456"
+    },
+    {
+      "name": "InfluxDB empty",
+      "status": "WARN",
+      "message": "No data in last hour - robot may need more time",
+      "timestamp": "2026-01-21T07:50:13.487503"
+    },
+    {
+      "name": "Servo data available",
+      "status": "PASS",
+      "message": "For tonypi_raspberrypi",
+      "timestamp": "2026-01-21T07:50:14.446640"
+    },
+    {
+      "name": "Command sent successfully",
+      "status": "PASS",
+      "message": "status_request to tonypi_raspberrypi",
+      "timestamp": "2026-01-21T07:50:14.557575"
+    },
+    {
+      "name": "Frontend is accessible",
+      "status": "PASS",
+      "message": "http://localhost:3001",
+      "timestamp": "2026-01-21T07:50:14.568001"
+    },
+    {
+      "name": "React app detected",
+      "status": "PASS",
+      "message": "",
+      "timestamp": "2026-01-21T07:50:14.568231"
+    },
+    {
+      "name": "Grafana is healthy",
+      "status": "PASS",
+      "message": "http://localhost:3000",
+      "timestamp": "2026-01-21T07:50:14.577925"
+    },
+    {
+      "name": "Data endpoint working",
+      "status": "PASS",
+      "message": "Received response",
+      "timestamp": "2026-01-21T07:50:30.174662"
+    },
+    {
+      "name": "Field 'robot_id' present",
+      "status": "PASS",
+      "message": "tonypi_raspberrypi",
+      "timestamp": "2026-01-21T07:50:30.174930"
+    },
+    {
+      "name": "Field 'status' present",
+      "status": "PASS",
+      "message": "{'camera_url': 'http://192.168.1.99:8081/?action=s",
+      "timestamp": "2026-01-21T07:50:30.175131"
+    }
+  ]
+}

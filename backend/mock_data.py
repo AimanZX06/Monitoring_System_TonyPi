@@ -1,9 +1,50 @@
-"""Mock item database for QR scan lookup.
-
-This module contains a small mapping of QR codes to mock item information.
-When a robot scans a QR code it will publish the code to the backend via MQTT and
-the backend will lookup the item here and return the item info to the robot.
 """
+=============================================================================
+Mock Data - QR Code Item Database for Testing
+=============================================================================
+
+This module provides a mock database of items for QR code scanning functionality.
+It's used for testing and demonstration purposes when the robot scans QR codes.
+
+USE CASE:
+    1. Robot camera detects a QR code (e.g., "QR12345")
+    2. Robot publishes scan to MQTT: tonypi/scan/{robot_id}
+    3. Backend receives scan and looks up item in this mock database
+    4. Item info is returned to robot for display/logging
+    5. Job progress is updated if scanning is part of a task
+
+ITEM STRUCTURE:
+    Each item contains:
+    - sku:         Stock Keeping Unit (internal product code)
+    - name:        Human-readable item name
+    - description: Detailed item description
+    - weight_kg:   Item weight in kilograms
+    - location:    Physical location in warehouse/facility
+    - received_at: When the item was received
+
+PRODUCTION NOTE:
+    In a production system, this would be replaced with:
+    - Database query (PostgreSQL)
+    - Warehouse Management System (WMS) API
+    - Inventory Management System integration
+
+EXTENDING:
+    To add more mock items, add entries to the mock_items dictionary:
+    
+    "QR_NEW_CODE": {
+        "sku": "ITEM-XXX",
+        "name": "New Item",
+        "description": "Item description",
+        "weight_kg": 0.5,
+        "location": "Aisle X, Shelf Y",
+        "received_at": datetime.utcnow().isoformat()
+    }
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 from datetime import datetime
 
 mock_items = {

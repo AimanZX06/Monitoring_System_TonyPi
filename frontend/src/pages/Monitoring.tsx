@@ -1,6 +1,59 @@
+/**
+ * =============================================================================
+ * Monitoring Page Component - System Performance Dashboard
+ * =============================================================================
+ * 
+ * This component displays real-time system performance metrics for TonyPi robots,
+ * providing a Task Manager-like view of CPU, memory, disk, and temperature.
+ * 
+ * KEY FEATURES:
+ *   - Real-time performance metrics with auto-refresh (5 seconds)
+ *   - Color-coded status indicators (green/yellow/red)
+ *   - Historical charts using Recharts library
+ *   - Embedded Grafana panels for advanced analytics
+ *   - Robot selection dropdown for multi-robot support
+ *   - System uptime display
+ * 
+ * METRICS DISPLAYED:
+ *   - CPU Usage:       Raspberry Pi CPU utilization percentage
+ *   - Memory Usage:    RAM utilization percentage
+ *   - Disk Usage:      SD card storage utilization
+ *   - CPU Temperature: Processor temperature in Celsius
+ *   - Uptime:          Time since last boot
+ * 
+ * THRESHOLDS (color-coded):
+ *   CPU:         Warning > 60%, Danger > 80%
+ *   Memory:      Warning > 70%, Danger > 85%
+ *   Disk:        Warning > 75%, Danger > 90%
+ *   Temperature: Warning > 60°C, Danger > 75°C
+ * 
+ * DATA FLOW:
+ *   1. Fetch robot list from /api/v1/robot-data/status
+ *   2. Fetch performance data from /api/v1/pi-perf/{robot_id}
+ *   3. Group data by timestamp and extract metrics
+ *   4. Update charts and metric cards
+ *   5. Auto-refresh every 5 seconds
+ * 
+ * CHARTS:
+ *   - CPU & Memory line chart (combined view)
+ *   - Disk Usage line chart
+ *   - Temperature line chart
+ *   - Embedded Grafana panels for advanced visualization
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
 import React, { useState, useEffect } from 'react';
+
+// Recharts - charting library for React
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+// Lucide React icons
 import { Activity, Cpu, HardDrive, Thermometer, Clock, ExternalLink, TrendingUp } from 'lucide-react';
+
+// Internal utilities
 import { apiService } from '../utils/api';
 import GrafanaPanel from '../components/GrafanaPanel';
 import { getGrafanaPanelUrl, getGrafanaDashboardUrl } from '../utils/config';

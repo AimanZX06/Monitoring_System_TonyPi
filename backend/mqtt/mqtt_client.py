@@ -1,26 +1,104 @@
+"""
+=============================================================================
+MQTT Client - Real-Time Message Broker Integration
+=============================================================================
+
+This module handles all MQTT communication for the TonyPi monitoring system.
+It subscribes to robot telemetry topics and processes incoming messages,
+storing data in InfluxDB (time-series) and PostgreSQL (relational).
+
+MQTT ARCHITECTURE:
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                     MQTT Message Flow                                │
+    ├─────────────────────────────────────────────────────────────────────┤
+    │                                                                      │
+    │  TonyPi Robot ──► Mosquitto Broker ──► Backend MQTTClient           │
+    │       │                  │                     │                     │
+    │       │                  │                     ├──► InfluxDB         │
+    │  Publishes:              │                     │    (time-series)    │
+    │  - tonypi/sensors/*      │                     │                     │
+    │  - tonypi/status/*       │                     └──► PostgreSQL       │
+    │  - tonypi/battery        │                          (alerts, logs)   │
+    │  - tonypi/servos/*       │                                          │
+    │  - tonypi/job/*          │                                          │
+    │                          │                                          │
+    │  Frontend ◄──────────────┘                                          │
+    │  (WebSocket on port 9001)                                           │
+    └─────────────────────────────────────────────────────────────────────┘
+
+SUBSCRIBED TOPICS:
+    tonypi/sensors/+     - Sensor readings (IMU, temperature, etc.)
+    tonypi/status/+      - Robot status and system info
+    tonypi/location      - Robot position updates
+    tonypi/battery       - Battery level and voltage
+    tonypi/servos/+      - Servo motor data (position, temp, voltage)
+    tonypi/job/+         - Job/task progress events
+    tonypi/scan/+        - QR code scan events
+    tonypi/vision/+      - Vision detection results
+    tonypi/logs/+        - Robot terminal/console logs
+    tonypi/commands/response - Command acknowledgements
+
+ALERT GENERATION:
+    The MQTT client automatically generates alerts when sensor values
+    exceed configured thresholds. Alerts are stored in PostgreSQL.
+
+KEY CLASSES:
+    MQTTClient - Main client class handling all MQTT operations
+    
+GLOBAL INSTANCE:
+    mqtt_client - Singleton instance used throughout the application
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
+# Paho MQTT - Python MQTT client library
 import paho.mqtt.client as mqtt
-import json
-import asyncio
-import os
-from dotenv import load_dotenv
-from database.influx_client import influx_client
-from database.database import SessionLocal
-from models.robot import Robot
-from models.system_log import SystemLog
-from models.alert import Alert, AlertThreshold
+
+# Standard library
+import json           # JSON parsing for MQTT payloads
+import asyncio        # Async support for start/stop
+import os             # Environment variable access
+from dotenv import load_dotenv  # Load .env file
+
+# Database clients
+from database.influx_client import influx_client  # Time-series storage
+from database.database import SessionLocal         # PostgreSQL sessions
+
+# SQLAlchemy models
+from models.robot import Robot              # Robot registration
+from models.system_log import SystemLog     # Event logging
+from models.alert import Alert, AlertThreshold  # Alert management
+
+# Date/time utilities
 from datetime import datetime, timedelta
 
+# Load environment variables from .env file
 load_dotenv()
 
-# Default thresholds (used when no database thresholds configured)
+# =============================================================================
+# DEFAULT ALERT THRESHOLDS
+# =============================================================================
+# These defaults are used when no thresholds are configured in the database.
+# Users can customize thresholds via the Alerts page in the frontend.
+#
+# FORMAT: {'warning': value, 'critical': value}
+# - For CPU/memory/temp: Alert when value goes ABOVE threshold
+# - For battery/voltage: Alert when value goes BELOW threshold
+
 DEFAULT_THRESHOLDS = {
-    'cpu': {'warning': 70, 'critical': 90},
-    'memory': {'warning': 75, 'critical': 90},
-    'temperature': {'warning': 60, 'critical': 75},
-    'battery': {'warning': 30, 'critical': 15},  # Battery is low threshold
-    'servo_temp': {'warning': 50, 'critical': 70},
-    'servo_voltage': {'warning': 5.5, 'critical': 5.0},  # Voltage is low threshold
+    'cpu': {'warning': 70, 'critical': 90},           # CPU percentage
+    'memory': {'warning': 75, 'critical': 90},        # Memory percentage
+    'temperature': {'warning': 60, 'critical': 75},   # CPU temperature °C
+    'battery': {'warning': 30, 'critical': 15},       # Battery % (LOW threshold)
+    'servo_temp': {'warning': 50, 'critical': 70},    # Servo temperature °C
+    'servo_voltage': {'warning': 5.5, 'critical': 5.0},  # Servo voltage (LOW threshold)
 }
+
+# =============================================================================
+# MQTT CLIENT CLASS
+# =============================================================================
 
 class MQTTClient:
     def __init__(self):
@@ -46,7 +124,8 @@ class MQTTClient:
             "tonypi/job/+",      # Job/progress events
             "tonypi/servos/+",   # Servo status data
             "tonypi/vision/+",   # Vision detection data
-            "tonypi/logs/+"      # Robot terminal logs
+            "tonypi/logs/+",     # Robot terminal logs
+            "tonypi/emergency_stop/response"  # Emergency stop acknowledgements
         ]
 
     def on_connect(self, client, userdata, flags, rc):
@@ -86,6 +165,8 @@ class MQTTClient:
                 self.handle_log_data(topic, payload)
             elif topic == "tonypi/commands/response":
                 self.handle_command_response(payload)
+            elif topic == "tonypi/emergency_stop/response":
+                self.handle_emergency_stop_response(payload)
                 
         except Exception as e:
             print(f"MQTT: Error processing message: {e}")
@@ -245,7 +326,7 @@ class MQTTClient:
     def handle_command_response(self, payload):
         """Handle command responses"""
         robot_id = payload.get('robot_id', 'unknown')
-        command = payload.get('command', 'unknown')
+        command = payload.get('command', payload.get('type', 'unknown'))
         status = payload.get('status', 'unknown')
         success = payload.get('success', False)
         message = payload.get('message', '')
@@ -266,6 +347,66 @@ class MQTTClient:
                 'response': payload
             }
         )
+    
+    def handle_emergency_stop_response(self, payload):
+        """Handle emergency stop acknowledgement from robot"""
+        robot_id = payload.get('robot_id', 'unknown')
+        command_id = payload.get('command_id', payload.get('id'))
+        success = payload.get('success', False)
+        message = payload.get('message', '')
+        command_type = payload.get('type', 'emergency_stop')
+        
+        print(f"Emergency stop response received: {payload}")
+        
+        # Log with appropriate severity
+        level = 'WARNING' if command_type == 'emergency_stop' else 'INFO'
+        category = 'emergency' if command_type == 'emergency_stop' else 'command'
+        
+        self._log_system_event(
+            level=level,
+            category=category,
+            message=f"Emergency stop {'activated' if command_type == 'emergency_stop' else 'cleared (resumed)'}: {message}",
+            robot_id=robot_id,
+            details={
+                'command_id': command_id,
+                'type': command_type,
+                'success': success,
+                'response': payload
+            }
+        )
+        
+        # Create alert for emergency stop activation
+        if command_type == 'emergency_stop' and success:
+            self._create_emergency_alert(robot_id, payload.get('reason', 'Unknown'))
+    
+    def _create_emergency_alert(self, robot_id: str, reason: str):
+        """Create an alert for emergency stop activation"""
+        db = SessionLocal()
+        try:
+            alert = Alert(
+                robot_id=robot_id,
+                alert_type='emergency_stop',
+                severity='critical',
+                title=f"Emergency Stop Activated on {robot_id}",
+                message=f"Emergency stop triggered: {reason}",
+                source='emergency_system',
+                value=1.0,
+                threshold=0.0,
+                details={
+                    'reason': reason,
+                    'timestamp': datetime.utcnow().isoformat()
+                }
+            )
+            
+            db.add(alert)
+            db.commit()
+            print(f"Alert: Created emergency stop alert for {robot_id}")
+            
+        except Exception as e:
+            print(f"Error creating emergency alert: {e}")
+            db.rollback()
+        finally:
+            db.close()
 
     def handle_scan(self, topic, payload):
         """Handle QR scan events from robots.
@@ -343,10 +484,23 @@ class MQTTClient:
             print(f"JobStore: Error updating job store: {e}")
 
     def handle_job_event(self, topic, payload):
-        """Handle job progress events published by robots (optional).
+        """Handle job progress events published by robots.
 
-        Expected payload: {"robot_id":..., "percent": 42, "status": "working"}
-        Update job_store if available.
+        Expected payload from TonyPi robot:
+        {
+            "robot_id": "tonypi_01",
+            "task_name": "find_red_ball",
+            "status": "started" | "in_progress" | "done" | "cancelled" | "failed",
+            "phase": "scanning" | "searching" | "executing" | "done",
+            "progress_percent": 0-100,
+            "elapsed_time": 12.5,           # seconds since job started
+            "estimated_duration": 30.0,     # expected total duration
+            "action_duration": 5.2,         # how long the action took (on completion)
+            "success": true,                # whether task succeeded (on completion)
+            "cancel_reason": "obstacle"     # reason for cancellation (if cancelled)
+        }
+        
+        Also accepts legacy format: {"robot_id":..., "percent": 42, "status": "completed"}
         """
         try:
             import job_store as job_store_module
@@ -354,35 +508,115 @@ class MQTTClient:
             job_store_module = None
 
         robot_id = payload.get('robot_id') or topic.split('/')[-1]
-        percent = payload.get('percent')
-        status = payload.get('status')
         
-        # Log job progress event
-        if status == 'completed':
+        # Accept both field names for progress
+        percent = payload.get('progress_percent') or payload.get('percent')
+        
+        # Accept various status values
+        status = payload.get('status', '').lower()
+        
+        # Extra fields from TonyPi
+        task_name = payload.get('task_name')
+        phase = payload.get('phase')
+        elapsed_time = payload.get('elapsed_time')
+        estimated_duration = payload.get('estimated_duration')
+        action_duration = payload.get('action_duration')
+        success = payload.get('success')
+        cancel_reason = payload.get('cancel_reason')
+        
+        # Normalize status: accept "done" as "completed"
+        is_completed = status in ('completed', 'done')
+        is_started = status in ('started', 'start')
+        is_cancelled = status in ('cancelled', 'canceled', 'stopped')
+        is_failed = status == 'failed'
+        
+        # Build details dict for logging
+        details = {
+            'status': status,
+            'percent': percent,
+            'task_name': task_name,
+            'phase': phase,
+            'elapsed_time': elapsed_time,
+            'estimated_duration': estimated_duration
+        }
+        
+        # Log job events
+        if is_started:
             self._log_system_event(
                 level='INFO',
                 category='job',
-                message=f"Job completed",
+                message=f"Job started: {task_name or 'unknown task'}",
                 robot_id=robot_id,
-                details={'status': status, 'percent': percent}
+                details=details
             )
-        elif percent is not None and percent % 25 == 0:  # Log at 25%, 50%, 75%, 100%
+        elif is_completed:
             self._log_system_event(
                 level='INFO',
                 category='job',
-                message=f"Job progress: {percent}%",
+                message=f"Job completed: {task_name or 'unknown task'}" + 
+                        (f" (success: {success})" if success is not None else "") +
+                        (f" in {action_duration:.1f}s" if action_duration else ""),
                 robot_id=robot_id,
-                details={'status': status, 'percent': percent}
+                details={**details, 'action_duration': action_duration, 'success': success}
+            )
+        elif is_cancelled:
+            self._log_system_event(
+                level='WARNING',
+                category='job',
+                message=f"Job cancelled: {task_name or 'unknown task'}" +
+                        (f" - {cancel_reason}" if cancel_reason else ""),
+                robot_id=robot_id,
+                details={**details, 'cancel_reason': cancel_reason}
+            )
+        elif is_failed:
+            self._log_system_event(
+                level='ERROR',
+                category='job',
+                message=f"Job failed: {task_name or 'unknown task'}",
+                robot_id=robot_id,
+                details=details
+            )
+        elif percent is not None and int(percent) % 25 == 0:  # Log at 25%, 50%, 75%, 100%
+            self._log_system_event(
+                level='INFO',
+                category='job',
+                message=f"Job progress: {percent:.0f}%" +
+                        (f" - {phase}" if phase else ""),
+                robot_id=robot_id,
+                details=details
             )
         
+        # Update job store
         try:
             if job_store_module:
                 job_store = getattr(job_store_module, 'job_store', None)
                 if job_store is not None:
+                    # Handle job start
+                    if is_started:
+                        job_store.start_job(robot_id, total_items=0)
+                        if task_name:
+                            job_store.update_task_name(robot_id, task_name)
+                    
+                    # Update progress
                     if percent is not None:
                         job_store.set_progress(robot_id, percent)
-                    if status == 'completed':
-                        job_store.finish_job(robot_id)
+                    
+                    # Update phase if method exists
+                    if phase and hasattr(job_store, 'update_phase'):
+                        job_store.update_phase(robot_id, phase)
+                    
+                    # Handle completion
+                    if is_completed:
+                        job_store.finish_job(robot_id, success=success if success is not None else True)
+                    
+                    # Handle cancellation
+                    if is_cancelled:
+                        job_store.cancel_job(robot_id, reason=cancel_reason)
+                    
+                    # Handle failure
+                    if is_failed:
+                        job_store.fail_job(robot_id)
+                        
         except Exception as e:
             print(f"JobStore: Error handling job event: {e}")
 

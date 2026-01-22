@@ -1,60 +1,162 @@
+/**
+ * =============================================================================
+ * Logs Page Component - System Activity & Event History
+ * =============================================================================
+ * 
+ * This component displays and manages system logs from the TonyPi monitoring
+ * system. It provides a comprehensive view of all events, errors, and commands
+ * that occur in the system.
+ * 
+ * KEY FEATURES:
+ *   - Real-time log viewing with auto-refresh (10 second intervals)
+ *   - Multiple view modes: All Logs, Errors Only, Commands Only
+ *   - Filtering by level (INFO, WARNING, ERROR, CRITICAL)
+ *   - Filtering by category (MQTT, API, Database, System, etc.)
+ *   - Robot-specific log filtering
+ *   - Full-text search across log messages
+ *   - Log export (JSON/CSV formats)
+ *   - Expandable log entries with full details
+ *   - Log statistics dashboard
+ * 
+ * LOG LEVELS (by severity):
+ *   - INFO:     Normal operation events (blue)
+ *   - WARNING:  Potential issues that need attention (yellow)
+ *   - ERROR:    Errors that need investigation (red)
+ *   - CRITICAL: Severe errors requiring immediate action (purple)
+ * 
+ * LOG CATEGORIES:
+ *   - mqtt:      MQTT broker communication events
+ *   - api:       REST API request/response events
+ *   - database:  PostgreSQL/InfluxDB operations
+ *   - system:    System-level events
+ *   - command:   Robot commands sent/received
+ *   - robot:     Robot-specific events
+ *   - alert:     Alert generation events
+ *   - servo:     Servo motor operations
+ *   - vision:    Camera/vision processing events
+ *   - battery:   Battery monitoring events
+ *   - sensor:    Sensor data events
+ *   - job:       Job tracking events
+ *   - movement:  Robot movement events
+ * 
+ * DATA FLOW:
+ *   1. Component mounts → fetchData() called
+ *   2. API returns logs based on current filters
+ *   3. Stats and robot list fetched in parallel
+ *   4. State updated → UI renders log entries
+ *   5. Auto-refresh interval triggers fetchData() every 10 seconds
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management and lifecycle
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icons - visual indicators for log display
 import { 
-  FileText, 
-  RefreshCw, 
-  Filter, 
-  Download, 
-  Search,
-  AlertCircle,
-  AlertTriangle,
-  Info,
-  XCircle,
-  Terminal,
-  Clock,
-  Bot,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-  Activity
+  FileText,       // Main logs page icon
+  RefreshCw,      // Refresh button icon
+  Filter,         // Filter section indicator
+  Download,       // Export button icon
+  Search,         // Search input icon
+  AlertCircle,    // Error level icon
+  AlertTriangle,  // Warning level icon
+  Info,           // Info level icon
+  XCircle,        // Critical level icon
+  Terminal,       // Commands mode icon
+  Clock,          // Timestamp indicator
+  Bot,            // Robot ID indicator
+  Trash2,         // Clear logs button
+  ChevronDown,    // Expand entry icon
+  ChevronUp,      // Collapse entry icon
+  Activity        // All logs mode icon
 } from 'lucide-react';
+
+// TypeScript types
 import { RobotData } from '../types';
+
+// Internal utilities - API client and error handling
 import { apiService, handleApiError } from '../utils/api';
+
+// Notification context - toast messages for user feedback
 import { useNotification } from '../contexts/NotificationContext';
+
+// Theme context - dark/light mode support
 import { useTheme } from '../contexts/ThemeContext';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Represents a single log entry from the system
+ */
 interface LogEntry {
-  id: number;
-  level: string;
-  category: string;
-  message: string;
-  robot_id: string | null;
-  details: any;
-  timestamp: string;
+  id: number;              // Unique log entry ID
+  level: string;           // Log level: INFO, WARNING, ERROR, CRITICAL
+  category: string;        // Category: mqtt, api, database, etc.
+  message: string;         // The log message content
+  robot_id: string | null; // Associated robot ID (null for system-wide logs)
+  details: any;            // Additional JSON details (stack traces, context)
+  timestamp: string;       // ISO timestamp of when the log was created
 }
 
+/**
+ * Statistics about logs in the current time range
+ */
 interface LogStats {
-  total: number;
-  info: number;
-  warning: number;
-  error: number;
-  critical: number;
-  by_category: Record<string, number>;
+  total: number;           // Total number of logs
+  info: number;            // Count of INFO level logs
+  warning: number;         // Count of WARNING level logs
+  error: number;           // Count of ERROR level logs
+  critical: number;        // Count of CRITICAL level logs
+  by_category: Record<string, number>;  // Count by category
 }
 
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
+/**
+ * Logs Component
+ * 
+ * Main logs page displaying system event history with filtering,
+ * search, and export capabilities.
+ */
 const Logs: React.FC = () => {
+  // Access theme context for dark/light mode styling
   const { isDark } = useTheme();
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [stats, setStats] = useState<LogStats | null>(null);
+  
+  // =========================================================================
+  // STATE MANAGEMENT
+  // =========================================================================
+  
+  // Log data
+  const [logs, setLogs] = useState<LogEntry[]>([]);      // Array of log entries
+  const [stats, setStats] = useState<LogStats | null>(null);  // Log statistics
+  
+  // Loading state
   const [loading, setLoading] = useState(true);
-  const [selectedLevel, setSelectedLevel] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedRobot, setSelectedRobot] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [timeRange, setTimeRange] = useState<string>('24h');
+  
+  // Filter states
+  const [selectedLevel, setSelectedLevel] = useState<string>('');     // Level filter
+  const [selectedCategory, setSelectedCategory] = useState<string>(''); // Category filter
+  const [selectedRobot, setSelectedRobot] = useState<string>('');      // Robot filter
+  const [searchQuery, setSearchQuery] = useState<string>('');          // Search text
+  const [timeRange, setTimeRange] = useState<string>('24h');           // Time range
+  
+  // Available robots for filter dropdown
   const [robots, setRobots] = useState<string[]>([]);
+  
+  // Track which log entries are expanded to show details
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
+  
+  // View mode: 'all' | 'errors' | 'commands'
   const [viewMode, setViewMode] = useState<'all' | 'errors' | 'commands'>('all');
 
+  // Notification functions for user feedback
   const { success, error: showError, info } = useNotification();
 
   const LOG_LEVELS = {

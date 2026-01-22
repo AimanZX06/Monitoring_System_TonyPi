@@ -1,67 +1,237 @@
+# ============================================================================
+# TonyPi Robot Monitoring System - Docker Compose Configuration
+# ============================================================================
+#
+# This file defines all the services (containers) that make up the
+# TonyPi monitoring system. Docker Compose orchestrates these services
+# so they can communicate with each other.
+#
+# ARCHITECTURE OVERVIEW:
+# ----------------------
+# 
+#   [TonyPi Robot]
+#        |
+#        | MQTT (port 1883)
+#        v
+#   +----------------+       +----------------+
+#   |   Mosquitto    |<----->|    Backend     |
+#   | (MQTT Broker)  |       |   (FastAPI)    |
+#   +----------------+       +-------+--------+
+#                                    |
+#                    +---------------+---------------+
+#                    |               |               |
+#                    v               v               v
+#             +----------+    +-----------+    +----------+
+#             | InfluxDB |    | PostgreSQL|    |  Grafana |
+#             | (sensors)|    |  (config) |    | (charts) |
+#             +----------+    +-----------+    +----------+
+#                    ^
+#                    |
+#   +----------------+
+#   |    Frontend    |
+#   |    (React)     |
+#   +----------------+
+#
+# HOW TO USE:
+# -----------
+# 1. Copy env.example to .env and configure values
+# 2. Run: docker-compose up -d
+# 3. Access frontend at http://localhost:3001
+# 4. Access Grafana at http://localhost:3000
+# 5. Access API docs at http://localhost:8000/api/v1/docs
+#
+# PORTS USED:
+# -----------
+# - 1883: MQTT broker (for robots to connect)
+# - 9001: MQTT WebSocket (for browser connections)
+# - 8086: InfluxDB (time-series database)
+# - 5432: PostgreSQL (relational database)
+# - 3000: Grafana (visualization dashboards)
+# - 8000: Backend API (FastAPI)
+# - 3001: Frontend (React web app)
+#
+# ============================================================================
+
 services:
-  # MQTT Broker
+  # ==========================================================================
+  # MQTT BROKER (Mosquitto)
+  # ==========================================================================
+  # Eclipse Mosquitto is a lightweight MQTT message broker.
+  # 
+  # MQTT (Message Queuing Telemetry Transport) is used for:
+  # - Real-time communication between robots and the backend
+  # - Low-latency, low-bandwidth messaging
+  # - Publish/subscribe pattern for sensor data
+  #
+  # Topics used in this system:
+  # - tonypi/sensors/{robot_id}: Sensor data (IMU, temperature, etc.)
+  # - tonypi/status/{robot_id}: Robot status updates
+  # - tonypi/commands/{robot_id}: Commands to robots
+  # - tonypi/servos/{robot_id}: Servo data
+  # - tonypi/battery: Battery status
+  # ==========================================================================
   mosquitto:
+    # Docker image: Official Eclipse Mosquitto version 2.0
     image: eclipse-mosquitto:2.0
+    
+    # Container name for easy identification
     container_name: tonypi_mosquitto
+    
+    # Restart policy: Restart unless manually stopped
+    # This ensures the broker stays running after crashes
     restart: unless-stopped
+    
+    # Port mappings (host:container)
     ports:
+      # Main MQTT port - robots connect here
+      # 0.0.0.0 makes it accessible from any network interface
       - "0.0.0.0:1883:1883"
+      
+      # WebSocket port - browser clients connect here
+      # Used by frontend for real-time updates
       - "0.0.0.0:9001:9001"
+    
+    # Volume mounts for persistent data
     volumes:
+      # Configuration files (mosquitto.conf)
       - ./mosquitto/config:/mosquitto/config
+      
+      # Persistent message data
       - ./mosquitto/data:/mosquitto/data
+      
+      # Log files
       - ./mosquitto/log:/mosquitto/log
+    
+    # Connect to the internal Docker network
     networks:
       - tonypi_network
+    
+    # Health check to verify the broker is working
+    # Attempts to subscribe to a system topic
     healthcheck:
       test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      interval: 30s    # Check every 30 seconds
+      timeout: 10s     # Fail if no response in 10 seconds
+      retries: 3       # Mark unhealthy after 3 failures
+      start_period: 10s # Wait 10 seconds before first check
 
-  # Time-series Database
+  # ==========================================================================
+  # TIME-SERIES DATABASE (InfluxDB)
+  # ==========================================================================
+  # InfluxDB is optimized for storing time-stamped data like sensor readings.
+  #
+  # Used for:
+  # - Storing sensor data (accelerometer, gyroscope, temperature)
+  # - Storing servo telemetry (position, temperature, voltage)
+  # - Battery history
+  # - System performance metrics (CPU, memory)
+  #
+  # Why InfluxDB:
+  # - Efficient storage of time-series data
+  # - Built-in aggregation functions (avg, max, min, etc.)
+  # - Native Grafana integration
+  # - Good compression for large datasets
+  # ==========================================================================
   influxdb:
+    # Docker image: InfluxDB version 2.7
     image: influxdb:2.7
+    
     container_name: tonypi_influxdb
     restart: unless-stopped
+    
+    # Port mapping for HTTP API
     ports:
       - "8086:8086"
+    
+    # Persistent data storage
     volumes:
+      # Database files
       - ./influxdb/data:/var/lib/influxdb2
+      
+      # Configuration files
       - ./influxdb/config:/etc/influxdb2
+    
+    # Initial setup configuration (from .env file)
     environment:
+      # Setup mode creates initial user and bucket
       - DOCKER_INFLUXDB_INIT_MODE=setup
+      
+      # Admin credentials
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME}
       - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
+      
+      # Organization name (for multi-tenant support)
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      
+      # Default bucket (like a database in traditional DBs)
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+      
+      # API token for authentication
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+    
     networks:
       - tonypi_network
+    
+    # Health check using InfluxDB's ping endpoint
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 30s  # InfluxDB needs time to initialize
 
-  # Relational Database
+  # ==========================================================================
+  # RELATIONAL DATABASE (PostgreSQL)
+  # ==========================================================================
+  # PostgreSQL stores structured data that needs relationships and queries.
+  #
+  # Used for:
+  # - Robot configurations
+  # - User accounts and authentication
+  # - Job/task history
+  # - Alert records
+  # - System logs
+  # - Generated reports
+  #
+  # Why PostgreSQL (not InfluxDB for everything):
+  # - Better for structured data with relationships
+  # - Full SQL support for complex queries
+  # - ACID compliance for data integrity
+  # - Better for configuration data that rarely changes
+  # ==========================================================================
   postgres:
+    # Docker image: PostgreSQL version 15
     image: postgres:15
+    
     container_name: tonypi_postgres
     restart: unless-stopped
+    
     ports:
       - "5432:5432"
+    
     volumes:
+      # Database files
       - ./postgres/data:/var/lib/postgresql/data
+      
+      # Initialization scripts (run on first startup)
+      # Files in this folder are executed alphabetically
       - ./postgres/init:/docker-entrypoint-initdb.d
+    
+    # Database credentials (from .env file)
     environment:
+      # Database name
       - POSTGRES_DB=${POSTGRES_DB}
+      
+      # Admin username
       - POSTGRES_USER=${POSTGRES_USER}
+      
+      # Admin password
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    
     networks:
       - tonypi_network
+    
+    # Health check using pg_isready utility
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -69,39 +239,80 @@ services:
       retries: 5
       start_period: 10s
 
-  # Grafana for Visualization
+  # ==========================================================================
+  # VISUALIZATION DASHBOARD (Grafana)
+  # ==========================================================================
+  # Grafana provides beautiful, customizable dashboards for monitoring.
+  #
+  # Features:
+  # - Real-time charts and graphs
+  # - Alerting based on thresholds
+  # - Support for multiple data sources
+  # - Embedded panels in the React frontend
+  #
+  # Dashboards include:
+  # - System performance (CPU, memory, temperature)
+  # - Sensor data visualization
+  # - Servo status and history
+  # - Battery trends
+  # ==========================================================================
   grafana:
+    # Docker image: Grafana version 10.0.0
     image: grafana/grafana:10.0.0
+    
     container_name: tonypi_grafana
     restart: unless-stopped
+    
     ports:
       - "3000:3000"
+    
     volumes:
+      # Dashboard and configuration data
       - ./grafana/data:/var/lib/grafana
+      
+      # Auto-provisioned dashboards and data sources
       - ./grafana/provisioning:/etc/grafana/provisioning
+    
     environment:
+      # Admin credentials
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      
+      # Plugins to install automatically
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      
+      # Allow anonymous viewing (for embedded panels)
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      
+      # Allow embedding in iframes (for React frontend)
       - GF_SECURITY_ALLOW_EMBEDDING=true
+      
+      # Keep login form available
       - GF_AUTH_DISABLE_LOGIN_FORM=false
+      
+      # Cookie settings for cross-origin embedding
       - GF_SECURITY_COOKIE_SAMESITE=none
+      
       # Pass credentials for datasource provisioning
+      # These are used by the datasource configuration files
       - INFLUXDB_ORG=${INFLUXDB_ORG}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    
+    # Wait for databases to be ready before starting
     depends_on:
       influxdb:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    
     networks:
       - tonypi_network
+    
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
       interval: 30s
@@ -109,28 +320,59 @@ services:
       retries: 3
       start_period: 30s
 
-  # FastAPI Backend
+  # ==========================================================================
+  # BACKEND API (FastAPI)
+  # ==========================================================================
+  # The Python FastAPI backend provides the REST API for the system.
+  #
+  # Responsibilities:
+  # - REST API endpoints for frontend
+  # - MQTT message handling
+  # - Database operations (PostgreSQL + InfluxDB)
+  # - Alert generation and management
+  # - Report generation
+  # - User authentication
+  # ==========================================================================
   backend:
+    # Build from local Dockerfile
     build:
       context: ./backend
       dockerfile: Dockerfile
+    
     container_name: tonypi_backend
     restart: unless-stopped
+    
     ports:
       - "8000:8000"
+    
+    # Mount source code for development (hot-reload)
     volumes:
       - ./backend:/app
+    
+    # Configuration environment variables
     environment:
+      # PostgreSQL connection string
       - POSTGRES_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      
+      # InfluxDB connection settings
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
       - INFLUXDB_ORG=${INFLUXDB_ORG}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      
+      # MQTT broker connection
+      # Note: Uses container name "mosquitto" not "localhost"
       - MQTT_BROKER_HOST=mosquitto
       - MQTT_BROKER_PORT=1883
+      
+      # Grafana connection for panel rendering
       - GRAFANA_BASE_URL=http://grafana:3000
       - GRAFANA_API_KEY=${GRAFANA_API_KEY}
+      
+      # Google Gemini API for AI-powered reports (optional)
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+    
+    # Wait for all dependencies to be healthy
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,8 +380,10 @@ services:
         condition: service_healthy
       mosquitto:
         condition: service_healthy
+    
     networks:
       - tonypi_network
+    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
@@ -147,38 +391,79 @@ services:
       retries: 3
       start_period: 30s
 
-  # React Frontend
+  # ==========================================================================
+  # FRONTEND WEB APPLICATION (React)
+  # ==========================================================================
+  # The React frontend provides the user interface for the monitoring system.
+  #
+  # Features:
+  # - Dashboard with real-time robot status
+  # - Sensor data visualization
+  # - Robot management and commands
+  # - Alert management
+  # - Report generation
+  # - User authentication
+  # ==========================================================================
   frontend:
+    # Build from local Dockerfile
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    
     container_name: tonypi_frontend
     restart: unless-stopped
+    
+    # Expose on port 3001 (Grafana uses 3000)
     ports:
       - "3001:3000"
+    
     volumes:
+      # Mount source code for development
       - ./frontend:/app
+      
+      # Preserve node_modules from container
+      # This prevents conflicts with host system modules
       - /app/node_modules
+    
     environment:
+      # Backend API URL (from browser's perspective)
       - REACT_APP_API_URL=http://localhost:8000
+      
+      # MQTT WebSocket URL (for browser MQTT client)
       - REACT_APP_MQTT_BROKER_URL=ws://localhost:9001
+    
+    # Wait for backend to be ready
     depends_on:
       backend:
         condition: service_healthy
+    
     networks:
       - tonypi_network
+    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 60s  # React build takes time
 
+# ============================================================================
+# NETWORK CONFIGURATION
+# ============================================================================
+# Docker networks allow containers to communicate with each other
+# using container names as hostnames (e.g., "postgres" instead of IP)
+# ============================================================================
 networks:
   tonypi_network:
-    driver: bridge
+    driver: bridge  # Bridge network provides isolation and DNS resolution
 
+# ============================================================================
+# NAMED VOLUMES
+# ============================================================================
+# Named volumes persist data even when containers are removed
+# These are managed by Docker and stored in Docker's data directory
+# ============================================================================
 volumes:
-  postgres_data:
-  influxdb_data:
-  grafana_data:
+  postgres_data:   # PostgreSQL database files
+  influxdb_data:   # InfluxDB database files
+  grafana_data:    # Grafana dashboards and settings

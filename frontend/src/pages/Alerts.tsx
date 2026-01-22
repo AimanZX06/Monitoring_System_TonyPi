@@ -1,32 +1,93 @@
+/**
+ * =============================================================================
+ * Alerts Page Component - Alert Management & Threshold Configuration
+ * =============================================================================
+ * 
+ * This component provides a comprehensive interface for managing system alerts
+ * and configuring alert thresholds for the TonyPi monitoring system.
+ * 
+ * KEY FEATURES:
+ *   - Real-time alert display with auto-refresh (10 second intervals)
+ *   - Filter alerts by severity, robot, and time range
+ *   - Acknowledge and resolve alerts
+ *   - Configure alert thresholds via modal
+ *   - Statistics dashboard (total, critical, warning, info)
+ *   - Expandable alert details with JSON data
+ * 
+ * ALERT SEVERITIES:
+ *   - critical (red):  Immediate attention required
+ *   - warning (yellow): Should be addressed soon
+ *   - info (blue):      Informational only
+ * 
+ * ALERT TYPES:
+ *   - cpu:         CPU usage threshold exceeded
+ *   - memory:      Memory usage threshold exceeded
+ *   - temperature: System temperature threshold exceeded
+ *   - battery:     Battery level below threshold
+ *   - servo_temp:  Servo motor temperature threshold exceeded
+ *   - servo_voltage: Servo voltage below threshold
+ * 
+ * THRESHOLD CONFIGURATION:
+ *   Users can configure both warning and critical thresholds for each metric.
+ *   - For CPU/memory/temperature: Alert when value goes ABOVE threshold
+ *   - For battery/voltage: Alert when value goes BELOW threshold
+ * 
+ * DATA FLOW:
+ *   1. Alerts fetched from /api/v1/alerts with filter parameters
+ *   2. Stats fetched from /api/v1/alerts/stats
+ *   3. User actions (acknowledge, resolve, delete) update database
+ *   4. Auto-refresh keeps display current
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management and lifecycle
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icons - visual elements for the alerts interface
 import { 
-  Bell, 
-  AlertTriangle, 
-  AlertCircle, 
-  Info, 
-  CheckCircle,
-  RefreshCw,
-  Filter,
-  Sliders,
-  Trash2,
-  Check,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Bot,
-  Thermometer,
-  Battery,
-  Cpu,
-  Settings,
-  Clock,
-  Save,
-  Activity,
-  Zap
+  Bell,           // Main page header icon
+  AlertTriangle,  // Warning severity icon
+  AlertCircle,    // Critical severity / error icon
+  Info,           // Info severity icon
+  CheckCircle,    // Resolve / success icon
+  RefreshCw,      // Refresh / loading icon
+  Filter,         // Filter section indicator
+  Sliders,        // Threshold configuration icon
+  Trash2,         // Delete alert icon
+  Check,          // Acknowledge icon
+  X,              // Close modal icon
+  ChevronDown,    // Expand details icon
+  ChevronUp,      // Collapse details icon
+  Bot,            // Robot indicator icon
+  Thermometer,    // Temperature metric icon
+  Battery,        // Battery metric icon
+  Cpu,            // CPU/memory metric icon
+  Settings,       // Servo/settings icon
+  Clock,          // Timestamp icon
+  Save,           // Save button icon
+  Activity,       // System activity icon
+  Zap             // Voltage/power icon
 } from 'lucide-react';
+
+// Internal utilities - API client and error handling
 import { apiService, handleApiError } from '../utils/api';
+
+// Notification context - toast messages for user feedback
 import { useNotification } from '../contexts/NotificationContext';
+
+// Theme context - dark/light mode support
 import { useTheme } from '../contexts/ThemeContext';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Represents a single alert from the system
+ */
 interface Alert {
   id: number;
   robot_id: string | null;

@@ -1,9 +1,55 @@
 /**
- * MSW (Mock Service Worker) handlers for API mocking.
+ * =============================================================================
+ * MSW (Mock Service Worker) API Handlers
+ * =============================================================================
  * 
- * These handlers intercept API requests during tests and return mock responses.
- * Add new handlers as you add new API endpoints.
+ * This file defines mock API handlers for testing the frontend without a real
+ * backend. MSW intercepts HTTP requests and returns predefined mock responses.
+ * 
+ * HOW IT WORKS:
+ *   1. Tests import and start the MSW server (see server.ts)
+ *   2. When frontend code makes API calls, MSW intercepts them
+ *   3. Handlers match requests by method and URL pattern
+ *   4. Mock responses are returned instead of hitting real endpoints
+ * 
+ * BENEFITS:
+ *   - Tests don't depend on backend being running
+ *   - Faster tests (no network latency)
+ *   - Deterministic responses (always same data)
+ *   - Can test error scenarios easily
+ * 
+ * ADDING NEW HANDLERS:
+ *   1. Define mock data at the top of the file
+ *   2. Add a new http.get/post/put/delete handler
+ *   3. Use the same URL pattern as the real API
+ * 
+ * TESTING ERROR CASES:
+ *   In individual tests, you can override handlers:
+ *   
+ *   server.use(
+ *     http.get('/api/v1/robots', () => {
+ *       return new HttpResponse(null, { status: 500 });
+ *     })
+ *   );
+ * 
+ * ENDPOINTS MOCKED:
+ *   - GET  /health              - Health check
+ *   - GET  /robot-data/status   - Robot status list
+ *   - GET  /robot-data/sensors  - Sensor data
+ *   - GET  /reports             - Report list
+ *   - POST /reports             - Create report
+ *   - GET  /reports/:id         - Get report by ID
+ *   - DELETE /reports/:id       - Delete report
+ *   - POST /reports/generate    - Generate report
+ *   - GET  /reports/ai-status   - AI availability
+ *   - GET  /robot-data/job-summary/:id - Job progress
+ *   - GET  /management/system/status   - System health
  */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
 import { http, HttpResponse } from 'msw';
 
 const API_BASE = 'http://localhost:8000/api/v1';

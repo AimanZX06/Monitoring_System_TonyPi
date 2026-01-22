@@ -1,10 +1,66 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 """
-HiWonder I2C Ultrasonic Sensor Driver
-Provides distance measurement using the ultrasonic sensor connected via I2C.
-Also supports RGB LED control on the sensor module.
+=============================================================================
+HiWonder Ultrasonic Sensor Driver (Sonar)
+=============================================================================
+
+This module provides a driver for the HiWonder I2C ultrasonic distance sensor
+commonly used with TonyPi robots. The sensor measures distance using ultrasonic
+pulses and also includes RGB LEDs for visual feedback.
+
+FEATURES:
+    - Distance measurement (50mm to 5000mm range)
+    - RGB LED control (2 LEDs with individual control)
+    - Breathing light mode for visual effects
+    - Simulation mode when hardware not available
+
+I2C COMMUNICATION:
+    Default Address: 0x77
+    Default Bus: 1 (standard for Raspberry Pi)
+    
+    Register Map:
+        0: Distance reading (2 bytes, little-endian, mm)
+        2: RGB mode (0=color, 1=breathing)
+        3-5: RGB1 color (R, G, B)
+        6-8: RGB2 color (R, G, B)
+        9-14: Breathing cycle values
+
+DISTANCE MEASUREMENT:
+    - Range: 50mm to 5000mm (5cm to 5m)
+    - Returns 99999 on error or out of range
+    - Accuracy: ±1% (typical)
+
+RGB LEDS:
+    The sensor has two RGB LEDs that can be controlled individually:
+    - Index 1: Left LED
+    - Index 0: Right LED
+    
+    Modes:
+    - Color mode (0): Static color display
+    - Breathing mode (1): Pulsing color effect
+
+USAGE:
+    from hiwonder.Sonar import Sonar
+    
+    sonar = Sonar()
+    
+    # Read distance
+    distance_mm = sonar.getDistance()
+    distance_cm = sonar.getDistanceCm()
+    
+    # Set LED color (R, G, B)
+    sonar.setRGBMode(0)  # Color mode
+    sonar.setRGB(1, (255, 0, 0))  # Left LED red
+    sonar.setRGB(0, (0, 255, 0))  # Right LED green
+
+NOTE: Requires smbus2 package for I2C communication.
+Falls back to simulation mode if not available.
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
 import sys
 import time

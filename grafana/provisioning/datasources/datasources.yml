@@ -1,36 +1,94 @@
+# =============================================================================
+# Grafana Datasources Configuration
+# TonyPi Robot Monitoring System
+# =============================================================================
+#
+# This file provisions Grafana with data sources for visualizing robot metrics.
+# It's automatically loaded when Grafana starts via Docker volume mount:
+#   ./grafana/provisioning:/etc/grafana/provisioning
+#
+# DATASOURCES CONFIGURED:
+#   1. InfluxDB - Time-series data (sensor readings, metrics)
+#   2. PostgreSQL - Relational data (robots, alerts, reports)
+#
+# ENVIRONMENT VARIABLES:
+#   These are set in docker-compose.yml:
+#   - INFLUXDB_ORG: InfluxDB organization name
+#   - INFLUXDB_BUCKET: InfluxDB bucket for robot data
+#   - INFLUXDB_TOKEN: Authentication token for InfluxDB
+#   - POSTGRES_DB: PostgreSQL database name
+#   - POSTGRES_USER: PostgreSQL username
+#   - POSTGRES_PASSWORD: PostgreSQL password
+#
+# DASHBOARD DATA SOURCES:
+#   - Battery levels → InfluxDB (battery_status measurement)
+#   - CPU/Memory graphs → InfluxDB (robot_status measurement)
+#   - Servo temperatures → InfluxDB (servo_data measurement)
+#   - Alert counts → PostgreSQL (alerts table)
+#   - Robot list → PostgreSQL (robots table)
+# =============================================================================
+
 apiVersion: 1
 
-# NOTE: Configure these datasources in Grafana UI after deployment
-# or set environment variables in docker-compose.yml
 datasources:
+  # ===========================================================================
+  # INFLUXDB - Time-Series Database
+  # ===========================================================================
+  # Stores all robot telemetry data with timestamps:
+  # - Sensor readings (IMU, temperature, ultrasonic)
+  # - System metrics (CPU, memory, disk)
+  # - Battery status
+  # - Servo data
+  # - Vision detection results
+  #
+  # Query Language: Flux
+  # Example Flux Query:
+  #   from(bucket: "robot_data")
+  #     |> range(start: -1h)
+  #     |> filter(fn: (r) => r._measurement == "sensor_data")
+  # ---------------------------------------------------------------------------
   - name: InfluxDB
     type: influxdb
     uid: influxdb
-    access: proxy
-    url: http://influxdb:8086
-    isDefault: true
+    access: proxy                    # Grafana backend proxies requests
+    url: http://influxdb:8086        # Docker service name
+    isDefault: true                  # Default datasource for new panels
     jsonData:
-      version: Flux
-      organization: ${INFLUXDB_ORG}
-      defaultBucket: ${INFLUXDB_BUCKET}
-      tlsSkipVerify: true
+      version: Flux                  # Use Flux query language (not InfluxQL)
+      organization: ${INFLUXDB_ORG}  # Organization from env variable
+      defaultBucket: ${INFLUXDB_BUCKET}  # Default bucket for queries
+      tlsSkipVerify: true            # Skip TLS for internal Docker network
     secureJsonData:
-      token: ${INFLUXDB_TOKEN}
-    editable: true
+      token: ${INFLUXDB_TOKEN}       # API token for authentication
+    editable: true                   # Allow editing in Grafana UI
 
+  # ===========================================================================
+  # POSTGRESQL - Relational Database
+  # ===========================================================================
+  # Stores structured data with relationships:
+  # - Robot configurations
+  # - Alert records and thresholds
+  # - System logs
+  # - Report metadata
+  # - User accounts
+  #
+  # Query Language: SQL
+  # Example SQL Query:
+  #   SELECT robot_id, status, last_seen FROM robots WHERE is_active = true
+  # ---------------------------------------------------------------------------
   - name: PostgreSQL
     type: postgres
     uid: postgresql
-    access: proxy
-    url: postgres:5432
-    database: ${POSTGRES_DB}
-    user: ${POSTGRES_USER}
+    access: proxy                    # Grafana backend proxies requests
+    url: postgres:5432               # Docker service name and port
+    database: ${POSTGRES_DB}         # Database name from env variable
+    user: ${POSTGRES_USER}           # Username from env variable
     secureJsonData:
-      password: ${POSTGRES_PASSWORD}
+      password: ${POSTGRES_PASSWORD} # Password (stored securely)
     jsonData:
-      sslmode: disable
-      maxOpenConns: 100
-      maxIdleConns: 100
-      maxIdleConnsAuto: true
-      connMaxLifetime: 14400
-    editable: true
+      sslmode: disable               # No SSL for internal Docker network
+      maxOpenConns: 100              # Maximum open connections
+      maxIdleConns: 100              # Maximum idle connections
+      maxIdleConnsAuto: true         # Auto-manage idle connections
+      connMaxLifetime: 14400         # Connection lifetime (4 hours)
+    editable: true                   # Allow editing in Grafana UI

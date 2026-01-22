@@ -3,6 +3,7 @@
  * 
  * Run with: npm test -- Toast.test.tsx
  */
+import React from 'react';
 import { render, screen } from '../utils/testUtils';
 import ToastContainer from '../../components/Toast';
 import { useNotification } from '../../contexts/NotificationContext';

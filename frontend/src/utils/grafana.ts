@@ -1,10 +1,54 @@
 /**
- * Grafana utility functions
- * Handles Grafana availability checking and URL configuration
+ * =============================================================================
+ * Grafana Utility Functions - Panel Integration and Health Checking
+ * =============================================================================
+ * 
+ * This module provides utilities for integrating Grafana dashboards into the
+ * React frontend, including health checks and URL building.
+ * 
+ * FEATURES:
+ *   - Grafana availability checking with timeout
+ *   - Panel URL building with variable support
+ *   - Dashboard URL generation
+ *   - Configurable via environment variables
+ * 
+ * ENVIRONMENT VARIABLES:
+ *   - REACT_APP_GRAFANA_URL:     Grafana base URL (default: http://localhost:3000)
+ *   - REACT_APP_GRAFANA_ENABLED: Enable/disable Grafana (default: true)
+ * 
+ * URL FORMATS:
+ *   Panel (solo):     /d-solo/{uid}/{uid}?panelId={id}&...
+ *   Dashboard (full): /d/{uid}
+ * 
+ * PANEL EMBEDDING:
+ *   Grafana panels are embedded via iframes using the d-solo endpoint.
+ *   This provides a single panel without the full dashboard UI.
+ * 
+ * USAGE:
+ *   import { buildGrafanaPanelUrl, checkGrafanaAvailability } from './grafana';
+ *   
+ *   // Check if Grafana is available
+ *   const isAvailable = await checkGrafanaAvailability();
+ *   
+ *   // Build panel URL
+ *   const url = buildGrafanaPanelUrl('tonypi', 1, {
+ *     robotId: 'tonypi_001',
+ *     from: 'now-1h',
+ *     theme: 'dark'
+ *   });
+ *   
+ *   // Use in iframe
+ *   <iframe src={url} />
  */
 
-// Grafana configuration - defaults to enabled and localhost:3000
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+// Grafana base URL - defaults to localhost for development
 const GRAFANA_URL = process.env.REACT_APP_GRAFANA_URL || 'http://localhost:3000';
+
+// Feature flag to enable/disable Grafana integration entirely
 const GRAFANA_ENABLED = process.env.REACT_APP_GRAFANA_ENABLED !== 'false'; // Default: true (enabled)
 
 /**

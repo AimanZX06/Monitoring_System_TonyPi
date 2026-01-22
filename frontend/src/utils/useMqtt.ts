@@ -1,13 +1,85 @@
+/**
+ * =============================================================================
+ * useMqtt Hook - Real-Time MQTT Communication for React
+ * =============================================================================
+ * 
+ * This custom React hook provides MQTT connectivity for the frontend,
+ * enabling real-time communication with TonyPi robots via WebSocket.
+ * 
+ * WHY MQTT IN FRONTEND?
+ *   While the backend handles most MQTT processing, the frontend can also
+ *   connect directly to receive real-time updates without polling:
+ *   - Instant status updates when robot connects/disconnects
+ *   - Live sensor data streaming for real-time dashboards
+ *   - Direct command publishing for faster robot control
+ * 
+ * WEBSOCKET CONNECTION:
+ *   MQTT typically uses TCP port 1883, but browsers can only use WebSocket.
+ *   Mosquitto broker exposes WebSocket on port 9001 (configured in mosquitto.conf).
+ *   
+ *   Connection: Frontend → ws://localhost:9001 → Mosquitto → Robot
+ * 
+ * FEATURES:
+ *   - Auto-connect on component mount
+ *   - Auto-reconnect on connection loss
+ *   - Message history (last 100 messages)
+ *   - Subscribe/unsubscribe to topics dynamically
+ *   - Publish messages to any topic
+ *   - Connection status tracking
+ *   - Error handling
+ * 
+ * USAGE:
+ *   const { isConnected, messages, publish, subscribe } = useMqtt({
+ *     topics: ['tonypi/status/#', 'tonypi/sensors/#']
+ *   });
+ *   
+ *   // Publish a command
+ *   publish('tonypi/commands', { type: 'move', direction: 'forward' });
+ *   
+ *   // Messages array contains recent messages from subscribed topics
+ *   messages.forEach(msg => console.log(msg.topic, msg.payload));
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React hooks
 import { useState, useEffect, useCallback, useRef } from 'react';
+
+// MQTT.js - JavaScript MQTT client library
+// Supports WebSocket connections in browsers
 import mqtt, { MqttClient } from 'mqtt';
+
+// TypeScript type for MQTT messages
 import { MqttMessage } from '../types';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Configuration options for the useMqtt hook
+ */
 interface UseMqttOptions {
+  /** WebSocket URL to MQTT broker (default: ws://localhost:9001) */
   brokerUrl?: string;
+  /** Additional MQTT client options */
   options?: mqtt.IClientOptions;
+  /** Topics to subscribe to on connect */
   topics?: string[];
 }
 
+// =============================================================================
+// HOOK IMPLEMENTATION
+// =============================================================================
+
+/**
+ * Custom hook for MQTT connectivity
+ * 
+ * @param options - Configuration options for MQTT connection
+ * @returns Object with connection state, messages, and control functions
+ */
 export const useMqtt = ({ 
   brokerUrl = process.env.REACT_APP_MQTT_BROKER_URL || 'ws://localhost:9001',
   options = {},

@@ -1,10 +1,84 @@
+/**
+ * =============================================================================
+ * Robots Page Component - Robot Management & Control Panel
+ * =============================================================================
+ * 
+ * This component provides a comprehensive interface for managing TonyPi robots,
+ * including viewing status, controlling robots, and monitoring camera feeds.
+ * 
+ * KEY FEATURES:
+ *   - Robot list with search and filtering
+ *   - Summary cards (total, online, offline, avg battery)
+ *   - Battery level history chart (Grafana integration)
+ *   - Robot control panel with emergency stop
+ *   - Live camera feed display
+ *   - Terminal output for command feedback
+ *   - Detailed robot modal with sensor data
+ *   - Add new robot functionality
+ * 
+ * ROBOT STATUSES:
+ *   - online (green):  Robot connected and responding
+ *   - offline (red):   Robot not connected
+ *   - idle (yellow):   Robot connected but inactive
+ * 
+ * CONTROL FEATURES:
+ *   - Emergency Stop: Immediately stops the selected robot
+ *   - Camera Feed: Live MJPEG stream from robot's camera
+ *   - Terminal: Command input and response logging
+ * 
+ * DATA FLOW:
+ *   1. Component mounts → fetches robot list
+ *   2. Auto-refresh every 5 seconds
+ *   3. User selects robot → control panel updates
+ *   4. Commands sent via API → logged in terminal
+ * 
+ * CAMERA INTEGRATION:
+ *   Camera URL format: http://{robot_ip}:8080/?action=stream
+ *   Falls back to robot.camera_url if IP not available
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management, lifecycle, and refs
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Battery, MapPin, Clock, Power, Settings, Trash2, Plus, Search, Camera, Terminal, TrendingUp, RefreshCw } from 'lucide-react';
+
+// Lucide React icons - visual elements for robot management
+import { 
+  Activity,   // Robot activity indicator
+  Battery,    // Battery level indicator
+  MapPin,     // Location/position icon
+  Clock,      // Last seen/time indicator
+  Power,      // Online/offline status icon
+  Settings,   // Settings/configuration icon
+  Trash2,     // Delete robot icon
+  Plus,       // Add robot icon
+  Search,     // Search input icon
+  Camera,     // Camera feed icon
+  Terminal,   // Terminal output icon
+  TrendingUp, // Chart/statistics icon
+  RefreshCw   // Refresh/reload icon
+} from 'lucide-react';
+
+// Internal utilities - API client and error handling
 import { apiService, handleApiError } from '../utils/api';
+
+// TypeScript types - robot data structure
 import { RobotData } from '../types';
+
+// Components - Grafana panel for charts
 import GrafanaPanel from '../components/GrafanaPanel';
+
+// Configuration - Grafana URL builder
 import { getGrafanaPanelUrl } from '../utils/config';
+
+// Theme context - dark/light mode support
 import { useTheme } from '../contexts/ThemeContext';
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 const Robots: React.FC = () => {
   const { isDark } = useTheme();

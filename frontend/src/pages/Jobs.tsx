@@ -1,21 +1,76 @@
+/**
+ * =============================================================================
+ * Jobs Page Component - Task/Job Progress Tracking Dashboard
+ * =============================================================================
+ * 
+ * This component provides a comprehensive view of robot job/task tracking,
+ * showing progress, statistics, and history for all robots.
+ * 
+ * KEY FEATURES:
+ *   - Overall summary statistics across all robots
+ *   - Per-robot job breakdown with expandable details
+ *   - Real-time progress bars and status indicators
+ *   - Quick comparison table for all robots
+ *   - Auto-refresh every 5 seconds
+ * 
+ * JOB STATUSES:
+ *   - Active (blue):     Job currently in progress
+ *   - Completed (green): Job finished successfully
+ *   - Not Started (gray): No active job for this robot
+ * 
+ * STATISTICS DISPLAYED:
+ *   - Total Robots: Number of connected robots
+ *   - Active Jobs: Jobs currently running
+ *   - Completed Jobs: Jobs that have finished
+ *   - Idle/No Job: Robots without active tasks
+ *   - Items Processed: Total items done vs target
+ *   - Average Completion: Mean progress percentage
+ *   - Total Run Time: Combined duration of all jobs
+ * 
+ * DATA FLOW:
+ *   1. Component mounts → fetches robot list
+ *   2. For each robot → fetches job summary via /job-summary/{robot_id}
+ *   3. Calculates aggregate statistics
+ *   4. Updates UI with progress and status
+ *   5. Auto-refresh repeats every 5 seconds
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - state management and lifecycle
 import React, { useState, useEffect } from 'react';
+
+// Lucide React icons - visual elements for job tracking
 import { 
-  Clock, 
-  CheckCircle, 
-  Loader, 
-  Package,
-  Calendar,
-  TrendingUp,
-  ChevronDown,
-  ChevronUp,
-  Bot,
-  BarChart3,
-  Timer,
-  Target
+  Clock,        // Duration/time indicator
+  CheckCircle,  // Completed status icon
+  Loader,       // In-progress/loading indicator
+  Package,      // Jobs/items icon
+  Calendar,     // Date/time indicator
+  TrendingUp,   // Progress/statistics icon
+  ChevronDown,  // Expand details icon
+  ChevronUp,    // Collapse details icon
+  Bot,          // Robot indicator
+  BarChart3,    // Statistics/summary icon
+  Timer,        // Run time indicator
+  Target        // Completion target icon
 } from 'lucide-react';
+
+// Internal utilities - API client and error handling
 import { apiService, handleApiError } from '../utils/api';
+
+// Theme context - dark/light mode support
 import { useTheme } from '../contexts/ThemeContext';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Job summary data for a single robot
+ */
 interface JobSummary {
   robot_id: string;
   start_time: string | null;

@@ -1,4 +1,66 @@
+/**
+ * =============================================================================
+ * TonyPiApp - Main Application Component with Custom Navigation
+ * =============================================================================
+ * 
+ * This is an alternative main application component that uses a custom tab-based
+ * navigation instead of React Router. It provides a single-page application
+ * experience with tabbed navigation.
+ * 
+ * KEY DIFFERENCES FROM App.tsx:
+ *   - App.tsx:      Uses React Router with sidebar navigation
+ *   - TonyPiApp.tsx: Uses tab-based navigation (this file)
+ * 
+ * FEATURES:
+ *   - Tab-based navigation (Overview, Performance, Sensors, etc.)
+ *   - Dark/Light theme toggle
+ *   - User authentication with role-based access
+ *   - Mobile-responsive design with hamburger menu
+ *   - Real-time system status display
+ *   - Help modal with getting started guide
+ *   - Auto-refresh of robot and sensor data (5 seconds)
+ * 
+ * TABS:
+ *   - Overview:    System summary, robot status, recent sensors
+ *   - Performance: CPU, memory, disk, temperature metrics
+ *   - Sensors:     IMU and environmental sensor data
+ *   - Robots:      Robot management and control
+ *   - Servos:      Servo motor monitoring
+ *   - Jobs:        Task tracking and progress
+ *   - Alerts:      System alerts and notifications
+ *   - Logs:        Activity history
+ *   - Reports:     Report generation with AI
+ *   - Users:       User management (admin only)
+ * 
+ * PROVIDER HIERARCHY:
+ *   ThemeProvider
+ *   └── AuthProvider
+ *       └── NotificationProvider
+ *           └── TonyPiAppContent
+ *               └── ToastContainer
+ * 
+ * STATE MANAGEMENT:
+ *   - selectedTab:      Current active tab
+ *   - robotData:        Currently selected robot's data
+ *   - allRobots:        List of all connected robots
+ *   - recentSensors:    Latest sensor readings
+ *   - jobStats:         Job statistics summary
+ *   - isConnected:      Backend connection status
+ * 
+ * DATA FLOW:
+ *   1. Auth check on mount → show Login or Dashboard
+ *   2. Fetch robot list and status every 5 seconds
+ *   3. Update UI with latest data
+ *   4. User interactions trigger API calls
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
 import React, { useState, useEffect } from 'react';
+
+// Page components for each tab
 import Monitoring from './pages/Monitoring';
 import Jobs from './pages/Jobs';
 import Robots from './pages/Robots';
@@ -9,11 +71,19 @@ import Login from './pages/Login';
 import Alerts from './pages/Alerts';
 import Logs from './pages/Logs';
 import Users from './pages/Users';
+
+// Lucide React icons for UI elements
 import { Activity, Wifi, WifiOff, Clock, Zap, AlertCircle, BookOpen, CheckCircle, HelpCircle, X, Compass, LogOut, User, Menu, Sun, Moon, Bell, FileText, Users as UsersIcon } from 'lucide-react';
+
+// Context providers for global state
 import { NotificationProvider } from './contexts/NotificationContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+
+// Shared components
 import ToastContainer from './components/Toast';
+
+// API utilities and types
 import { apiService } from './utils/api';
 import { RobotData, SensorData } from './types';
 

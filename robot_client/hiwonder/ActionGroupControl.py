@@ -1,18 +1,68 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 """
-Action Group Control for TonyPi Robot.
-Executes pre-recorded motion sequences stored as .d6a files (SQLite databases).
+=============================================================================
+Action Group Control - Pre-recorded Motion Playback for TonyPi
+=============================================================================
 
-Available actions (typical TonyPi configuration):
-- go_forward, go_forward_fast, back, back_fast: Walking
-- turn_left, turn_right: Turning
-- stand: Standing position
-- squat_down: Squatting
-- wave: Waving hand
-- left_kick, right_kick: Kicking
-- bow: Bowing
+This module executes pre-recorded motion sequences (action groups) stored as
+.d6a files. These files are SQLite databases containing timestamped servo
+positions that create smooth, complex movements.
+
+ACTION FILE FORMAT (.d6a):
+    SQLite database with table "ActionGroup":
+    - Column 0: Frame number
+    - Column 1: Duration (milliseconds)
+    - Columns 2-7: Servo positions (IDs 1-6)
+    
+    Each row represents a keyframe that the robot moves through.
+
+AVAILABLE ACTIONS (typical TonyPi):
+    Walking:
+        - go_forward, go_forward_fast, go_forward_slow
+        - back, back_fast
+        - turn_left, turn_right
+    
+    Poses:
+        - stand: Standing position
+        - squat_down: Squatting pose
+    
+    Gestures:
+        - wave: Wave hand
+        - bow: Bowing gesture
+        - left_kick, right_kick: Kicking motions
+
+WALKING ACTIONS:
+    Walking uses a three-part sequence for smooth motion:
+    1. Start action (e.g., go_forward_start) - Enter walking pose
+    2. Loop action (e.g., go_forward) - Repeated walking steps
+    3. End action (e.g., go_forward_end) - Return to standing
+    
+    The runActionGroup() function handles this automatically.
+
+USAGE:
+    from hiwonder.ActionGroupControl import runActionGroup, executeMovement
+    
+    # Run a single action
+    runActionGroup("stand", times=1)
+    
+    # Walk forward 5 steps then stand
+    runActionGroup("go_forward", times=5, with_stand=True)
+    
+    # Use convenience function
+    executeMovement("forward", times=3)
+
+ACTION FILE LOCATION:
+    Default: /home/pi/TonyPi/ActionGroups/
+    Can also use local ./ActionGroups/ folder for development
+
+NOTE: Requires hardware to be available. Falls back to simulation mode
+if Controller cannot be initialized.
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
 import os
 import sys

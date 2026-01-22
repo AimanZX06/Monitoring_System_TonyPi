@@ -1,24 +1,83 @@
 /**
- * Test utilities and custom render function.
+ * =============================================================================
+ * Test Utilities - Custom Render and Mock Data Factories
+ * =============================================================================
  * 
- * Use these utilities across all tests for consistent setup.
+ * This file provides testing utilities used across all frontend tests.
+ * It includes a custom render function that wraps components with necessary
+ * providers, and factory functions to create mock data.
+ * 
+ * KEY EXPORTS:
+ *   - render: Custom render function with all providers
+ *   - createMockRobot: Factory for mock robot data
+ *   - createMockReport: Factory for mock report data
+ *   - createMockSensorData: Factory for mock sensor readings
+ *   - createMockJobSummary: Factory for mock job data
+ *   - mockApiSuccess: Helper for mocking successful API responses
+ *   - mockApiError: Helper for mocking API errors
+ *   - waitForLoadingToFinish: Utility to wait for async operations
+ * 
+ * USAGE:
+ *   // In test files:
+ *   import { render, screen, createMockRobot } from '../utils/testUtils';
+ *   
+ *   const mockRobot = createMockRobot({ status: 'offline' });
+ *   render(<RobotCard robot={mockRobot} />);
+ *   expect(screen.getByText('offline')).toBeInTheDocument();
+ * 
+ * PROVIDER SETUP:
+ *   The custom render wraps components with:
+ *   - BrowserRouter (for React Router)
+ *   - NotificationProvider (for toast messages)
+ *   Note: AuthContext and ThemeContext are mocked globally in setupTests.ts
  */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
 import React, { ReactElement } from 'react';
+
+// React Testing Library utilities
 import { render, RenderOptions } from '@testing-library/react';
+
+// React Router for navigation context
+import { BrowserRouter } from 'react-router-dom';
+
+// Application providers needed for component rendering
 import { NotificationProvider } from '../../contexts/NotificationContext';
 
-// All providers that wrap the app
+// =============================================================================
+// CUSTOM RENDER SETUP
+// =============================================================================
+
+/**
+ * Wrapper component that provides all necessary context providers.
+ * This ensures components have access to all contexts they need during tests.
+ * 
+ * Note: AuthContext and ThemeContext are mocked globally in setupTests.ts
+ * so they don't need to be wrapped here.
+ */
 const AllTheProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <NotificationProvider>
-      {children}
-    </NotificationProvider>
+    <BrowserRouter>
+      <NotificationProvider>
+        {children}
+      </NotificationProvider>
+    </BrowserRouter>
   );
 };
 
 /**
  * Custom render function that wraps components with all providers.
  * Use this instead of the default render from @testing-library/react.
+ * 
+ * @param ui - The React element to render
+ * @param options - Additional render options (excluding wrapper)
+ * @returns Render result with all testing utilities
+ * 
+ * @example
+ * const { getByText, getByRole } = render(<MyComponent />);
  */
 const customRender = (
   ui: ReactElement,
@@ -26,6 +85,7 @@ const customRender = (
 ) => render(ui, { wrapper: AllTheProviders, ...options });
 
 // Re-export everything from testing-library
+// This allows tests to import everything from this file
 export * from '@testing-library/react';
 
 // Override render with our custom render

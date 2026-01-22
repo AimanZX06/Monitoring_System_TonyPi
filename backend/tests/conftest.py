@@ -1,29 +1,120 @@
 """
-Pytest configuration and fixtures for TonyPi backend tests.
+=============================================================================
+Pytest Configuration - Test Fixtures for TonyPi Backend
+=============================================================================
 
-This file contains shared fixtures that can be used across all tests.
+This module provides shared test fixtures and configuration for all backend
+tests. It sets up an isolated test environment with an in-memory SQLite
+database to ensure tests don't affect the production PostgreSQL database.
+
+FIXTURE CATEGORIES:
+    Database Fixtures:
+        - test_db: Fresh SQLite database for each test
+        - override_get_db: Dependency override for FastAPI
+    
+    API Client Fixtures:
+        - client: TestClient with database override
+        - client_no_db: TestClient without database (for simple tests)
+    
+    Mock Fixtures:
+        - mock_mqtt_client: Mocked MQTT client
+        - mock_influx_client: Mocked InfluxDB client
+    
+    Sample Data Fixtures:
+        - sample_robot_data: Example robot status data
+        - sample_sensor_data: Example sensor readings
+        - sample_report_data: Example report data
+        - sample_job_data: Example job/task data
+
+TEST ISOLATION STRATEGY:
+    1. Each test gets a fresh database (tables created/dropped)
+    2. Environment variables set for testing mode
+    3. External services (InfluxDB, MQTT) are mocked
+    4. Noisy loggers are silenced during tests
+
+DATABASE SETUP:
+    - SQLite in-memory database (":memory:")
+    - StaticPool to reuse same connection (required for SQLite threads)
+    - Foreign keys enabled via PRAGMA
+    - Tables recreated for each test function
+
+RUN COMMANDS:
+    pytest                    # Run all tests
+    pytest -v                 # Verbose output
+    pytest --cov=routers      # With coverage for routers
+    pytest -k "test_robot"    # Only tests matching pattern
+
+NOTE: This file is automatically discovered by pytest due to its name
 """
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
 import os
 import pytest
 from typing import Generator, AsyncGenerator
 from unittest.mock import MagicMock, AsyncMock
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
+# =============================================================================
+# TEST ENVIRONMENT SETUP
+# =============================================================================
+
 # Set test environment before importing app
+# This tells the application we're in test mode
 os.environ["TESTING"] = "true"
+
+# Use SQLite instead of PostgreSQL for tests
 os.environ["POSTGRES_URL"] = "sqlite:///:memory:"
+
+# Suppress noisy logs during tests (InfluxDB connection errors, etc.)
+import logging
+logging.getLogger("InfluxClient").setLevel(logging.CRITICAL)
+logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+
+# =============================================================================
+# APPLICATION IMPORTS
+# =============================================================================
 
 from database.database import Base, get_db
 from main import app
+
+# Import all models to ensure tables are created
+# SQLAlchemy needs models imported to include them in metadata
+from models.robot import Robot
+from models.job import Job
+from models.report import Report
+from models.alert import Alert, AlertThreshold
+from models.system_log import SystemLog
+from models.user import User
 
 
 # =============================================================================
 # Database Fixtures
 # =============================================================================
+
+# Create a shared engine for all tests with proper SQLite threading settings
+TEST_ENGINE = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+    echo=False,
+)
+
+# Enable foreign keys for SQLite
+@event.listens_for(TEST_ENGINE, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENGINE)
+
 
 @pytest.fixture(scope="function")
 def test_db() -> Generator[Session, None, None]:
@@ -31,22 +122,17 @@ def test_db() -> Generator[Session, None, None]:
     Create a fresh test database for each test.
     Uses SQLite in-memory for fast tests.
     """
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
     # Create all tables
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=TEST_ENGINE)
     
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine)
+        # Clear all data between tests
+        Base.metadata.drop_all(bind=TEST_ENGINE)
+        Base.metadata.create_all(bind=TEST_ENGINE)
 
 
 @pytest.fixture(scope="function")
@@ -72,7 +158,7 @@ def client(override_get_db) -> Generator[TestClient, None, None]:
     """
     app.dependency_overrides[get_db] = override_get_db
     
-    with TestClient(app) as test_client:
+    with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
     
     app.dependency_overrides.clear()

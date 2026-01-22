@@ -1,0 +1,79 @@
+======================================================================
+TONYPI MONITORING SYSTEM - INTEGRATION TEST REPORT
+======================================================================
+
+Generated: 2026-01-21T07:54:30.771370
+Test Date: 2026-01-21 07:53:35
+Duration:  55.19 seconds
+
+----------------------------------------------------------------------
+SYSTEM INFORMATION
+----------------------------------------------------------------------
+Platform:       Windows
+Python Version: 3.13.1
+Hostname:       AimanNaufal
+
+----------------------------------------------------------------------
+CONFIGURATION
+----------------------------------------------------------------------
+backend_url: http://localhost:8000
+frontend_url: http://localhost:3001
+mqtt_broker: localhost
+mqtt_port: 1883
+influxdb_url: http://localhost:8086
+grafana_url: http://localhost:3000
+
+----------------------------------------------------------------------
+TEST SUMMARY
+----------------------------------------------------------------------
+Status:    FAILED
+Total:     19
+Passed:    17
+Failed:    1
+Warnings:  1
+Pass Rate: 89.5%
+
+----------------------------------------------------------------------
+DETAILED TEST RESULTS
+----------------------------------------------------------------------
+ 1. [PASS] Backend API is running
+       http://localhost:8000/api/v1/health
+ 2. [PASS] Frontend is running
+       http://localhost:3001
+ 3. [PASS] InfluxDB is running
+       http://localhost:8086/ping
+ 4. [PASS] Grafana is running
+       http://localhost:3000/api/health
+ 5. [PASS] MQTT Broker is running
+       localhost:1883
+ 6. [FAIL] No robot data received
+       Waited 30s - is the robot running?
+ 7. [PASS] Health endpoint
+       /api/v1/health
+ 8. [PASS] Robot status endpoint
+       Found 1 robot(s)
+ 9. [PASS] Latest data for tonypi_raspberrypi
+       Data retrieved
+10. [PASS] Reports endpoint
+       /api/v1/reports
+11. [WARN] InfluxDB empty
+       No data in last hour - robot may need more time
+12. [PASS] Servo data available
+       For tonypi_raspberrypi
+13. [PASS] Command sent successfully
+       status_request to tonypi_raspberrypi
+14. [PASS] Frontend is accessible
+       http://localhost:3001
+15. [PASS] React app detected
+16. [PASS] Grafana is healthy
+       http://localhost:3000
+17. [PASS] Data endpoint working
+       Received response
+18. [PASS] Field 'robot_id' present
+       tonypi_raspberrypi
+19. [PASS] Field 'status' present
+       {'camera_url': 'http://192.168.1.99:8081/?action=s
+
+======================================================================
+END OF REPORT
+======================================================================

@@ -114,6 +114,10 @@ class TonyPiSimulator:
         self.running = False
         
         # ==================== ROBOT STATE ====================
+        # Emergency stop state
+        self.emergency_stopped = False
+        self.emergency_reason = None
+        
         # Battery
         self.battery_level = self._get_initial_battery()
         self.battery_drain_rate = 0.002  # % per second
@@ -162,11 +166,12 @@ class TonyPiSimulator:
             "servos": f"tonypi/servos/{self.robot_id}",
         }
         
-        # Additional topics
+        # Additional topics (matching tonypi_client.py)
         self.items_topic = f"tonypi/items/{self.robot_id}"
         self.scan_topic = f"tonypi/scan/{self.robot_id}"
         self.job_topic = f"tonypi/job/{self.robot_id}"
-        self.terminal_topic = f"tonypi/terminal/{self.robot_id}"
+        self.logs_topic = f"tonypi/logs/{self.robot_id}"  # Aligned with tonypi_client.py
+        self.vision_topic = f"tonypi/vision/{self.robot_id}"  # Added for vision data
         
         # Setup MQTT callbacks
         self.client.on_connect = self.on_connect
@@ -242,6 +247,10 @@ class TonyPiSimulator:
             client.subscribe("tonypi/commands/broadcast")
             client.subscribe(self.items_topic)
             
+            # Subscribe to emergency stop topics
+            client.subscribe(f"tonypi/emergency_stop/{self.robot_id}")
+            client.subscribe("tonypi/emergency_stop/broadcast")
+            
             # Send initial status
             self.add_terminal_log("SYSTEM", "Connected to MQTT broker")
             self.send_status_update()
@@ -273,11 +282,29 @@ class TonyPiSimulator:
                 "message": f"Command {command_type} executed"
             }
             
+            # Handle emergency stop commands (separate topic)
+            if topic.startswith("tonypi/emergency_stop/"):
+                response = self._handle_emergency_stop(payload)
+                # Send response to emergency stop response topic
+                self.client.publish("tonypi/emergency_stop/response", json.dumps(response))
+                # Also send to regular command response for compatibility
+                self.client.publish(self.topics["response"], json.dumps(response))
+                return
+            
+            # Check if emergency stopped - block most commands
+            if self.emergency_stopped and command_type not in ["resume", "status_request", "battery_request"]:
+                response["success"] = False
+                response["message"] = f"Robot is emergency stopped. Send 'resume' command first. Reason: {self.emergency_reason}"
+                self.client.publish(self.topics["response"], json.dumps(response))
+                return
+            
             # Handle commands matching tonypi_client.py
             if command_type == "move":
                 response = self._handle_move_command(payload)
             elif command_type == "stop":
                 response = self._handle_stop_command(payload)
+            elif command_type == "resume":
+                response = self._handle_resume_command(payload)
             elif command_type == "status_request":
                 response = self._handle_status_request(payload)
             elif command_type == "battery_request":
@@ -335,6 +362,77 @@ class TonyPiSimulator:
         return response
     
     # ==================== COMMAND HANDLERS (matching tonypi_client.py) ====================
+    
+    def _handle_emergency_stop(self, payload: Dict) -> Dict:
+        """Handle emergency stop command - immediately stop all motors"""
+        reason = payload.get("reason", "Emergency stop triggered")
+        command_id = payload.get("id", str(uuid.uuid4()))
+        
+        # Set emergency stop state
+        self.emergency_stopped = True
+        self.emergency_reason = reason
+        
+        # Stop all movement immediately
+        self.is_moving = False
+        self.movement_speed = 0.0
+        
+        # Stop any active job
+        if self.job_active:
+            self._stop_job()
+        
+        self.add_terminal_log("EMERGENCY", f"⚠️ EMERGENCY STOP: {reason}", send_mqtt=True)
+        logger.warning(f"EMERGENCY STOP activated: {reason}")
+        
+        return {
+            "robot_id": self.robot_id,
+            "command_id": command_id,
+            "type": "emergency_stop",
+            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "message": f"Emergency stop activated: {reason}",
+            "reason": reason,
+            "state": {
+                "emergency_stopped": True,
+                "motors_stopped": True,
+                "job_stopped": True
+            }
+        }
+    
+    def _handle_resume_command(self, payload: Dict) -> Dict:
+        """Handle resume command - clear emergency stop state"""
+        command_id = payload.get("id", str(uuid.uuid4()))
+        
+        if not self.emergency_stopped:
+            return {
+                "robot_id": self.robot_id,
+                "command_id": command_id,
+                "type": "resume",
+                "timestamp": datetime.now().isoformat(),
+                "success": True,
+                "message": "Robot was not in emergency stop state"
+            }
+        
+        # Clear emergency stop state
+        previous_reason = self.emergency_reason
+        self.emergency_stopped = False
+        self.emergency_reason = None
+        
+        self.add_terminal_log("SYSTEM", "✅ Emergency stop cleared - robot resumed", send_mqtt=True)
+        logger.info(f"Emergency stop cleared (was: {previous_reason})")
+        
+        return {
+            "robot_id": self.robot_id,
+            "command_id": command_id,
+            "type": "resume",
+            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "message": f"Robot resumed from emergency stop (was: {previous_reason})",
+            "previous_reason": previous_reason,
+            "state": {
+                "emergency_stopped": False,
+                "ready": True
+            }
+        }
     
     def _handle_move_command(self, payload: Dict) -> Dict:
         """Handle movement commands"""
@@ -396,7 +494,9 @@ class TonyPiSimulator:
             "success": True,
             "message": "Status retrieved",
             "data": {
-                "status": "online",
+                "status": "emergency_stopped" if self.emergency_stopped else "online",
+                "emergency_stopped": self.emergency_stopped,
+                "emergency_reason": self.emergency_reason,
                 "battery_level": self.battery_level,
                 "location": self.location.copy(),
                 "sensors": self.sensors.copy(),
@@ -512,17 +612,23 @@ class TonyPiSimulator:
     # ==================== DATA GENERATION (matching tonypi_client.py) ====================
     
     def get_system_info(self) -> Dict[str, Any]:
-        """Get system information (matching tonypi_client.py format)"""
+        """Get system information (matching tonypi_client.py format exactly)"""
+        cpu_temp = self.get_cpu_temperature()
+        
         if PSUTIL_AVAILABLE:
             try:
+                # Use interval=None for non-blocking CPU measurement (matching tonypi_client.py)
+                cpu_percent = psutil.cpu_percent(interval=None)
                 return {
                     "platform": platform.platform(),
-                    "cpu_percent": psutil.cpu_percent(interval=0.1),
+                    "cpu_percent": cpu_percent,
                     "memory_percent": psutil.virtual_memory().percent,
                     "disk_usage": psutil.disk_usage('/').percent if os.name != 'nt' else psutil.disk_usage('C:').percent,
-                    "temperature": self.get_cpu_temperature(),
+                    "temperature": cpu_temp,           # Legacy field
+                    "cpu_temperature": cpu_temp,       # New field for frontend (matching tonypi_client.py)
                     "uptime": time.time() - psutil.boot_time(),
-                    "hardware_mode": self.hardware_available
+                    "hardware_mode": self.hardware_available,
+                    "hardware_sdk": self.hardware_available  # Added for consistency with tonypi_client.py
                 }
             except Exception as e:
                 logger.error(f"Error getting system info: {e}")
@@ -533,9 +639,11 @@ class TonyPiSimulator:
             "cpu_percent": self.cpu_base + random.uniform(-5, 5),
             "memory_percent": self.memory_base + random.uniform(-3, 3),
             "disk_usage": self.disk_usage,
-            "temperature": self.get_cpu_temperature(),
+            "temperature": cpu_temp,           # Legacy field
+            "cpu_temperature": cpu_temp,       # New field for frontend (matching tonypi_client.py)
             "uptime": time.time() - self.start_time,
-            "hardware_mode": self.hardware_available
+            "hardware_mode": self.hardware_available,
+            "hardware_sdk": self.hardware_available  # Added for consistency with tonypi_client.py
         }
     
     def get_cpu_temperature(self) -> float:
@@ -595,12 +703,13 @@ class TonyPiSimulator:
         distance = base_distance - obstacle_factor + random.uniform(-10, 10)
         distance = max(5.0, min(200.0, distance))
         
-        # Camera light level (simulated ambient light sensor)
+        # Light sensor (matching tonypi_client.py format)
         # Varies with time to simulate day/night or lighting changes
         light_base = 60.0  # Base light level (0-100%)
         light_variation = 20.0 * math.sin(current_time / 60.0)  # Slow variation
         light_level = light_base + light_variation + random.uniform(-5, 5)
         light_level = max(0.0, min(100.0, light_level))
+        is_dark = light_level < 30  # Dark if below 30%
         
         sensors = {
             "accelerometer_x": accel_x,
@@ -611,7 +720,9 @@ class TonyPiSimulator:
             "gyroscope_z": gyro_z,
             "ultrasonic_distance": round(distance, 1),
             "cpu_temperature": self.get_cpu_temperature(),
-            "camera_light_level": round(light_level, 1),
+            # Light sensor fields matching tonypi_client.py
+            "light_sensor_dark": 1 if is_dark else 0,
+            "light_level": round(light_level, 1),
         }
         
         self.sensors = sensors
@@ -661,7 +772,7 @@ class TonyPiSimulator:
             self.add_terminal_log("SERVO", f"Servo {servo_id} target: {position}")
     
     def get_sensor_unit(self, sensor_name: str) -> str:
-        """Get sensor unit (matching tonypi_client.py)"""
+        """Get sensor unit (matching tonypi_client.py exactly)"""
         unit_map = {
             "accelerometer_x": "m/s^2",
             "accelerometer_y": "m/s^2",
@@ -671,7 +782,11 @@ class TonyPiSimulator:
             "gyroscope_z": "deg/s",
             "ultrasonic_distance": "cm",
             "cpu_temperature": "C",
-            "camera_light_level": "%",
+            # Light sensor units matching tonypi_client.py
+            "light_sensor_dark": "bool",
+            "light_level": "%",
+            "light_status": "status",
+            # System metrics
             "system_cpu_percent": "%",
             "system_memory_percent": "%",
             "system_disk_usage": "%",
@@ -682,13 +797,17 @@ class TonyPiSimulator:
     
     # ==================== TERMINAL LOGGING ====================
     
-    def add_terminal_log(self, category: str, message: str):
-        """Add a terminal log entry"""
+    def add_terminal_log(self, category: str, message: str, send_mqtt: bool = False):
+        """Add a terminal log entry and optionally send via MQTT"""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         log_entry = f"[{timestamp}] [{category}] {message}"
         self.terminal_logs.append(log_entry)
         self.terminal_logs = self.terminal_logs[-100:]
         logger.debug(log_entry)
+        
+        # Optionally send to MQTT (matching tonypi_client.py behavior)
+        if send_mqtt and self.is_connected:
+            self.send_log_message("INFO", message, category.lower())
     
     # ==================== DATA SENDING (matching tonypi_client.py) ====================
     
@@ -746,7 +865,7 @@ class TonyPiSimulator:
             logger.error(f"Error sending servo data: {e}")
     
     def send_battery_status(self):
-        """Send battery status (matching tonypi_client.py format)"""
+        """Send battery status (matching tonypi_client.py format exactly)"""
         if not self.is_connected:
             return
         
@@ -763,10 +882,14 @@ class TonyPiSimulator:
             if self.battery_level < 15 and self.battery_level > 14.9:
                 self.add_terminal_log("BATTERY", "WARNING: Low battery!")
             
+            # Calculate voltage using same formula as tonypi_client.py
+            # 3S LiPo: 9.0V (0%) to 12.6V (100%)
+            voltage = 9.0 + (self.battery_level / 100.0) * 3.6
+            
             data = {
                 "robot_id": self.robot_id,
                 "percentage": round(self.battery_level, 1),
-                "voltage": round(12.0 * (self.battery_level / 100.0), 2),
+                "voltage": round(voltage, 2),
                 "charging": False,
                 "timestamp": datetime.now().isoformat()
             }
@@ -804,14 +927,19 @@ class TonyPiSimulator:
             ip_address = self.get_local_ip()
             camera_url = f"http://{ip_address}:8081/?action=stream"
             
+            # Determine status based on emergency stop state
+            status = "emergency_stopped" if self.emergency_stopped else "online"
+            
             data = {
                 "robot_id": self.robot_id,
-                "status": "online",
+                "status": status,
                 "timestamp": datetime.now().isoformat(),
                 "system_info": self.get_system_info(),
                 "hardware_available": self.hardware_available,
                 "ip_address": ip_address,
-                "camera_url": camera_url
+                "camera_url": camera_url,
+                "emergency_stopped": self.emergency_stopped,
+                "emergency_reason": self.emergency_reason
             }
             
             self.client.publish(self.topics["status"], json.dumps(data))
@@ -846,22 +974,69 @@ class TonyPiSimulator:
         except Exception as e:
             logger.error(f"Error sending job update: {e}")
     
-    def send_terminal_logs(self):
-        """Send terminal logs"""
-        if not self.is_connected or not self.terminal_logs:
+    def send_log_message(self, level: str, message: str, source: str = "main"):
+        """
+        Send terminal/log message to monitoring system (matching tonypi_client.py).
+        
+        Args:
+            level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            message: Log message content
+            source: Source module/file name
+        """
+        if not self.is_connected:
             return
         
         try:
             data = {
                 "robot_id": self.robot_id,
-                "logs": self.terminal_logs[-20:],
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "level": level.upper(),
+                "message": message,
+                "source": source
             }
             
-            self.client.publish(self.terminal_topic, json.dumps(data))
+            self.client.publish(self.logs_topic, json.dumps(data))
             
         except Exception as e:
-            logger.error(f"Error sending terminal logs: {e}")
+            logger.error(f"Error sending log message: {e}")
+    
+    def send_vision_data(self, detection_result: Dict[str, Any]):
+        """
+        Send vision detection results to monitoring system (matching tonypi_client.py).
+        
+        Args:
+            detection_result: Dictionary containing detection data:
+                - label: Detected object class name
+                - confidence: Detection confidence (0-1)
+                - bbox: Bounding box (x1, y1, x2, y2)
+                - center_x: Center X coordinate
+                - frame_width: Original frame width
+                - state: Current robot state (IDLE, SEARCHING, ACTING)
+        """
+        if not self.is_connected:
+            return
+        
+        try:
+            data = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "detection": detection_result.get("detection"),
+                "label": detection_result.get("label"),
+                "confidence": detection_result.get("confidence"),
+                "bbox": detection_result.get("bbox"),
+                "center_x": detection_result.get("center_x"),
+                "frame_width": detection_result.get("frame_width", 640),
+                "state": detection_result.get("state", "UNKNOWN"),
+                "is_locked": detection_result.get("is_locked", False),
+                "navigation_command": detection_result.get("nav_cmd"),
+                "error": detection_result.get("error")
+            }
+            
+            self.client.publish(self.vision_topic, json.dumps(data))
+            logger.debug(f"Sent vision data: {detection_result.get('label')} ({detection_result.get('confidence', 0):.2f})")
+            
+        except Exception as e:
+            logger.error(f"Error sending vision data: {e}")
     
     # ==================== MAIN LOOP ====================
     
@@ -884,8 +1059,12 @@ class TonyPiSimulator:
             raise
     
     async def disconnect(self):
-        """Disconnect from MQTT broker"""
+        """Disconnect from MQTT broker (matching tonypi_client.py)"""
         if self.is_connected:
+            # Send final log message
+            self.send_log_message("INFO", "Robot simulator stopped", "main")
+            
+            # Send offline status
             offline_data = {
                 "robot_id": self.robot_id,
                 "status": "offline",
@@ -902,17 +1081,40 @@ class TonyPiSimulator:
         self.running = True
         
         print("\n" + "="*60)
-        print("TonyPi Robot Simulator (Aligned with tonypi_client.py)")
+        print("   TONYPI ROBOT SIMULATOR - MONITORING TELEMETRY")
         print("="*60)
-        print(f"  Robot ID:     {self.robot_id}")
-        print(f"  Mode:         {self.mode.value}")
-        print(f"  MQTT Broker:  {self.mqtt_broker}:{self.mqtt_port}")
+        print(f"   Robot ID: {self.robot_id}")
+        print(f"   Mode: {self.mode.value}")
+        print(f"   MQTT Broker: {self.mqtt_broker}:{self.mqtt_port}")
+        print(f"   Hardware Mode: {self.hardware_available} (simulation)")
         print("="*60)
-        print("\nPress Ctrl+C to stop\n")
         
         try:
             await self.connect()
-            print("Connected to MQTT broker successfully!")
+            print("✅ Connected to MQTT broker successfully!")
+            
+            # Send initial data immediately (matching tonypi_client.py)
+            print("\n📡 Sending initial telemetry...")
+            self.send_status_update()
+            self.send_battery_status()
+            self.send_sensor_data()
+            self.send_servo_data()
+            self.send_location_update()
+            self.send_log_message("INFO", "Robot simulator started and connected", "main")
+            print("✅ Initial telemetry sent!")
+            
+            print("\n" + "="*60)
+            print("✅ SIMULATOR RUNNING - Sending telemetry data")
+            print("="*60)
+            print("Data being sent (matching tonypi_client.py intervals):")
+            print("  • Sensors:  every 2 seconds (IMU, temp, light, ultrasonic)")
+            print("  • Servos:   every 3 seconds (position, temp, voltage)")
+            print("  • Status:   every 10 seconds (CPU, memory, disk, uptime)")
+            print("  • Battery:  every 30 seconds")
+            print("  • Location: every 5 seconds")
+            print("  • Logs:     every 30 seconds")
+            print("="*60)
+            print("\nPress Ctrl+C to stop\n")
             
             # Auto-start scenarios based on mode
             if self.mode == SimulatorMode.JOB_DEMO:
@@ -947,18 +1149,21 @@ class TonyPiSimulator:
                 # Send sensor data every 2 seconds (matching tonypi_client.py)
                 if current_time - last_sensor_time >= 2:
                     self.send_sensor_data()
+                    sensors = self.sensors
+                    cpu_temp = sensors.get('cpu_temperature', 0)
+                    print(f"📊 Sensors: CPU={cpu_temp:.1f}°C, Accel=({sensors.get('accelerometer_x', 0):.2f}, {sensors.get('accelerometer_y', 0):.2f}, {sensors.get('accelerometer_z', 0):.2f})")
                     last_sensor_time = current_time
-                    if loop_count % 15 == 0:
-                        print(f"[{loop_count}] Sensors sent | Battery: {self.battery_level:.1f}%")
                 
                 # Send servo data every 3 seconds (matching tonypi_client.py)
                 if current_time - last_servo_time >= 3:
                     self.send_servo_data()
+                    print(f"🔧 Servos: {len(self.servo_data)} servos sent")
                     last_servo_time = current_time
                 
                 # Send battery every 30 seconds (matching tonypi_client.py)
                 if current_time - last_battery_time >= 30:
                     self.send_battery_status()
+                    print(f"🔋 Battery: {self.battery_level:.1f}%")
                     last_battery_time = current_time
                 
                 # Send location every 5 seconds (matching tonypi_client.py)
@@ -966,9 +1171,11 @@ class TonyPiSimulator:
                     self.send_location_update()
                     last_location_time = current_time
                 
-                # Send status every 60 seconds (matching tonypi_client.py)
-                if current_time - last_status_time >= 60:
+                # Send status every 10 seconds (matching tonypi_client.py)
+                if current_time - last_status_time >= 10:
                     self.send_status_update()
+                    sys_info = self.get_system_info()
+                    print(f"💻 Status: CPU={sys_info.get('cpu_percent', 0):.1f}%, MEM={sys_info.get('memory_percent', 0):.1f}%, TEMP={sys_info.get('temperature', 0):.1f}°C")
                     last_status_time = current_time
                 
                 # Process job items every 5 seconds
@@ -981,9 +1188,9 @@ class TonyPiSimulator:
                     self.send_job_update()
                     last_job_time = current_time
                 
-                # Send terminal logs every 5 seconds
-                if current_time - last_terminal_time >= 5:
-                    self.send_terminal_logs()
+                # Send periodic log message every 30 seconds (matching tonypi_client.py)
+                if current_time - last_terminal_time >= 30:
+                    self.send_log_message("INFO", f"Robot running normally. Cycle: {loop_count}", "telemetry")
                     last_terminal_time = current_time
                 
                 await asyncio.sleep(0.1)
@@ -1000,7 +1207,7 @@ class TonyPiSimulator:
 def run_interactive_mode(simulator: TonyPiSimulator):
     """Run interactive command mode"""
     print("\n--- Interactive Mode ---")
-    print("Commands: move, stop, job_start, job_stop, servo, status, quit")
+    print("Commands: move, stop, estop, resume, job_start, job_stop, servo, status, quit")
     print("------------------------\n")
     
     while simulator.running:
@@ -1011,30 +1218,55 @@ def run_interactive_mode(simulator: TonyPiSimulator):
                 simulator.running = False
                 break
             elif cmd == "move":
+                if simulator.emergency_stopped:
+                    print("⚠️ Robot is emergency stopped. Use 'resume' first.")
+                    continue
                 direction = input("Direction (forward/backward/left/right): ").strip()
                 simulator._handle_move_command({"direction": direction, "distance": 1.0, "speed": 0.5})
             elif cmd == "stop":
                 simulator._handle_stop_command({})
+            elif cmd == "estop":
+                reason = input("Emergency stop reason: ").strip() or "Manual emergency stop"
+                simulator._handle_emergency_stop({"reason": reason})
+                print(f"⚠️ Emergency stop activated: {reason}")
+            elif cmd == "resume":
+                result = simulator._handle_resume_command({})
+                print(f"✅ {result['message']}")
             elif cmd == "job_start":
+                if simulator.emergency_stopped:
+                    print("⚠️ Robot is emergency stopped. Use 'resume' first.")
+                    continue
                 items = int(input("Number of items: ") or "10")
                 simulator._start_job({"items_total": items})
             elif cmd == "job_stop":
                 simulator._stop_job()
             elif cmd == "servo":
+                if simulator.emergency_stopped:
+                    print("⚠️ Robot is emergency stopped. Use 'resume' first.")
+                    continue
                 servo_id = int(input("Servo ID (1-6): "))
                 position = float(input("Position (-90 to 90): "))
                 simulator._set_servo_position(servo_id, position)
             elif cmd == "nod":
+                if simulator.emergency_stopped:
+                    print("⚠️ Robot is emergency stopped. Use 'resume' first.")
+                    continue
                 simulator._handle_head_nod({})
             elif cmd == "shake":
+                if simulator.emergency_stopped:
+                    print("⚠️ Robot is emergency stopped. Use 'resume' first.")
+                    continue
                 simulator._handle_head_shake({})
             elif cmd == "status":
+                print(f"Emergency Stopped: {simulator.emergency_stopped}")
+                if simulator.emergency_stopped:
+                    print(f"  Reason: {simulator.emergency_reason}")
                 print(f"Battery: {simulator.battery_level:.1f}%")
                 print(f"Location: {simulator.location}")
                 print(f"Moving: {simulator.is_moving}")
                 print(f"Job Active: {simulator.job_active} ({simulator.items_done}/{simulator.items_total})")
             else:
-                print("Unknown command. Try: move, stop, job_start, job_stop, servo, nod, shake, status, quit")
+                print("Unknown command. Try: move, stop, estop, resume, job_start, job_stop, servo, nod, shake, status, quit")
                 
         except (EOFError, KeyboardInterrupt):
             break

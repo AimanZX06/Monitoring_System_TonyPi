@@ -1,17 +1,79 @@
+/**
+ * =============================================================================
+ * ThemeContext - Dark/Light Mode Theme Management
+ * =============================================================================
+ * 
+ * This context manages the application's theme (dark or light mode) and
+ * provides a way to toggle between them. It persists the user's preference
+ * in localStorage and can also follow the system's color scheme.
+ * 
+ * FEATURES:
+ *   - Toggle between dark and light modes
+ *   - Persist preference in localStorage
+ *   - Auto-detect system color scheme preference
+ *   - Listen for system theme changes
+ *   - Tailwind CSS dark mode integration
+ * 
+ * THEME PRIORITY:
+ *   1. Stored preference in localStorage (if user manually selected)
+ *   2. System preference (if no stored preference)
+ *   3. Default to 'light' (fallback)
+ * 
+ * TAILWIND INTEGRATION:
+ *   - Adds/removes 'dark' class on <html> element
+ *   - Use "dark:" prefix in Tailwind classes
+ *   - Example: "bg-white dark:bg-gray-800"
+ * 
+ * USAGE:
+ *   // Get current theme and toggle function
+ *   const { theme, toggleTheme, isDark } = useTheme();
+ *   
+ *   // Apply conditional styling
+ *   className={isDark ? 'bg-gray-800' : 'bg-white'}
+ *   
+ *   // Toggle theme
+ *   <button onClick={toggleTheme}>Switch Theme</button>
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+// React core - context API, state, effects
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Available theme options
+ * - 'light': Light background with dark text
+ * - 'dark':  Dark background with light text
+ */
 type Theme = 'light' | 'dark';
 
+/**
+ * Context type - values available to consumers
+ */
 interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-  isDark: boolean;
+  theme: Theme;            // Current theme value
+  toggleTheme: () => void; // Function to switch between themes
+  isDark: boolean;         // Convenience boolean for conditionals
 }
 
+// =============================================================================
+// CONTEXT CREATION
+// =============================================================================
+
+// Create context with undefined default (provided by ThemeProvider)
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+/**
+ * Props for the ThemeProvider component
+ */
 interface ThemeProviderProps {
-  children: ReactNode;
+  children: ReactNode;  // Child components that will have access to theme
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {

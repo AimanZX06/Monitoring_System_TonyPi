@@ -1,15 +1,74 @@
--- Initialize TonyPi Robot Monitoring Database
+-- =============================================================================
+-- PostgreSQL Database Initialization Script
+-- TonyPi Robot Monitoring System
+-- =============================================================================
+--
+-- This script initializes the PostgreSQL database with all required tables
+-- for the TonyPi monitoring system. It runs automatically when the PostgreSQL
+-- Docker container starts for the first time.
+--
+-- DATABASE SCHEMA OVERVIEW:
+--   ┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
+--   │   robots    │     │  robot_configs  │     │   reports   │
+--   │─────────────│     │─────────────────│     │─────────────│
+--   │ robot_id PK │◄────│ robot_id FK     │     │ robot_id    │
+--   │ name        │     │ config_type     │     │ report_type │
+--   │ status      │     │ config_data     │     │ data (JSON) │
+--   └─────────────┘     └─────────────────┘     └─────────────┘
+--          │
+--          │          ┌─────────────┐     ┌─────────────────┐
+--          └─────────►│  commands   │     │   system_logs   │
+--                     │─────────────│     │─────────────────│
+--                     │ robot_id FK │     │ level           │
+--                     │ command     │     │ message         │
+--                     │ status      │     │ source          │
+--                     └─────────────┘     └─────────────────┘
+--
+--                     ┌─────────────┐
+--                     │    users    │
+--                     │─────────────│
+--                     │ username    │
+--                     │ password    │  (hashed with bcrypt)
+--                     │ role        │  (admin/operator/viewer)
+--                     └─────────────┘
+--
+-- NOTE: This is a LEGACY initialization script. The actual tables are now
+-- managed by SQLAlchemy ORM models in backend/models/. This script provides
+-- a fallback and reference for the database schema.
+--
+-- EXECUTION:
+--   This script runs once when the PostgreSQL container is first created.
+--   It's mounted via docker-compose.yml:
+--     volumes:
+--       - ./postgres/init:/docker-entrypoint-initdb.d
+-- =============================================================================
 
--- Create database (if not already created by POSTGRES_DB env var)
--- CREATE DATABASE tonypi_db;
-
--- Connect to the database
+-- Connect to the database (created by POSTGRES_DB env variable)
 \c tonypi_db;
 
--- Create extension for UUID generation
+-- =============================================================================
+-- EXTENSIONS
+-- =============================================================================
+
+-- Enable UUID generation for primary keys
+-- uuid_generate_v4() creates random UUIDs (version 4)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Robots table
+-- =============================================================================
+-- ROBOTS TABLE
+-- =============================================================================
+-- Stores information about each registered TonyPi robot.
+-- Robots are automatically registered when they first connect via MQTT.
+--
+-- COLUMNS:
+--   id         - Internal UUID (for foreign keys)
+--   robot_id   - Unique human-readable identifier (e.g., "tonypi_raspberrypi")
+--   name       - Display name for the robot
+--   robot_type - Hardware type (default: HiWonder TonyPi)
+--   status     - Current connection status (online/offline/idle/busy)
+--   created_at - When robot was first registered
+--   updated_at - Last modification timestamp
+--
 CREATE TABLE IF NOT EXISTS robots (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     robot_id VARCHAR(50) UNIQUE NOT NULL,

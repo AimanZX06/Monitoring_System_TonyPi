@@ -1,0 +1,146 @@
+{
+  "report_title": "TonyPi Monitoring System - Integration Test Report",
+  "generated_at": "2026-01-21T07:54:30.768324",
+  "test_date": "2026-01-21",
+  "test_time": "07:53:35",
+  "duration_seconds": 55.19,
+  "system_info": {
+    "platform": "Windows",
+    "platform_version": "10.0.26200",
+    "python_version": "3.13.1",
+    "hostname": "AimanNaufal"
+  },
+  "configuration": {
+    "backend_url": "http://localhost:8000",
+    "frontend_url": "http://localhost:3001",
+    "mqtt_broker": "localhost",
+    "mqtt_port": 1883,
+    "influxdb_url": "http://localhost:8086",
+    "grafana_url": "http://localhost:3000"
+  },
+  "robot_id": null,
+  "summary": {
+    "total": 19,
+    "passed": 17,
+    "failed": 1,
+    "warnings": 1,
+    "pass_rate": "89.5%",
+    "status": "FAILED"
+  },
+  "tests": [
+    {
+      "name": "Backend API is running",
+      "status": "PASS",
+      "message": "http://localhost:8000/api/v1/health",
+      "timestamp": "2026-01-21T07:53:35.611240"
+    },
+    {
+      "name": "Frontend is running",
+      "status": "PASS",
+      "message": "http://localhost:3001",
+      "timestamp": "2026-01-21T07:53:35.631922"
+    },
+    {
+      "name": "InfluxDB is running",
+      "status": "PASS",
+      "message": "http://localhost:8086/ping",
+      "timestamp": "2026-01-21T07:53:35.642703"
+    },
+    {
+      "name": "Grafana is running",
+      "status": "PASS",
+      "message": "http://localhost:3000/api/health",
+      "timestamp": "2026-01-21T07:53:35.653332"
+    },
+    {
+      "name": "MQTT Broker is running",
+      "status": "PASS",
+      "message": "localhost:1883",
+      "timestamp": "2026-01-21T07:53:40.136665"
+    },
+    {
+      "name": "No robot data received",
+      "status": "FAIL",
+      "message": "Waited 30s - is the robot running?",
+      "timestamp": "2026-01-21T07:54:12.450455"
+    },
+    {
+      "name": "Health endpoint",
+      "status": "PASS",
+      "message": "/api/v1/health",
+      "timestamp": "2026-01-21T07:54:12.463020"
+    },
+    {
+      "name": "Robot status endpoint",
+      "status": "PASS",
+      "message": "Found 1 robot(s)",
+      "timestamp": "2026-01-21T07:54:12.628690"
+    },
+    {
+      "name": "Latest data for tonypi_raspberrypi",
+      "status": "PASS",
+      "message": "Data retrieved",
+      "timestamp": "2026-01-21T07:54:13.216398"
+    },
+    {
+      "name": "Reports endpoint",
+      "status": "PASS",
+      "message": "/api/v1/reports",
+      "timestamp": "2026-01-21T07:54:13.237214"
+    },
+    {
+      "name": "InfluxDB empty",
+      "status": "WARN",
+      "message": "No data in last hour - robot may need more time",
+      "timestamp": "2026-01-21T07:54:13.514110"
+    },
+    {
+      "name": "Servo data available",
+      "status": "PASS",
+      "message": "For tonypi_raspberrypi",
+      "timestamp": "2026-01-21T07:54:14.892932"
+    },
+    {
+      "name": "Command sent successfully",
+      "status": "PASS",
+      "message": "status_request to tonypi_raspberrypi",
+      "timestamp": "2026-01-21T07:54:15.006022"
+    },
+    {
+      "name": "Frontend is accessible",
+      "status": "PASS",
+      "message": "http://localhost:3001",
+      "timestamp": "2026-01-21T07:54:15.037986"
+    },
+    {
+      "name": "React app detected",
+      "status": "PASS",
+      "message": "",
+      "timestamp": "2026-01-21T07:54:15.038250"
+    },
+    {
+      "name": "Grafana is healthy",
+      "status": "PASS",
+      "message": "http://localhost:3000",
+      "timestamp": "2026-01-21T07:54:15.050252"
+    },
+    {
+      "name": "Data endpoint working",
+      "status": "PASS",
+      "message": "Received response",
+      "timestamp": "2026-01-21T07:54:30.764298"
+    },
+    {
+      "name": "Field 'robot_id' present",
+      "status": "PASS",
+      "message": "tonypi_raspberrypi",
+      "timestamp": "2026-01-21T07:54:30.764609"
+    },
+    {
+      "name": "Field 'status' present",
+      "status": "PASS",
+      "message": "{'camera_url': 'http://192.168.1.99:8081/?action=s",
+      "timestamp": "2026-01-21T07:54:30.764910"
+    }
+  ]
+}
