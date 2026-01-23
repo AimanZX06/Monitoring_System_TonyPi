@@ -186,6 +186,10 @@ class TonyPiRobotClient:
         self.status = "online"
         self.servo_data = {}
         
+        # Emergency stop state
+        self.emergency_stopped = False
+        self.emergency_reason = None
+        
         # MQTT Topics
         self.topics = {
             "sensors": f"tonypi/sensors/{self.robot_id}",
@@ -223,6 +227,10 @@ class TonyPiRobotClient:
             client.subscribe("tonypi/commands/broadcast")
             client.subscribe(self.items_topic)
             
+            # Subscribe to emergency stop topics
+            client.subscribe(f"tonypi/emergency_stop/{self.robot_id}")
+            client.subscribe("tonypi/emergency_stop/broadcast")
+            
             # Send initial status
             self.send_status_update()
         else:
@@ -253,8 +261,26 @@ class TonyPiRobotClient:
                 "message": "Unknown command"
             }
             
+            # Handle emergency stop commands (separate topic)
+            if topic.startswith("tonypi/emergency_stop/"):
+                response = self._handle_emergency_stop(payload)
+                # Send response to emergency stop response topic
+                self.client.publish("tonypi/emergency_stop/response", json.dumps(response))
+                # Also send to regular command response for compatibility
+                self.client.publish(self.topics["response"], json.dumps(response))
+                return
+            
+            # Check if emergency stopped - block most commands
+            if self.emergency_stopped and command_type not in ["resume", "status_request", "battery_request"]:
+                response["success"] = False
+                response["message"] = f"Robot is emergency stopped. Send 'resume' command first. Reason: {self.emergency_reason}"
+                self.client.publish(self.topics["response"], json.dumps(response))
+                return
+            
             if command_type == "move":
                 response = self.handle_move_command(payload)
+            elif command_type == "resume":
+                response = self._handle_resume_command(payload)
             elif command_type == "status_request":
                 response = self.handle_status_request(payload)
             elif command_type == "battery_request":
@@ -307,6 +333,75 @@ class TonyPiRobotClient:
             logger.error(f"Error updating job progress: {e}")
         
         return response
+
+    def _handle_emergency_stop(self, payload: Dict) -> Dict:
+        """Handle emergency stop command - immediately stop all motors."""
+        reason = payload.get("reason", "Emergency stop triggered")
+        command_id = payload.get("id", str(uuid.uuid4()))
+        
+        # Set emergency stop state
+        self.emergency_stopped = True
+        self.emergency_reason = reason
+        
+        # Stop all movement immediately
+        if self.hardware_available:
+            try:
+                stopActionGroup()
+            except Exception as e:
+                logger.error(f"Error stopping action groups during emergency stop: {e}")
+        
+        self.send_log_message("WARNING", f"⚠️ EMERGENCY STOP: {reason}", "emergency")
+        logger.warning(f"EMERGENCY STOP activated: {reason}")
+        
+        return {
+            "robot_id": self.robot_id,
+            "command_id": command_id,
+            "type": "emergency_stop",
+            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "message": f"Emergency stop activated: {reason}",
+            "reason": reason,
+            "state": {
+                "emergency_stopped": True,
+                "motors_stopped": True
+            }
+        }
+
+    def _handle_resume_command(self, payload: Dict) -> Dict:
+        """Handle resume command - clear emergency stop state."""
+        command_id = payload.get("id", str(uuid.uuid4()))
+        
+        if not self.emergency_stopped:
+            return {
+                "robot_id": self.robot_id,
+                "command_id": command_id,
+                "type": "resume",
+                "timestamp": datetime.now().isoformat(),
+                "success": True,
+                "message": "Robot was not in emergency stop state"
+            }
+        
+        # Clear emergency stop state
+        previous_reason = self.emergency_reason
+        self.emergency_stopped = False
+        self.emergency_reason = None
+        
+        self.send_log_message("INFO", "✅ Emergency stop cleared - robot resumed", "emergency")
+        logger.info(f"Emergency stop cleared (was: {previous_reason})")
+        
+        return {
+            "robot_id": self.robot_id,
+            "command_id": command_id,
+            "type": "resume",
+            "timestamp": datetime.now().isoformat(),
+            "success": True,
+            "message": f"Robot resumed from emergency stop (was: {previous_reason})",
+            "previous_reason": previous_reason,
+            "state": {
+                "emergency_stopped": False,
+                "ready": True
+            }
+        }
 
     def handle_move_command(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Handle movement commands using TonyPi action groups."""
@@ -435,7 +530,9 @@ class TonyPiRobotClient:
             "success": True,
             "message": "Status retrieved",
             "data": {
-                "status": self.status,
+                "status": "emergency_stopped" if self.emergency_stopped else self.status,
+                "emergency_stopped": self.emergency_stopped,
+                "emergency_reason": self.emergency_reason,
                 "battery_level": self.get_battery_percentage(),
                 "location": self.location.copy(),
                 "sensors": self.sensors.copy(),
@@ -855,14 +952,19 @@ class TonyPiRobotClient:
             camera_url = f"http://{ip_address}:8081/?action=stream"
             system_info = self.get_system_info()
             
+            # Determine status based on emergency stop state
+            status = "emergency_stopped" if self.emergency_stopped else self.status
+            
             data = {
                 "robot_id": self.robot_id,
-                "status": self.status,
+                "status": status,
                 "timestamp": datetime.now().isoformat(),
                 "system_info": system_info,
                 "hardware_available": self.hardware_available,
                 "ip_address": ip_address,
-                "camera_url": camera_url
+                "camera_url": camera_url,
+                "emergency_stopped": self.emergency_stopped,
+                "emergency_reason": self.emergency_reason
             }
             
             result = self.client.publish(self.topics["status"], json.dumps(data))

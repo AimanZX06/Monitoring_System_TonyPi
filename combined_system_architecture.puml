@@ -1,0 +1,255 @@
+@startuml Combined System Architecture
+
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 40
+
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+}
+
+skinparam package {
+    BackgroundColor<<Frontend>> LightBlue
+    BackgroundColor<<Backend>> LightGreen
+    BackgroundColor<<Database>> LightYellow
+    BackgroundColor<<Monitoring>> Pink
+    BackgroundColor<<RobotClient>> Orange
+    BackgroundColor<<MQTT>> LightCoral
+}
+
+' ========== SYSTEM COMPONENTS ==========
+
+class "React UI" as Frontend <<Frontend>> {
+    - components: Map
+    - websocket: WebSocket
+    - currentUser: User
+    ..
+    + renderDashboard(): Void
+    + updateRealTimeCharts(data): Void
+    + sendRobotCommand(cmd): Void
+    + displayAlerts(alerts): Void
+    + connectWebSocket(): Void
+}
+
+class "FastAPI Backend" as Backend <<Backend>> {
+    - app: FastAPI
+    - db_session: Session
+    - mqtt_client: MQTTClient
+    - scheduler: APScheduler
+    ..
+    + get_robot_status(): Dict
+    + post_robot_command(cmd): Response
+    + websocket_endpoint(ws): Void
+    + authenticate_user(token): User
+    + schedule_job(job): JobID
+    + handle_mqtt_message(msg): Void
+}
+
+class "Mosquitto MQTT" as MQTT <<MQTT>> {
+    - broker_host: String
+    - broker_port: Integer
+    - clients: List
+    ..
+    + publish(topic, payload): Void
+    + subscribe(topic, callback): Void
+    + get_client_count(): Integer
+}
+
+class "PostgreSQL" as Postgres <<Database>> {
+    - connection_pool: Pool
+    - tables: List
+    ..
+    + query(sql): ResultSet
+    + insert(table, data): Integer
+    + update(table, id, data): Boolean
+    + delete(table, id): Boolean
+    + get_user_by_id(id): User
+    + store_alert_rule(rule): Integer
+}
+
+class "InfluxDB" as InfluxDB <<Database>> {
+    - bucket: String
+    - org: String
+    - client: InfluxDBClient
+    ..
+    + write_point(measurement, fields): Void
+    + query_range(start, end): ResultSet
+    + get_sensor_data(sensor_id): List
+    + aggregate_metrics(interval): List
+}
+
+class "Grafana" as Grafana <<Monitoring>> {
+    - datasources: List
+    - dashboards: List
+    - alertmanager: AlertManager
+    ..
+    + create_dashboard(config): Dashboard
+    + query_datasource(query): Data
+    + trigger_alert(rule): Void
+    + provision_dashboard(path): Boolean
+}
+
+' ========== ROBOT CLIENT CLASSES ==========
+
+package "Robot Client Layer" <<RobotClient>> {
+    
+    ' Interfaces
+    interface ISensor {
+        + cleanup(): Void
+    }
+    
+    interface IController {
+        + start(): Void
+        + stop(): Void
+    }
+    
+    class MainController {
+        - model: String
+        - latest_frame: Image
+        - latest_result: Tuple
+        - running: Boolean
+        ..
+        + main(): Void
+        + inference_worker(): Void
+        + process_voice_command(cmd): Void
+        + handle_mqtt_callback(name, cmd): Void
+        + start_navigation(station_id): String
+    }
+    
+    class VisionController {
+        - model: YOLO
+        - is_locked: Boolean
+        - last_action_time: Float
+        ..
+        + detect(frame): Tuple
+        + get_navigation_command(cc, width): String
+        + run_birdcage(frame): Boolean
+    }
+    
+    class MovementController {
+        - current_position: String
+        - current_station: String
+        - movement_state: String
+        - qr_data: String
+        - obstacle_detected: Boolean
+        ..
+        + navigate_to_station(station_id): Boolean
+        + follow(direction): Void
+        + avoid_obstacle(): Void
+        + execute(barcode_name): Boolean
+        + stop_movement(): Void
+    }
+    
+    class UltrasonicSensor {
+        - low_pin: Integer
+        - echo_pin: Integer
+        - obstacle_threshold: Integer
+        - distance_history: List
+        ..
+        + get_distance(): Float
+        + is_obstacle_detected(): Boolean
+        + cleanup(): Void
+    }
+    
+    class LightSensor {
+        - pin: Integer
+        ..
+        + is_dark(): Boolean
+        + cleanup(): Void
+    }
+    
+    class SerialEcho {
+        - ser: Serial
+        ..
+        + read_qr(): Integer
+        + parse_rxondata(): String
+    }
+    
+    class QRNavigation {
+        - qr_scanning: Boolean
+        - qr_locked: Boolean
+        - current_qr: Integer
+        - object_width: Integer
+        ..
+        + navigate_to_station(frame, gallw, nmode): Integer
+        + get_navigation_qr(val): String
+    }
+    
+    class ActionModule {
+        - rc_board: Board
+        - board: Controller
+        - agx: ADuAudioControl
+        ..
+        + run_direct_patroling(): Boolean
+        + run_select_routine(): Boolean
+        + run_transport_barcode(): Boolean
+        + run_pick_up_cardboard(): Boolean
+        + run_transport_cardboard(img): Boolean
+    }
+    
+    class TTSProvider {
+        - cache_dir: String
+        ..
+        + speak(text): Void
+    }
+    
+    ' Implementation (Interface Realization) - dotted with hollow triangle
+    ISensor <|.. UltrasonicSensor
+    ISensor <|.. LightSensor
+    IController <|.. MainController
+    IController <|.. VisionController
+    IController <|.. MovementController
+}
+
+' ========== ROBOT CLIENT RELATIONSHIPS ==========
+
+' Composition (strong ownership - filled diamond)
+MainController *-- VisionController : owns
+MainController *-- MovementController : owns
+MainController *-- TTSProvider : owns
+
+' Aggregation (weak ownership - hollow diamond)
+MainController o-- LightSensor : has
+MovementController o-- QRNavigation : has
+MovementController o-- ActionModule : has
+MovementController o-- SerialEcho : has
+VisionController o-- UltrasonicSensor : has
+MovementController o-- UltrasonicSensor : has
+
+' Dependency (uses temporarily - dotted arrow)
+QRNavigation ..> SerialEcho : scans
+
+' ========== SYSTEM CONNECTIONS ==========
+
+Frontend --> Backend : HTTP/WebSocket
+Backend --> Postgres : SQL
+Backend --> InfluxDB : TimeSeries
+Backend <--> MQTT : Pub/Sub
+Backend --> Grafana : DataSource
+
+MainController <--> MQTT : Telemetry
+MovementController <--> MQTT : Commands
+
+Grafana --> InfluxDB : Queries
+Grafana --> Postgres : Metadata
+
+' ========== NOTES ==========
+
+note right of MQTT
+  **MQTT Topics:**
+  - robot/status
+  - robot/sensors/*
+  - robot/camera/stream
+  - robot/control/*
+  - system/alerts
+end note
+
+note bottom of MainController
+  **Robot Client:**
+  Runs on Raspberry Pi
+  Controls TonyPi Robot
+  Publishes via MQTT
+end note
+
+@enduml

@@ -93,20 +93,64 @@ interface OverallStats {
   totalDuration: string;
 }
 
+// Cumulative stats from the backend (across all jobs)
+interface CumulativeStats {
+  total_jobs: number;
+  completed_jobs: number;
+  cancelled_jobs: number;
+  failed_jobs: number;
+  active_jobs: number;
+  total_items_done: number;
+  total_items_target: number;
+  total_duration_seconds: number;
+  average_duration_seconds: number;
+}
+
 const Jobs: React.FC = () => {
   const { isDark } = useTheme();
   const [robots, setRobots] = useState<string[]>([]);
   const [jobSummaries, setJobSummaries] = useState<{[key: string]: JobSummary}>({});
+  const [cumulativeStats, setCumulativeStats] = useState<CumulativeStats | null>(null);
+  const [jobHistory, setJobHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRobots, setExpandedRobots] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchJobs = async () => {
+      // ALWAYS fetch cumulative stats from database first (independent of robot session)
+      // This ensures historical data persists even when robots are offline
+      try {
+        const overallStats = await apiService.getOverallJobStats();
+        setCumulativeStats({
+          total_jobs: overallStats.total_jobs,
+          completed_jobs: overallStats.completed_jobs,
+          cancelled_jobs: 0,
+          failed_jobs: 0,
+          active_jobs: overallStats.active_jobs,
+          total_items_done: overallStats.total_items_done,
+          total_items_target: overallStats.total_items_target,
+          total_duration_seconds: overallStats.total_duration_seconds,
+          average_duration_seconds: overallStats.total_duration_seconds / (overallStats.completed_jobs || 1)
+        });
+      } catch (err) {
+        console.error('Error fetching cumulative stats:', handleApiError(err));
+      }
+
+      // Fetch job history from database (all historical jobs)
+      try {
+        const history = await apiService.getJobHistory(100);
+        setJobHistory(history);
+      } catch (err) {
+        console.error('Error fetching job history:', handleApiError(err));
+      }
+
+      // Fetch current robot status and their active jobs (for real-time display)
       try {
         const robotStatus = await apiService.getRobotStatus();
         const robotIds = robotStatus.map(r => r.robot_id);
         setRobots(robotIds);
 
+        // Fetch current job summaries for each robot (for real-time display only)
         const summaries: {[key: string]: JobSummary} = {};
         for (const robotId of robotIds) {
           try {
@@ -118,7 +162,7 @@ const Jobs: React.FC = () => {
         }
         setJobSummaries(summaries);
       } catch (err) {
-        console.error('Error fetching jobs:', handleApiError(err));
+        console.error('Error fetching robots:', handleApiError(err));
       } finally {
         setLoading(false);
       }
@@ -159,7 +203,7 @@ const Jobs: React.FC = () => {
   const formatTotalDuration = (totalSeconds: number): string => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    const seconds = Math.floor(totalSeconds % 60);
     
     if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
     if (minutes > 0) return `${minutes}m ${seconds}s`;
@@ -168,6 +212,29 @@ const Jobs: React.FC = () => {
 
   const getOverallStats = (): OverallStats => {
     const jobs = Object.values(jobSummaries);
+    
+    // Use cumulative stats from backend if available (accumulated across ALL jobs)
+    if (cumulativeStats) {
+      // Calculate average completion from current jobs for real-time display
+      const jobsWithProgress = jobs.filter(j => j.start_time);
+      const averageCompletion = jobsWithProgress.length > 0
+        ? jobsWithProgress.reduce((sum, j) => sum + (j.percent_complete || 0), 0) / jobsWithProgress.length
+        : 0;
+
+      return {
+        totalRobots: robots.length,
+        activeJobs: cumulativeStats.active_jobs,
+        completedJobs: cumulativeStats.completed_jobs,
+        notStartedJobs: robots.length - jobsWithProgress.length,
+        // Use CUMULATIVE totals from backend (accumulated across ALL historical jobs)
+        totalItemsProcessed: cumulativeStats.total_items_done,
+        totalItemsTarget: cumulativeStats.total_items_target,
+        averageCompletion,
+        totalDuration: formatTotalDuration(cumulativeStats.total_duration_seconds)
+      };
+    }
+    
+    // Fallback: Calculate from current job summaries only (old behavior)
     const activeJobs = jobs.filter(j => j.start_time && !j.end_time);
     const completedJobs = jobs.filter(j => j.end_time);
     const jobsWithProgress = jobs.filter(j => j.start_time);

@@ -578,11 +578,57 @@ class TonyPiSimulator:
         self.items_total = payload.get("items_total", 10) if payload else 10
         self.job_history = []
         self.add_terminal_log("JOB", f"Started job with {self.items_total} items")
+        
+        # Immediately publish 'started' event to notify backend
+        if self.is_connected:
+            start_event = {
+                "robot_id": self.robot_id,
+                "status": "started",
+                "task_name": payload.get("task_name", "inventory_scan") if payload else "inventory_scan",
+                "start_time": self.job_start_time,
+                "items_total": self.items_total,
+                "items_done": 0,
+                "percent": 0.0,
+                "phase": "scanning",
+                "timestamp": datetime.now().isoformat()
+            }
+            self.client.publish(self.job_topic, json.dumps(start_event))
     
     def _stop_job(self):
         """Stop current job"""
+        was_complete = self.items_done >= self.items_total
         self.job_active = False
         self.add_terminal_log("JOB", f"Job stopped. Completed {self.items_done}/{self.items_total}")
+        
+        # Send stop/complete event
+        if self.is_connected:
+            # Calculate elapsed time
+            elapsed_time = None
+            if self.job_start_time:
+                try:
+                    start = datetime.fromisoformat(self.job_start_time)
+                    elapsed_time = (datetime.now() - start).total_seconds()
+                except:
+                    elapsed_time = None
+            
+            stop_event = {
+                "robot_id": self.robot_id,
+                "status": "completed" if was_complete else "cancelled",
+                "start_time": self.job_start_time,
+                "end_time": datetime.now().isoformat(),
+                "items_total": self.items_total,
+                "items_done": self.items_done,
+                "percent": round((self.items_done / max(1, self.items_total)) * 100, 2),
+                "elapsed_time": elapsed_time,
+                "action_duration": elapsed_time,
+                "success": was_complete,
+                "timestamp": datetime.now().isoformat()
+            }
+            self.client.publish(self.job_topic, json.dumps(stop_event))
+        
+        # Reset job state after sending completion event
+        # Keep the last values for display until next job starts
+        self.job_start_time = None
     
     def _process_job_item(self):
         """Process one item in the job"""
@@ -949,12 +995,36 @@ class TonyPiSimulator:
             logger.error(f"Error sending status: {e}")
     
     def send_job_update(self):
-        """Send job progress update"""
+        """Send job progress update - only sends when job is active"""
         if not self.is_connected:
             return
         
+        # Only send job updates when there's an active job
+        if not self.job_active and self.items_done == 0:
+            return  # No active job and no progress to report
+        
         try:
             percent = round((self.items_done / max(1, self.items_total)) * 100, 2)
+            
+            # Calculate elapsed time if job is active
+            elapsed_time = None
+            if self.job_start_time:
+                try:
+                    start = datetime.fromisoformat(self.job_start_time)
+                    elapsed_time = (datetime.now() - start).total_seconds()
+                except:
+                    elapsed_time = None
+            
+            # Estimated duration based on items (5 seconds per item as estimate)
+            estimated_duration = self.items_total * 5.0 if self.items_total > 0 else 30.0
+            
+            # Determine status
+            if self.job_active:
+                status = "working"
+            elif self.items_done >= self.items_total and self.items_total > 0:
+                status = "completed"
+            else:
+                return  # Don't send idle status updates
             
             data = {
                 "robot_id": self.robot_id,
@@ -963,9 +1033,11 @@ class TonyPiSimulator:
                 "items_total": self.items_total,
                 "items_done": self.items_done,
                 "percent": percent,
-                "status": "working" if self.job_active else ("completed" if self.items_done >= self.items_total else "idle"),
+                "status": status,
                 "last_item": self.job_history[-1]["item"] if self.job_history else None,
                 "history": self.job_history[-5:],
+                "elapsed_time": elapsed_time,
+                "estimated_duration": estimated_duration,
                 "timestamp": datetime.now().isoformat()
             }
             

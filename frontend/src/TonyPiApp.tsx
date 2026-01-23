@@ -104,6 +104,7 @@ const TonyPiAppContent: React.FC = () => {
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
   const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
+  const [alertCount, setAlertCount] = useState<number>(0);
   
   // useNotification available if needed for future features
 
@@ -114,12 +115,50 @@ const TonyPiAppContent: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch alert count periodically (only when authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchAlertCount = async () => {
+      try {
+        const stats = await apiService.getAlertStats('24h');
+        setAlertCount(stats.unacknowledged || 0);
+      } catch (error) {
+        console.error('Error fetching alert count:', error);
+      }
+    };
+
+    // Fetch immediately
+    fetchAlertCount();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchAlertCount, 30000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
   // Fetch robot data periodically (only when authenticated)
   useEffect(() => {
     if (!isAuthenticated) return;
 
     const fetchRobotData = async () => {
       try {
+        // ALWAYS fetch cumulative job stats first (independent of robot connection status)
+        // This ensures historical data persists even when robots are offline
+        let activeCount = 0;
+        let completedCount = 0;
+        let totalItemsProcessed = 0;
+        
+        try {
+          const overallStats = await apiService.getOverallJobStats();
+          activeCount = overallStats.active_jobs || 0;
+          completedCount = overallStats.completed_jobs || 0;
+          totalItemsProcessed = overallStats.total_items_done || 0;
+          setJobStats({ activeJobs: activeCount, completedToday: completedCount, totalItems: totalItemsProcessed });
+        } catch (e) {
+          console.error('Error fetching cumulative job stats:', e);
+        }
+
         const [robots, status] = await Promise.all([
           apiService.getRobotStatus(),
           apiService.getSystemStatus()
@@ -144,30 +183,6 @@ const TonyPiAppContent: React.FC = () => {
             }
           }
           setIsConnected(true);
-          
-          // Fetch job statistics
-          let activeCount = 0;
-          let completedCount = 0;
-          let totalItemsProcessed = 0;
-          
-          for (const robot of robots) {
-            try {
-              const jobData = await apiService.getJobSummary(robot.robot_id);
-              if (jobData.start_time && !jobData.end_time) {
-                activeCount++;
-              } else if (jobData.end_time) {
-                const today = new Date().toDateString();
-                const endDate = new Date(jobData.end_time).toDateString();
-                if (today === endDate) {
-                  completedCount++;
-                }
-              }
-              totalItemsProcessed += jobData.items_done || 0;
-            } catch (e) {
-              // Job summary might not exist yet
-            }
-          }
-          setJobStats({ activeJobs: activeCount, completedToday: completedCount, totalItems: totalItemsProcessed });
         } else {
           setIsConnected(false);
         }
@@ -283,6 +298,20 @@ const TonyPiAppContent: React.FC = () => {
                 {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
               
+              {/* Alert Notification Bell */}
+              <button
+                onClick={() => setSelectedTab('alerts')}
+                className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+                title="View Alerts"
+              >
+                <Bell className={`h-5 w-5 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
+                {alertCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full">
+                    {alertCount > 9 ? '9+' : alertCount}
+                  </span>
+                )}
+              </button>
+              
               <button
                 onClick={() => setShowHelpModal(true)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${isDark ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-900/70' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
@@ -338,6 +367,22 @@ const TonyPiAppContent: React.FC = () => {
                 className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-100 text-gray-600'}`}
               >
                 {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+              
+              {/* Alert Notification Bell - Mobile */}
+              <button
+                onClick={() => {
+                  setSelectedTab('alerts');
+                  setShowMobileMenu(false);
+                }}
+                className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}
+              >
+                <Bell className={`h-5 w-5 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
+                {alertCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full">
+                    {alertCount > 9 ? '9+' : alertCount}
+                  </span>
+                )}
               </button>
               
               {/* Connection Status - Mobile */}
@@ -712,45 +757,48 @@ const TonyPiAppContent: React.FC = () => {
             
             <div className="space-y-6">
               <div>
-                <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Connect Your TonyPi Robot</h3>
-                <ol className={`list-decimal list-inside space-y-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  <li className="pl-2">
-                    <span className="font-medium">Copy robot_client folder</span> to your Raspberry Pi 5
-                  </li>
-                  <li className="pl-2">
-                    <span className="font-medium">Install dependencies:</span>
-                    <code className={`ml-2 px-3 py-1 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>pip install -r requirements.txt</code>
-                  </li>
-                  <li className="pl-2">
-                    <span className="font-medium">Run the client:</span>
-                    <code className={`ml-2 px-3 py-1 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>python3 tonypi_client.py --broker YOUR_PC_IP</code>
-                  </li>
-                  <li className="pl-2">
-                    <span className="font-medium">Or test with simulator:</span>
-                    <code className={`ml-2 px-3 py-1 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>python3 simulator.py</code>
-                  </li>
-                </ol>
+                <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Quick Start with TonyPi Robot</h3>
+                
+                <div className={`mb-4 p-4 rounded-lg border ${isDark ? 'bg-green-900/30 border-green-800' : 'bg-green-50 border-green-200'}`}>
+                  <h4 className={`font-semibold mb-2 ${isDark ? 'text-green-400' : 'text-green-800'}`}>Option 1: Test with Simulator (Recommended for First Time)</h4>
+                  <ol className={`list-decimal list-inside space-y-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <li className="pl-2">Open a terminal in the <code className={`px-2 py-0.5 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>FYP_Robot</code> folder</li>
+                    <li className="pl-2">Install dependencies: <code className={`px-2 py-0.5 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>pip install -r requirements.txt</code></li>
+                    <li className="pl-2">Run the simulator: <code className={`px-2 py-0.5 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>python simulator.py</code></li>
+                    <li className="pl-2">You should see a simulated robot appear in the <strong>Robots</strong> tab!</li>
+                  </ol>
+                </div>
+
+                <div className={`mb-4 p-4 rounded-lg border ${isDark ? 'bg-purple-900/30 border-purple-800' : 'bg-purple-50 border-purple-200'}`}>
+                  <h4 className={`font-semibold mb-2 ${isDark ? 'text-purple-400' : 'text-purple-800'}`}>Option 2: Connect Real TonyPi Robot</h4>
+                  <ol className={`list-decimal list-inside space-y-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <li className="pl-2">Navigate to the <code className={`px-2 py-0.5 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>FYP_Robot</code> folder on your Raspberry Pi</li>
+                    <li className="pl-2">Find your PC's IP address (run <code className={`px-2 py-0.5 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>ipconfig</code> on Windows)</li>
+                    <li className="pl-2">Run: <code className={`px-2 py-0.5 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>MQTT_BROKER=&lt;YOUR_LAPTOP_IP&gt; python main.py</code></li>
+                    <li className="pl-2">The robot should appear in the <strong>Robots</strong> tab</li>
+                  </ol>
+                </div>
               </div>
 
               <div className={`p-4 rounded-lg border ${isDark ? 'bg-blue-900/30 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
                 <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  <strong>Note:</strong> Replace YOUR_PC_IP with the IP address of this computer running the monitoring system.
+                  <strong>Tip:</strong> Make sure Docker containers are running (check terminal output). Replace YOUR_LAPTOP_IP with the IP address shown in <code className={`px-2 py-0.5 rounded text-sm ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>ipconfig</code> (usually starts with 192.168.x.x or 10.x.x.x).
                 </p>
               </div>
 
               <div className={`border-t pt-6 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Tab Guide</h3>
+                <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Navigation Guide</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[
-                    { title: 'Overview', desc: 'System status and robot summary' },
-                    { title: 'Performance', desc: 'CPU, Memory, Disk metrics' },
-                    { title: 'Sensors', desc: 'IMU & environmental sensor data' },
-                    { title: 'Robots', desc: 'Robot management & control' },
-                    { title: 'Servos', desc: 'Servo motor monitoring' },
-                    { title: 'Jobs', desc: 'Task tracking & progress' },
-                    { title: 'Alerts', desc: 'System alerts & notifications' },
-                    { title: 'Logs', desc: 'Activity history & error logs' },
-                    { title: 'Reports', desc: 'Generate PDF reports with AI' },
+                    { title: 'Overview', desc: 'System status and robot summary at a glance' },
+                    { title: 'Performance', desc: 'Real-time CPU, Memory, Disk metrics' },
+                    { title: 'Sensors', desc: 'IMU, light, ultrasonic sensor data' },
+                    { title: 'Robots', desc: 'Manage robots, send commands, view status' },
+                    { title: 'Servos', desc: 'Monitor all 6 servo motors' },
+                    { title: 'Jobs', desc: 'Create and track robot tasks' },
+                    { title: 'Alerts', desc: 'System alerts and notifications' },
+                    { title: 'Logs', desc: 'Activity history and error logs' },
+                    { title: 'Reports', desc: 'Generate PDF reports with AI insights' },
                   ].map((item) => (
                     <div key={item.title} className={`p-3 rounded-lg ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
                       <h4 className={`font-medium ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{item.title}</h4>
@@ -761,15 +809,27 @@ const TonyPiAppContent: React.FC = () => {
               </div>
 
               <div className={`border-t pt-6 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Quick Links</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Additional Resources</h3>
+                <div className="space-y-3">
                   <div className={`p-4 rounded-lg border ${isDark ? 'bg-blue-900/30 border-blue-800' : 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'}`}>
-                    <h4 className={`font-medium mb-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>Documentation</h4>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Check the GETTING_STARTED_WITH_TONYPI_ROBOT.md file for detailed setup instructions.</p>
+                    <h4 className={`font-medium mb-2 flex items-center gap-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                      <FileText className="h-4 w-4" />
+                      Documentation Files
+                    </h4>
+                    <ul className={`text-sm space-y-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <li>• <strong>README.md</strong> - System overview and architecture</li>
+                      <li>• <strong>COMPLETE_SYSTEM_STARTUP_GUIDE.md</strong> - Full setup instructions</li>
+                      <li>• <strong>robot_client/README.md</strong> - Robot client configuration</li>
+                    </ul>
                   </div>
                   <div className={`p-4 rounded-lg border ${isDark ? 'bg-purple-900/30 border-purple-800' : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200'}`}>
-                    <h4 className={`font-medium mb-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>Simulator</h4>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Use the simulator to test the system without a physical robot.</p>
+                    <h4 className={`font-medium mb-2 flex items-center gap-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                      <Zap className="h-4 w-4" />
+                      Troubleshooting
+                    </h4>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      If robot doesn't connect: Check Docker containers are running, verify IP address, ensure both devices are on the same network, check firewall settings (port 1883).
+                    </p>
                   </div>
                 </div>
               </div>

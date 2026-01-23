@@ -28,12 +28,13 @@
 // ============================================================================
 
 // React: Core React library for component building
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 // React Router: Link for navigation, useLocation to get current URL
 // - Link: Creates navigation links without page reload
 // - useLocation: Hook to access current URL/pathname
-import { Link, useLocation } from 'react-router-dom';
+// - useNavigate: Hook for programmatic navigation
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 // Lucide React: Icon library with clean, customizable icons
 // These icons are used in the sidebar navigation
@@ -43,8 +44,13 @@ import {
   FileText,  // Reporting page icon
   Settings,  // Management page icon
   Battery,   // Battery status indicator
-  Wifi       // Connection status indicator
+  Wifi,      // Connection status indicator
+  Bell,      // Alert notification icon
+  AlertCircle // Alert icon for alerts page
 } from 'lucide-react';
+
+// API Service: For fetching alert statistics
+import { apiService } from '../utils/api';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -101,6 +107,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Get current location/URL from React Router
   // Used to highlight the active navigation item
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // State for unacknowledged alert count
+  const [alertCount, setAlertCount] = useState<number>(0);
 
   // Navigation items configuration
   // Each item has a name, URL path, and icon component
@@ -110,6 +120,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Reporting', href: '/reporting', icon: FileText },
     { name: 'Management', href: '/management', icon: Settings },
   ];
+
+  // Fetch unacknowledged alert count
+  useEffect(() => {
+    const fetchAlertCount = async () => {
+      try {
+        const stats = await apiService.getAlertStats('24h');
+        setAlertCount(stats.unacknowledged || 0);
+      } catch (error) {
+        console.error('Error fetching alert count:', error);
+      }
+    };
+
+    // Fetch immediately
+    fetchAlertCount();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchAlertCount, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle bell icon click - navigate to alerts page
+  const handleBellClick = () => {
+    navigate('/alerts');
+  };
 
   return (
     // Main container - full screen height with light gray background
@@ -175,6 +210,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </Link>
               );
             })}
+            
+            {/* Alerts Link with Badge */}
+            <Link
+              to="/alerts"
+              className={cn(
+                'group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors relative',
+                location.pathname === '/alerts'
+                  ? 'bg-primary-100 text-primary-700 border-r-2 border-primary-600'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+              )}
+            >
+              <AlertCircle
+                className={cn(
+                  'mr-3 h-5 w-5',
+                  location.pathname === '/alerts'
+                    ? 'text-primary-600' 
+                    : 'text-gray-400 group-hover:text-gray-500'
+                )}
+              />
+              Alerts
+              {/* Alert Badge */}
+              {alertCount > 0 && (
+                <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                  {alertCount > 99 ? '99+' : alertCount}
+                </span>
+              )}
+            </Link>
           </div>
         </nav>
 
@@ -206,10 +268,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* Page title - dynamically shows current page name */}
               <h2 className="text-2xl font-bold text-gray-900">
                 {/* Find the navigation item matching current path, or show default */}
-                {navigation.find(item => item.href === location.pathname)?.name || 'TonyPi Monitor'}
+                {navigation.find(item => item.href === location.pathname)?.name || 
+                 (location.pathname === '/alerts' ? 'Alerts' : 'TonyPi Monitor')}
               </h2>
-              {/* System online indicator */}
+              {/* System status and notification bell */}
               <div className="flex items-center space-x-4">
+                {/* Alert Notification Bell */}
+                <button
+                  onClick={handleBellClick}
+                  className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                  title="View Alerts"
+                >
+                  <Bell className="h-5 w-5" />
+                  {/* Badge showing alert count */}
+                  {alertCount > 0 && (
+                    <span className="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full transform translate-x-1 -translate-y-1">
+                      {alertCount > 9 ? '9+' : alertCount}
+                    </span>
+                  )}
+                </button>
+                
+                {/* System online indicator */}
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                   {/* Green dot indicating system is online */}
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>

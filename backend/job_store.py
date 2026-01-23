@@ -322,6 +322,106 @@ class JobStore:
         finally:
             db.close()
 
+    def update_items(self, robot_id: str, items_done: int = None, items_total: int = None):
+        """Update items_done and items_total for the active job.
+        
+        This method updates the item counts and recalculates the percent_complete
+        if both values are available. Only updates existing active jobs - does NOT
+        auto-create jobs.
+        
+        Args:
+            robot_id: The robot identifier
+            items_done: Number of items completed (optional)
+            items_total: Total number of items in job (optional)
+        
+        Returns:
+            Updated job dict or None if no active job exists
+        """
+        db = self._get_db()
+        try:
+            job = db.query(Job).filter(
+                Job.robot_id == robot_id,
+                Job.status == 'active'
+            ).first()
+            
+            # Only update existing active jobs - don't auto-create
+            if not job:
+                return None
+            
+            if job:
+                # Update items_done if provided
+                if items_done is not None:
+                    job.items_done = int(items_done)
+                
+                # Update items_total if provided
+                if items_total is not None:
+                    job.items_total = int(items_total)
+                
+                # Recalculate percent_complete if both values are available
+                if job.items_total and job.items_total > 0:
+                    job.percent_complete = round((job.items_done / job.items_total) * 100, 2)
+                
+                db.commit()
+                db.refresh(job)
+                
+                # Update cache
+                job_dict = job.to_dict()
+                if robot_id in self.jobs:
+                    job_dict['history'] = self.jobs[robot_id].get('history', [])
+                self.jobs[robot_id] = job_dict
+                
+                return job_dict
+            return None
+        finally:
+            db.close()
+
+    def update_timing(self, robot_id: str, elapsed_time: float = None, estimated_duration: float = None, action_duration: float = None):
+        """Update timing fields for the active job.
+        
+        This method updates time-related metrics for job tracking and duration calculation.
+        
+        Args:
+            robot_id: The robot identifier
+            elapsed_time: Time elapsed since job started (seconds)
+            estimated_duration: Expected total duration for this task type (seconds)
+            action_duration: Duration of the physical action execution (seconds)
+        """
+        db = self._get_db()
+        try:
+            job = db.query(Job).filter(
+                Job.robot_id == robot_id,
+                Job.status == 'active'
+            ).first()
+            
+            if job:
+                # Update estimated_duration if provided
+                if estimated_duration is not None:
+                    job.estimated_duration = float(estimated_duration)
+                
+                # Update action_duration if provided
+                if action_duration is not None:
+                    job.action_duration = float(action_duration)
+                
+                # Calculate percent_complete from elapsed_time if estimated_duration is available
+                if elapsed_time is not None and job.estimated_duration and job.estimated_duration > 0:
+                    # Only update percent if we don't have item-based progress
+                    if not job.items_total or job.items_total == 0:
+                        job.percent_complete = min(100.0, round((elapsed_time / job.estimated_duration) * 100, 2))
+                
+                db.commit()
+                db.refresh(job)
+                
+                # Update cache
+                job_dict = job.to_dict()
+                if robot_id in self.jobs:
+                    job_dict['history'] = self.jobs[robot_id].get('history', [])
+                self.jobs[robot_id] = job_dict
+                
+                return job_dict
+            return None
+        finally:
+            db.close()
+
     def get(self, robot_id: str) -> Optional[Dict[str, Any]]:
         """Get active job from database"""
         db = self._get_db()
@@ -343,13 +443,20 @@ class JobStore:
             db.close()
 
     def get_summary(self, robot_id: str) -> Dict[str, Any]:
-        """Get job summary from database"""
+        """Get job summary from database - returns most recent job (active or completed)"""
         db = self._get_db()
         try:
+            # First try to get an active job
             job = db.query(Job).filter(
                 Job.robot_id == robot_id,
                 Job.status == 'active'
             ).first()
+            
+            # If no active job, get the most recent job (completed, cancelled, or failed)
+            if not job:
+                job = db.query(Job).filter(
+                    Job.robot_id == robot_id
+                ).order_by(Job.created_at.desc()).first()
             
             if not job:
                 return {
@@ -362,6 +469,7 @@ class JobStore:
                     'last_item': None,
                     'task_name': None,
                     'phase': None,
+                    'status': 'idle',
                     'estimated_duration': None,
                     'success': None
                 }
@@ -381,6 +489,7 @@ class JobStore:
                 'last_item': job.last_item,
                 'task_name': job.task_name,
                 'phase': job.phase,
+                'status': job.status,
                 'estimated_duration': job.estimated_duration,
                 'action_duration': job.action_duration,
                 'success': job.success,

@@ -418,9 +418,10 @@ class MQTTClient:
         """
         # Import job_store and mock_items from project root modules
         try:
-            import job_store as job_store_module
-        except Exception:
-            job_store_module = None
+            from job_store import job_store
+        except Exception as e:
+            print(f"JobStore: Failed to import job_store: {e}")
+            job_store = None
 
         try:
             from mock_data import mock_items
@@ -470,15 +471,12 @@ class MQTTClient:
             details={'qr': qr, 'found': bool(item_info), 'item': item_info}
         )
         
-        # Update job store: mark an item processed
+        # Update job store: mark an item processed (only if job exists)
         try:
-            if job_store_module:
-                job_store = getattr(job_store_module, 'job_store', None)
-                if job_store is not None:
-                    # If job not started, start a job with a default expected total
-                    js = job_store.get(robot_id)
-                    if js is None:
-                        job_store.start_job(robot_id, total_items=10)
+            if job_store is not None:
+                # Only record item if there's an active job
+                js = job_store.get(robot_id)
+                if js is not None:
                     job_store.record_item(robot_id, item_info if item_info else {'qr': qr})
         except Exception as e:
             print(f"JobStore: Error updating job store: {e}")
@@ -503,9 +501,10 @@ class MQTTClient:
         Also accepts legacy format: {"robot_id":..., "percent": 42, "status": "completed"}
         """
         try:
-            import job_store as job_store_module
-        except Exception:
-            job_store_module = None
+            from job_store import job_store
+        except Exception as e:
+            print(f"JobStore: Failed to import job_store: {e}")
+            job_store = None
 
         robot_id = payload.get('robot_id') or topic.split('/')[-1]
         
@@ -524,11 +523,16 @@ class MQTTClient:
         success = payload.get('success')
         cancel_reason = payload.get('cancel_reason')
         
+        # Item tracking fields
+        items_done = payload.get('items_done')
+        items_total = payload.get('items_total')
+        
         # Normalize status: accept "done" as "completed"
         is_completed = status in ('completed', 'done')
         is_started = status in ('started', 'start')
         is_cancelled = status in ('cancelled', 'canceled', 'stopped')
         is_failed = status == 'failed'
+        is_in_progress = status in ('working', 'in_progress', 'in-progress', 'active')
         
         # Build details dict for logging
         details = {
@@ -588,34 +592,56 @@ class MQTTClient:
         
         # Update job store
         try:
-            if job_store_module:
-                job_store = getattr(job_store_module, 'job_store', None)
-                if job_store is not None:
-                    # Handle job start
-                    if is_started:
-                        job_store.start_job(robot_id, total_items=0)
+            if job_store is not None:
+                # Handle job start
+                if is_started:
+                    job_store.start_job(robot_id, total_items=items_total or 0)
+                    if task_name:
+                        job_store.update_task_name(robot_id, task_name)
+                
+                # For in-progress updates, ensure job exists
+                if is_in_progress and (items_done is not None or items_total is not None):
+                    # Check if job exists, if not start one
+                    current_job = job_store.get(robot_id)
+                    if not current_job:
+                        job_store.start_job(robot_id, total_items=items_total or 0)
                         if task_name:
                             job_store.update_task_name(robot_id, task_name)
-                    
-                    # Update progress
-                    if percent is not None:
-                        job_store.set_progress(robot_id, percent)
-                    
-                    # Update phase if method exists
-                    if phase and hasattr(job_store, 'update_phase'):
-                        job_store.update_phase(robot_id, phase)
-                    
-                    # Handle completion
-                    if is_completed:
-                        job_store.finish_job(robot_id, success=success if success is not None else True)
-                    
-                    # Handle cancellation
-                    if is_cancelled:
-                        job_store.cancel_job(robot_id, reason=cancel_reason)
-                    
-                    # Handle failure
-                    if is_failed:
-                        job_store.fail_job(robot_id)
+                
+                # Update progress
+                if percent is not None:
+                    job_store.set_progress(robot_id, percent)
+                
+                # Update items_done and items_total if provided (only for in-progress jobs)
+                if (is_started or is_in_progress) and (items_done is not None or items_total is not None):
+                    if hasattr(job_store, 'update_items'):
+                        job_store.update_items(robot_id, items_done=items_done, items_total=items_total)
+                
+                # Update timing fields if provided
+                if elapsed_time is not None or estimated_duration is not None or action_duration is not None:
+                    if hasattr(job_store, 'update_timing'):
+                        job_store.update_timing(
+                            robot_id,
+                            elapsed_time=elapsed_time,
+                            estimated_duration=estimated_duration,
+                            action_duration=action_duration
+                        )
+                
+                # Update phase if method exists
+                if phase and hasattr(job_store, 'update_phase'):
+                    job_store.update_phase(robot_id, phase)
+                
+                # Handle completion
+                if is_completed:
+                    job_store.finish_job(robot_id, success=success if success is not None else True)
+                
+                # Handle cancellation
+                if is_cancelled:
+                    job_store.cancel_job(robot_id, reason=cancel_reason)
+                
+                # Handle failure
+                if is_failed:
+                    job_store.fail_job(robot_id)
                         
         except Exception as e:
             print(f"JobStore: Error handling job event: {e}")

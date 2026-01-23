@@ -51,8 +51,6 @@ import {
   MapPin,     // Location/position icon
   Clock,      // Last seen/time indicator
   Power,      // Online/offline status icon
-  Settings,   // Settings/configuration icon
-  Trash2,     // Delete robot icon
   Plus,       // Add robot icon
   Search,     // Search input icon
   Camera,     // Camera feed icon
@@ -568,24 +566,6 @@ const Robots: React.FC = () => {
               >
                 Details
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-                className={`px-3 py-1.5 text-sm border rounded ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
-              >
-                <Settings size={16} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (window.confirm(`Remove robot ${robot.robot_id}?`)) {
-                  }
-                }}
-                className={`px-3 py-1.5 text-sm border rounded ${isDark ? 'border-red-800 text-red-400 hover:bg-red-900/30' : 'border-red-300 text-red-600 hover:bg-red-50'}`}
-              >
-                <Trash2 size={16} />
-              </button>
             </div>
           </div>
         ))}
@@ -683,14 +663,7 @@ const Robots: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6 flex gap-3">
-              <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Send Command
-              </button>
-              <button className={`flex-1 px-4 py-2 border rounded-lg ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}>
-                View History
-              </button>
-            </div>
+
           </div>
         </div>
       )}

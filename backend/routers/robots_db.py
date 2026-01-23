@@ -247,6 +247,122 @@ def get_job_history(
     return [job.to_dict() for job in jobs]
 
 
+@router.get("/jobs/cumulative-stats")
+def get_cumulative_job_stats(
+    robot_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get cumulative job statistics across all jobs (not just current job).
+    
+    This endpoint returns accumulated totals for:
+    - Total items processed (sum of items_done across all completed jobs)
+    - Total items target (sum of items_total across all jobs)
+    - Total jobs completed
+    - Total jobs cancelled/failed
+    - Average job duration
+    - Total run time
+    
+    Unlike /job-summary which only returns the current/latest job,
+    this endpoint accumulates data across all historical jobs.
+    """
+    from models.job import Job
+    from sqlalchemy import func
+    
+    query = db.query(Job)
+    
+    if robot_id:
+        query = query.filter(Job.robot_id == robot_id)
+    
+    # Get all jobs for calculating cumulative stats
+    all_jobs = query.all()
+    
+    # Calculate cumulative stats
+    total_items_done = sum(j.items_done or 0 for j in all_jobs)
+    total_items_target = sum(j.items_total or 0 for j in all_jobs)
+    completed_jobs = [j for j in all_jobs if j.status == 'completed']
+    cancelled_jobs = [j for j in all_jobs if j.status == 'cancelled']
+    failed_jobs = [j for j in all_jobs if j.status == 'failed']
+    active_jobs = [j for j in all_jobs if j.status == 'active']
+    
+    # Calculate total duration (only from jobs with both start and end time)
+    total_duration_seconds = 0
+    durations = []
+    for job in all_jobs:
+        if job.start_time and job.end_time:
+            duration = (job.end_time - job.start_time).total_seconds()
+            total_duration_seconds += duration
+            durations.append(duration)
+    
+    avg_duration = sum(durations) / len(durations) if durations else 0
+    
+    # Get current/active job if any (for real-time display)
+    current_job = None
+    if robot_id:
+        current_job_db = db.query(Job).filter(
+            Job.robot_id == robot_id,
+            Job.status == 'active'
+        ).first()
+        if current_job_db:
+            current_job = current_job_db.to_dict()
+    
+    return {
+        "robot_id": robot_id,
+        "cumulative": {
+            "total_jobs": len(all_jobs),
+            "completed_jobs": len(completed_jobs),
+            "cancelled_jobs": len(cancelled_jobs),
+            "failed_jobs": len(failed_jobs),
+            "active_jobs": len(active_jobs),
+            "total_items_done": total_items_done,
+            "total_items_target": total_items_target,
+            "total_duration_seconds": round(total_duration_seconds, 2),
+            "average_duration_seconds": round(avg_duration, 2)
+        },
+        "current_job": current_job
+    }
+
+
+@router.get("/jobs/overall-stats")
+def get_overall_job_stats(db: Session = Depends(get_db)):
+    """Get overall cumulative stats across ALL robots and ALL jobs.
+    
+    Returns aggregated statistics useful for dashboard summary cards.
+    """
+    from models.job import Job
+    
+    all_jobs = db.query(Job).all()
+    
+    # Group by robot
+    robots_with_jobs = set(j.robot_id for j in all_jobs)
+    
+    # Calculate totals
+    total_items_done = sum(j.items_done or 0 for j in all_jobs)
+    total_items_target = sum(j.items_total or 0 for j in all_jobs)
+    completed_jobs = [j for j in all_jobs if j.status == 'completed']
+    active_jobs = [j for j in all_jobs if j.status == 'active']
+    
+    # Calculate total duration
+    total_duration_seconds = 0
+    for job in all_jobs:
+        if job.start_time and job.end_time:
+            total_duration_seconds += (job.end_time - job.start_time).total_seconds()
+    
+    # Average completion percentage (only for jobs that have started)
+    jobs_with_progress = [j for j in all_jobs if j.percent_complete is not None]
+    avg_completion = sum(j.percent_complete for j in jobs_with_progress) / len(jobs_with_progress) if jobs_with_progress else 0
+    
+    return {
+        "total_robots_with_jobs": len(robots_with_jobs),
+        "total_jobs": len(all_jobs),
+        "active_jobs": len(active_jobs),
+        "completed_jobs": len(completed_jobs),
+        "total_items_done": total_items_done,
+        "total_items_target": total_items_target,
+        "total_duration_seconds": round(total_duration_seconds, 2),
+        "average_completion_percent": round(avg_completion, 2)
+    }
+
+
 @router.get("/stats")
 def get_database_stats(db: Session = Depends(get_db)):
     """Get database statistics"""

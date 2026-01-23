@@ -485,12 +485,47 @@ export const apiService = {
   // ==========================================================================
 
   /**
-   * Get job summary for a robot.
+   * Get job summary for a robot (current/latest job only).
    * @param robotId - Robot identifier
    * @returns Job summary with progress and history
    */
   async getJobSummary(robotId: string) {
     const response = await api.get(`${V1}/robot-data/job-summary/${robotId}`);
+    return response.data;
+  },
+
+  /**
+   * Get cumulative job stats for a robot (across ALL jobs).
+   * @param robotId - Robot identifier (optional - if not provided, returns stats for all robots)
+   * @returns Cumulative stats including total items processed, jobs completed, etc.
+   */
+  async getCumulativeJobStats(robotId?: string) {
+    const params = robotId ? `?robot_id=${robotId}` : '';
+    const response = await api.get(`${V1}/robots-db/jobs/cumulative-stats${params}`);
+    return response.data;
+  },
+
+  /**
+   * Get overall job stats across ALL robots and ALL jobs.
+   * @returns Aggregated statistics useful for dashboard summary cards
+   */
+  async getOverallJobStats() {
+    const response = await api.get(`${V1}/robots-db/jobs/overall-stats`);
+    return response.data;
+  },
+
+  /**
+   * Get job history from database.
+   * @param limit - Maximum number of jobs to return (default: 50)
+   * @param robotId - Optional robot ID to filter
+   * @returns Array of historical jobs
+   */
+  async getJobHistory(limit: number = 50, robotId?: string) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (robotId) {
+      params.append('robot_id', robotId);
+    }
+    const response = await api.get(`${V1}/robots-db/jobs/history?${params}`);
     return response.data;
   },
 
