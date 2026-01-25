@@ -269,7 +269,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <h2 className="text-2xl font-bold text-gray-900">
                 {/* Find the navigation item matching current path, or show default */}
                 {navigation.find(item => item.href === location.pathname)?.name || 
-                 (location.pathname === '/alerts' ? 'Alerts' : 'TonyPi Monitor')}
+                 (location.pathname === '/alerts' ? 'Alerts' : 'BotMonitor')}
               </h2>
               {/* System status and notification bell */}
               <div className="flex items-center space-x-4">

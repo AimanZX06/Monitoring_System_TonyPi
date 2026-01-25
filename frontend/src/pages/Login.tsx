@@ -123,7 +123,7 @@ const Login: React.FC = () => {
             }}>
               <Activity className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">TonyPi Monitor</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">BotMonitor</h1>
             <p className="text-gray-400 text-sm sm:text-base">Robot Monitoring System</p>
           </div>
 
@@ -231,7 +231,7 @@ const Login: React.FC = () => {
 
         {/* Footer */}
         <p className="text-center text-gray-500 text-xs sm:text-sm mt-6">
-          TonyPi Robot Monitoring System v1.0
+          Robot Monitoring System v1.2
         </p>
       </div>
     </div>

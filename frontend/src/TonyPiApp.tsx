@@ -272,7 +272,7 @@ const TonyPiAppContent: React.FC = () => {
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate">
-                  TonyPi Monitor
+                  BotMonitor
                 </h1>
                 <p className={`text-xs sm:text-sm hidden sm:block ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Real-time monitoring and control</p>
               </div>

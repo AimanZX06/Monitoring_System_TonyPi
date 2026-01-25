@@ -69,7 +69,7 @@ import { RobotData } from '../types';
 import GrafanaPanel from '../components/GrafanaPanel';
 
 // SSH Terminal Modal - web-based SSH access to robots
-import SSHTerminalModal from '../components/SSHTerminalModal';
+// import SSHTerminalModal from '../components/SSHTerminalModal';
 
 // Configuration - Grafana URL builder
 import { getGrafanaPanelUrl } from '../utils/config';
@@ -93,9 +93,9 @@ const Robots: React.FC = () => {
   const [isStopping, setIsStopping] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [cameraRefreshKey, setCameraRefreshKey] = useState(0);
-  const [showSSHTerminal, setShowSSHTerminal] = useState(false);
-  const [sshRobotId, setSSHRobotId] = useState<string>('');
-  const [sshRobotName, setSSHRobotName] = useState<string>('');
+  // const [showSSHTerminal, setShowSSHTerminal] = useState(false);
+  // const [sshRobotId, setSSHRobotId] = useState<string>('');
+  // const [sshRobotName, setSSHRobotName] = useState<string>('');
   const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -572,6 +572,7 @@ const Robots: React.FC = () => {
               >
                 Details
               </button>
+              {/* SSH button commented out
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -585,6 +586,7 @@ const Robots: React.FC = () => {
                 <Terminal size={14} />
                 SSH
               </button>
+              */}
             </div>
           </div>
         ))}
@@ -681,7 +683,7 @@ const Robots: React.FC = () => {
                 <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{new Date(selectedRobot.last_seen).toLocaleString()}</p>
               </div>
 
-              {/* SSH Terminal Access Button */}
+              {/* SSH Terminal Access Button - commented out
               <button
                 onClick={() => {
                   setSSHRobotId(selectedRobot.robot_id);
@@ -694,6 +696,7 @@ const Robots: React.FC = () => {
                 <Terminal size={20} />
                 Open SSH Terminal
               </button>
+              */}
             </div>
 
 
@@ -759,7 +762,7 @@ const Robots: React.FC = () => {
         </div>
       )}
 
-      {/* SSH Terminal Modal */}
+      {/* SSH Terminal Modal - commented out
       <SSHTerminalModal
         isOpen={showSSHTerminal}
         onClose={() => {
@@ -770,6 +773,7 @@ const Robots: React.FC = () => {
         robotId={sshRobotId}
         robotName={sshRobotName}
       />
+      */}
     </div>
   );
 };
