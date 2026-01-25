@@ -32,10 +32,21 @@ import psutil
 import platform
 import random
 import socket
+import threading
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 import paho.mqtt.client as mqtt
 import logging
+
+# Try to import OpenCV for frame encoding
+try:
+    import cv2
+    import numpy as np
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +54,118 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("TonyPi-Client")
+
+# ==========================================
+# MJPEG CAMERA STREAMING SERVER
+# ==========================================
+
+# Global frame storage for HTTP handler access
+_current_frame = None
+_frame_lock = threading.Lock()
+
+
+class MJPEGHandler(BaseHTTPRequestHandler):
+    """HTTP request handler for MJPEG streaming."""
+    
+    def log_message(self, format, *args):
+        """Suppress default logging."""
+        pass
+    
+    def do_GET(self):
+        """Handle GET requests."""
+        global _current_frame
+        
+        # Handle root/status request
+        if self.path == '/' or self.path == '/test' or self.path == '/status':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            with _frame_lock:
+                has_frame = _current_frame is not None
+                frame_shape = _current_frame.shape if has_frame and hasattr(_current_frame, 'shape') else None
+            
+            status = "OK - Receiving frames" if has_frame else "Waiting for frames"
+            frame_info = f"{frame_shape}" if frame_shape else "None"
+            
+            html = f"""
+            <html>
+            <head><title>TonyPi Camera Stream</title></head>
+            <body style="font-family: Arial; background: #1a1a2e; color: white; padding: 20px;">
+                <h1>🤖 TonyPi Camera Stream</h1>
+                <p><b>Status:</b> {status}</p>
+                <p><b>Frame shape:</b> {frame_info}</p>
+                <hr>
+                <p><a href="/?action=stream" style="color: #00ff88;">📹 MJPEG Stream</a></p>
+                <p><a href="/?action=snapshot" style="color: #00ff88;">📷 Snapshot</a></p>
+            </body>
+            </html>
+            """
+            self.wfile.write(html.encode())
+            return
+        
+        # Handle snapshot request
+        if 'action=snapshot' in self.path:
+            with _frame_lock:
+                frame = _current_frame.copy() if _current_frame is not None else None
+            
+            if frame is not None and CV2_AVAILABLE:
+                try:
+                    _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    self.send_response(200)
+                    self.send_header('Content-type', 'image/jpeg')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(jpeg.tobytes())
+                except Exception as e:
+                    self.send_error(500, f"Error encoding frame: {e}")
+            else:
+                self.send_error(503, "No frame available")
+            return
+        
+        # Handle MJPEG stream request
+        if 'action=stream' in self.path or self.path == '/stream':
+            self.send_response(200)
+            self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--frame')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.end_headers()
+            
+            logger.info(f'Camera stream started for {self.client_address[0]}')
+            
+            while True:
+                try:
+                    with _frame_lock:
+                        frame = _current_frame.copy() if _current_frame is not None else None
+                    
+                    if frame is not None and CV2_AVAILABLE:
+                        _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                        self.wfile.write(b'--frame\r\n')
+                        self.wfile.write(b'Content-Type: image/jpeg\r\n\r\n')
+                        self.wfile.write(jpeg.tobytes())
+                        self.wfile.write(b'\r\n')
+                    
+                    time.sleep(0.033)  # ~30 FPS
+                except (BrokenPipeError, ConnectionResetError):
+                    logger.info(f'Stream disconnected: {self.client_address[0]}')
+                    break
+                except Exception as e:
+                    logger.error(f'Stream error: {e}')
+                    break
+            return
+        
+        # Default: redirect to status page
+        self.send_response(302)
+        self.send_header('Location', '/')
+        self.end_headers()
+
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in separate threads."""
+    daemon_threads = True
+    allow_reuse_address = True
+
 
 # Try to import HiWonder SDK for real hardware access
 HARDWARE_AVAILABLE = False
@@ -149,7 +272,14 @@ class TonyPiRobotClient:
     # Number of servos on the robot
     SERVO_COUNT = 6  # TonyPi has 6 main bus servos
     
-    def __init__(self, mqtt_broker: str = "localhost", mqtt_port: int = 1883, robot_id: str = None):
+    def __init__(
+        self,
+        mqtt_broker: str = "localhost",
+        mqtt_port: int = 1883,
+        robot_id: str = None,
+        camera_port: int = 8081,
+        enable_camera_stream: bool = True
+    ):
         """
         Initialize the TonyPi Robot Client.
         
@@ -157,9 +287,13 @@ class TonyPiRobotClient:
             mqtt_broker: MQTT broker address
             mqtt_port: MQTT broker port
             robot_id: Robot identifier (auto-generated if not provided)
+            camera_port: HTTP port for MJPEG camera stream (default: 8081)
+            enable_camera_stream: If True, starts camera streaming server
         """
         self.mqtt_broker = mqtt_broker
         self.mqtt_port = mqtt_port
+        self.camera_port = camera_port
+        self.enable_camera_stream = enable_camera_stream
         
         # Use hostname-based ID for persistence
         if robot_id:
@@ -190,6 +324,14 @@ class TonyPiRobotClient:
         self.emergency_stopped = False
         self.emergency_reason = None
         
+        # Emergency stop callback
+        self.on_emergency_stop_callback: Optional[Callable] = None
+        
+        # Camera streaming
+        self._camera_server = None
+        self._camera_thread = None
+        self._ip_address = self.get_local_ip()
+        
         # MQTT Topics
         self.topics = {
             "sensors": f"tonypi/sensors/{self.robot_id}",
@@ -215,6 +357,7 @@ class TonyPiRobotClient:
         
         logger.info(f"TonyPi Robot Client initialized with ID: {self.robot_id}")
         logger.info(f"Hardware available: {self.hardware_available}")
+        logger.info(f"Camera stream will be available at: http://{self._ip_address}:{camera_port}/?action=stream")
 
     def on_connect(self, client, userdata, flags, rc, properties=None):
         """Callback for MQTT connection."""
@@ -349,6 +492,13 @@ class TonyPiRobotClient:
                 stopActionGroup()
             except Exception as e:
                 logger.error(f"Error stopping action groups during emergency stop: {e}")
+        
+        # Call the emergency stop callback if registered
+        if self.on_emergency_stop_callback:
+            try:
+                self.on_emergency_stop_callback(reason)
+            except Exception as e:
+                logger.error(f"Error in emergency stop callback: {e}")
         
         self.send_log_message("WARNING", f"⚠️ EMERGENCY STOP: {reason}", "emergency")
         logger.warning(f"EMERGENCY STOP activated: {reason}")
@@ -1040,6 +1190,198 @@ class TonyPiRobotClient:
         except Exception as e:
             logger.error(f"Error sending log message: {e}")
 
+    def send_job_event(
+        self,
+        task_name: str,
+        status: str,
+        phase: str = None,
+        elapsed_time: float = None,
+        estimated_duration: float = None,
+        action_duration: float = None,
+        success: bool = None,
+        reason: str = None,
+        items_done: int = None,
+        items_total: int = None
+    ):
+        """
+        Send job timing event to monitoring system.
+        
+        Args:
+            task_name: Name of the task (e.g., "Peeling", "Transport")
+            status: Job status ("started", "in_progress", "completed", "cancelled", "failed")
+            phase: Current phase ("scanning", "searching", "executing", "done")
+            elapsed_time: Time elapsed since job started (seconds)
+            estimated_duration: Estimated total duration for this task type (seconds)
+            action_duration: Duration of the physical action execution (seconds)
+            success: Whether the job completed successfully
+            reason: Reason for cancellation/failure (if applicable)
+            items_done: Number of items processed so far
+            items_total: Total number of items to process
+        """
+        if not self.is_connected:
+            return
+        
+        try:
+            data = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "task_name": task_name,
+                "status": status,
+            }
+            
+            # Add optional fields if provided
+            if phase is not None:
+                data["phase"] = phase
+            if elapsed_time is not None:
+                data["elapsed_time"] = elapsed_time
+            if estimated_duration is not None:
+                data["estimated_duration"] = estimated_duration
+            if action_duration is not None:
+                data["action_duration"] = action_duration
+            if success is not None:
+                data["success"] = success
+            if reason is not None:
+                data["reason"] = reason
+            if items_done is not None:
+                data["items_done"] = items_done
+            if items_total is not None:
+                data["items_total"] = items_total
+            
+            # Calculate progress percentage if items are provided
+            if items_done is not None and items_total is not None and items_total > 0:
+                data["progress_percent"] = round((items_done / items_total) * 100, 1)
+            
+            self.client.publish(self.job_topic, json.dumps(data))
+            logger.debug(f"Sent job event: {task_name} - {status}")
+            
+        except Exception as e:
+            logger.error(f"Error sending job event: {e}")
+
+    def send_qr_scan(self, qr_data: str, station_name: str = None, action: str = None):
+        """
+        Send QR code scan event to monitoring system.
+        
+        Args:
+            qr_data: QR code content/data
+            station_name: Name of the station (optional)
+            action: Action performed (e.g., 'scanned', 'navigation_complete')
+        """
+        if not self.is_connected:
+            return
+        
+        try:
+            data = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "qr_data": qr_data,
+                "station_name": station_name,
+                "action": action or "scanned"
+            }
+            
+            self.client.publish(self.scan_topic, json.dumps(data))
+            logger.debug(f"Sent QR scan: {qr_data}")
+            
+        except Exception as e:
+            logger.error(f"Error sending QR scan: {e}")
+
+    # ==========================================
+    # CAMERA STREAMING METHODS
+    # ==========================================
+
+    def _start_camera_server(self):
+        """Start the MJPEG camera streaming server."""
+        try:
+            self._camera_server = ThreadedHTTPServer(('', self.camera_port), MJPEGHandler)
+            self._camera_thread = threading.Thread(target=self._camera_server.serve_forever, daemon=True)
+            self._camera_thread.start()
+            logger.info(f"📹 Camera stream started: http://{self._ip_address}:{self.camera_port}/?action=stream")
+        except OSError as e:
+            if e.errno == 98 or e.errno == 10048:  # Address already in use (Linux/Windows)
+                logger.warning(f"Camera port {self.camera_port} already in use - stream not available")
+            else:
+                logger.error(f"Failed to start camera server: {e}")
+        except Exception as e:
+            logger.error(f"Failed to start camera server: {e}")
+
+    def _stop_camera_server(self):
+        """Stop the camera streaming server."""
+        if self._camera_server:
+            try:
+                self._camera_server.shutdown()
+                logger.info("Camera server stopped")
+            except Exception as e:
+                logger.error(f"Error stopping camera server: {e}")
+
+    def update_frame(self, frame):
+        """
+        Update the current camera frame for streaming.
+        Call this from your main camera loop.
+        
+        Args:
+            frame: OpenCV frame (numpy array) from camera
+        """
+        global _current_frame, _frame_lock
+        
+        if frame is not None:
+            with _frame_lock:
+                _current_frame = frame.copy() if hasattr(frame, 'copy') else frame
+
+    @property
+    def camera_url(self) -> str:
+        """Get the camera stream URL."""
+        return f"http://{self._ip_address}:{self.camera_port}/?action=stream"
+
+    @property
+    def snapshot_url(self) -> str:
+        """Get the camera snapshot URL."""
+        return f"http://{self._ip_address}:{self.camera_port}/?action=snapshot"
+
+    # ==========================================
+    # EMERGENCY STOP CALLBACK
+    # ==========================================
+
+    def set_emergency_stop_callback(self, callback: Callable[[str], None]):
+        """
+        Set callback function for emergency stop events.
+        
+        The callback will be called when an emergency stop command is received.
+        Use this to stop your robot's current actions.
+        
+        Args:
+            callback: Function that takes a reason string as argument
+                      Example: def on_emergency_stop(reason: str): ...
+        """
+        self.on_emergency_stop_callback = callback
+        logger.info("Emergency stop callback registered")
+
+    def is_emergency_stopped(self) -> bool:
+        """
+        Check if emergency stop is currently active.
+        
+        Returns:
+            True if emergency stop is active
+        """
+        return self.emergency_stopped
+
+    def get_emergency_stop_reason(self) -> Optional[str]:
+        """
+        Get the reason for the current emergency stop.
+        
+        Returns:
+            Reason string if emergency stop is active, None otherwise
+        """
+        return self.emergency_reason if self.emergency_stopped else None
+
+    def clear_emergency_stop(self):
+        """
+        Clear the emergency stop state locally.
+        Call this after handling the emergency stop in your main code.
+        """
+        if self.emergency_stopped:
+            logger.info("Emergency stop cleared locally")
+            self.emergency_stopped = False
+            self.emergency_reason = None
+
     async def connect(self):
         """Connect to MQTT broker."""
         try:
@@ -1068,6 +1410,9 @@ class TonyPiRobotClient:
             self.send_status_update()
             await asyncio.sleep(1)
         
+        # Stop camera server
+        self._stop_camera_server()
+        
         # Cleanup light sensor GPIO
         if hasattr(self, 'light_sensor'):
             self.light_sensor.cleanup()
@@ -1085,9 +1430,14 @@ class TonyPiRobotClient:
         print(f"   Robot ID: {self.robot_id}")
         print(f"   MQTT Broker: {self.mqtt_broker}:{self.mqtt_port}")
         print(f"   Hardware Mode: {self.hardware_available}")
+        print(f"   Camera Stream: http://{self._ip_address}:{self.camera_port}/?action=stream")
         print("=" * 60)
         
         try:
+            # Start camera streaming server
+            if self.enable_camera_stream:
+                self._start_camera_server()
+            
             await self.connect()
             
             # Send initial data immediately

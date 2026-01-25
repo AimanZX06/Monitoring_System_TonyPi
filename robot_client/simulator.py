@@ -37,8 +37,10 @@ import uuid
 import platform
 import socket
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 from enum import Enum
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 
 # Add the robot_client directory to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -59,6 +61,126 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("TonyPi-Simulator")
+
+# Try to import OpenCV for frame encoding
+try:
+    import cv2
+    import numpy as np
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+
+# ==========================================
+# MJPEG CAMERA STREAMING SERVER
+# ==========================================
+
+# Global frame storage for HTTP handler access
+_current_frame = None
+_frame_lock = threading.Lock()
+
+
+class MJPEGHandler(BaseHTTPRequestHandler):
+    """HTTP request handler for MJPEG streaming."""
+    
+    def log_message(self, format, *args):
+        """Suppress default logging."""
+        pass
+    
+    def do_GET(self):
+        """Handle GET requests."""
+        global _current_frame
+        
+        # Handle root/status request
+        if self.path == '/' or self.path == '/test' or self.path == '/status':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            with _frame_lock:
+                has_frame = _current_frame is not None
+                frame_shape = _current_frame.shape if has_frame and hasattr(_current_frame, 'shape') else None
+            
+            status = "OK - Simulated frames" if has_frame else "Waiting for frames"
+            frame_info = f"{frame_shape}" if frame_shape else "None"
+            
+            html = f"""
+            <html>
+            <head><title>TonyPi Simulator Camera</title></head>
+            <body style="font-family: Arial; background: #1a1a2e; color: white; padding: 20px;">
+                <h1>🤖 TonyPi Simulator Camera</h1>
+                <p><b>Status:</b> {status}</p>
+                <p><b>Frame shape:</b> {frame_info}</p>
+                <hr>
+                <p><a href="/?action=stream" style="color: #00ff88;">📹 MJPEG Stream</a></p>
+                <p><a href="/?action=snapshot" style="color: #00ff88;">📷 Snapshot</a></p>
+                <p style="color: #888;">Simulated camera frames</p>
+            </body>
+            </html>
+            """
+            self.wfile.write(html.encode())
+            return
+        
+        # Handle snapshot request
+        if 'action=snapshot' in self.path:
+            with _frame_lock:
+                frame = _current_frame.copy() if _current_frame is not None else None
+            
+            if frame is not None and CV2_AVAILABLE:
+                try:
+                    _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    self.send_response(200)
+                    self.send_header('Content-type', 'image/jpeg')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(jpeg.tobytes())
+                except Exception as e:
+                    self.send_error(500, f"Error encoding frame: {e}")
+            else:
+                self.send_error(503, "No frame available")
+            return
+        
+        # Handle MJPEG stream request
+        if 'action=stream' in self.path or self.path == '/stream':
+            self.send_response(200)
+            self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--frame')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.end_headers()
+            
+            logger.info(f'Simulator camera stream started for {self.client_address[0]}')
+            
+            while True:
+                try:
+                    with _frame_lock:
+                        frame = _current_frame.copy() if _current_frame is not None else None
+                    
+                    if frame is not None and CV2_AVAILABLE:
+                        _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                        self.wfile.write(b'--frame\r\n')
+                        self.wfile.write(b'Content-Type: image/jpeg\r\n\r\n')
+                        self.wfile.write(jpeg.tobytes())
+                        self.wfile.write(b'\r\n')
+                    
+                    time.sleep(0.033)  # ~30 FPS
+                except (BrokenPipeError, ConnectionResetError):
+                    logger.info(f'Stream disconnected: {self.client_address[0]}')
+                    break
+                except Exception as e:
+                    logger.error(f'Stream error: {e}')
+                    break
+            return
+        
+        # Default: redirect to status page
+        self.send_response(302)
+        self.send_header('Location', '/')
+        self.end_headers()
+
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in separate threads."""
+    daemon_threads = True
+    allow_reuse_address = True
 
 
 class SimulatorMode(Enum):
@@ -95,11 +217,15 @@ class TonyPiSimulator:
         mqtt_broker: str = "localhost", 
         mqtt_port: int = 1883,
         robot_id: str = None,
-        mode: SimulatorMode = SimulatorMode.NORMAL
+        mode: SimulatorMode = SimulatorMode.NORMAL,
+        camera_port: int = 8081,
+        enable_camera_stream: bool = True
     ):
         self.mqtt_broker = mqtt_broker
         self.mqtt_port = mqtt_port
         self.mode = mode
+        self.camera_port = camera_port
+        self.enable_camera_stream = enable_camera_stream
         
         # Generate robot ID similar to tonypi_client.py
         if robot_id:
@@ -117,6 +243,15 @@ class TonyPiSimulator:
         # Emergency stop state
         self.emergency_stopped = False
         self.emergency_reason = None
+        
+        # Emergency stop callback
+        self.on_emergency_stop_callback: Optional[Callable] = None
+        
+        # Camera streaming
+        self._camera_server = None
+        self._camera_thread = None
+        self._frame_generator_thread = None
+        self._ip_address = self.get_local_ip()
         
         # Battery
         self.battery_level = self._get_initial_battery()
@@ -181,6 +316,7 @@ class TonyPiSimulator:
         logger.info(f"TonyPi Simulator initialized")
         logger.info(f"  Robot ID: {self.robot_id}")
         logger.info(f"  Mode: {self.mode.value}")
+        logger.info(f"  Camera stream will be available at: http://{self._ip_address}:{camera_port}/?action=stream")
     
     # ==================== INITIALIZATION HELPERS ====================
     
@@ -379,6 +515,13 @@ class TonyPiSimulator:
         # Stop any active job
         if self.job_active:
             self._stop_job()
+        
+        # Call the emergency stop callback if registered
+        if self.on_emergency_stop_callback:
+            try:
+                self.on_emergency_stop_callback(reason)
+            except Exception as e:
+                logger.error(f"Error in emergency stop callback: {e}")
         
         self.add_terminal_log("EMERGENCY", f"⚠️ EMERGENCY STOP: {reason}", send_mqtt=True)
         logger.warning(f"EMERGENCY STOP activated: {reason}")
@@ -1109,7 +1252,243 @@ class TonyPiSimulator:
             
         except Exception as e:
             logger.error(f"Error sending vision data: {e}")
-    
+
+    def send_job_event(
+        self,
+        task_name: str,
+        status: str,
+        phase: str = None,
+        elapsed_time: float = None,
+        estimated_duration: float = None,
+        action_duration: float = None,
+        success: bool = None,
+        reason: str = None,
+        items_done: int = None,
+        items_total: int = None
+    ):
+        """
+        Send job timing event to monitoring system.
+        
+        Args:
+            task_name: Name of the task (e.g., "Peeling", "Transport")
+            status: Job status ("started", "in_progress", "completed", "cancelled", "failed")
+            phase: Current phase ("scanning", "searching", "executing", "done")
+            elapsed_time: Time elapsed since job started (seconds)
+            estimated_duration: Estimated total duration for this task type (seconds)
+            action_duration: Duration of the physical action execution (seconds)
+            success: Whether the job completed successfully
+            reason: Reason for cancellation/failure (if applicable)
+            items_done: Number of items processed so far
+            items_total: Total number of items to process
+        """
+        if not self.is_connected:
+            return
+        
+        try:
+            data = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "task_name": task_name,
+                "status": status,
+            }
+            
+            # Add optional fields if provided
+            if phase is not None:
+                data["phase"] = phase
+            if elapsed_time is not None:
+                data["elapsed_time"] = elapsed_time
+            if estimated_duration is not None:
+                data["estimated_duration"] = estimated_duration
+            if action_duration is not None:
+                data["action_duration"] = action_duration
+            if success is not None:
+                data["success"] = success
+            if reason is not None:
+                data["reason"] = reason
+            if items_done is not None:
+                data["items_done"] = items_done
+            if items_total is not None:
+                data["items_total"] = items_total
+            
+            # Calculate progress percentage if items are provided
+            if items_done is not None and items_total is not None and items_total > 0:
+                data["progress_percent"] = round((items_done / items_total) * 100, 1)
+            
+            self.client.publish(self.job_topic, json.dumps(data))
+            logger.debug(f"Sent job event: {task_name} - {status}")
+            
+        except Exception as e:
+            logger.error(f"Error sending job event: {e}")
+
+    def send_qr_scan(self, qr_data: str, station_name: str = None, action: str = None):
+        """
+        Send QR code scan event to monitoring system.
+        
+        Args:
+            qr_data: QR code content/data
+            station_name: Name of the station (optional)
+            action: Action performed (e.g., 'scanned', 'navigation_complete')
+        """
+        if not self.is_connected:
+            return
+        
+        try:
+            data = {
+                "robot_id": self.robot_id,
+                "timestamp": datetime.now().isoformat(),
+                "qr_data": qr_data,
+                "station_name": station_name,
+                "action": action or "scanned"
+            }
+            
+            self.client.publish(self.scan_topic, json.dumps(data))
+            logger.debug(f"Sent QR scan: {qr_data}")
+            
+        except Exception as e:
+            logger.error(f"Error sending QR scan: {e}")
+
+    # ==========================================
+    # CAMERA STREAMING METHODS
+    # ==========================================
+
+    def _start_camera_server(self):
+        """Start the MJPEG camera streaming server."""
+        try:
+            self._camera_server = ThreadedHTTPServer(('', self.camera_port), MJPEGHandler)
+            self._camera_thread = threading.Thread(target=self._camera_server.serve_forever, daemon=True)
+            self._camera_thread.start()
+            
+            # Start simulated frame generator
+            self._frame_generator_thread = threading.Thread(target=self._generate_simulated_frames, daemon=True)
+            self._frame_generator_thread.start()
+            
+            logger.info(f"📹 Camera stream started: http://{self._ip_address}:{self.camera_port}/?action=stream")
+        except OSError as e:
+            if e.errno == 98 or e.errno == 10048:  # Address already in use (Linux/Windows)
+                logger.warning(f"Camera port {self.camera_port} already in use - stream not available")
+            else:
+                logger.error(f"Failed to start camera server: {e}")
+        except Exception as e:
+            logger.error(f"Failed to start camera server: {e}")
+
+    def _stop_camera_server(self):
+        """Stop the camera streaming server."""
+        if self._camera_server:
+            try:
+                self._camera_server.shutdown()
+                logger.info("Camera server stopped")
+            except Exception as e:
+                logger.error(f"Error stopping camera server: {e}")
+
+    def _generate_simulated_frames(self):
+        """Generate simulated camera frames with robot status overlay."""
+        global _current_frame, _frame_lock
+        
+        if not CV2_AVAILABLE:
+            logger.warning("OpenCV not available - camera simulation disabled")
+            return
+        
+        while self.running:
+            try:
+                # Create a simulated frame (640x480, dark blue background)
+                frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                frame[:] = (30, 20, 10)  # Dark blue-ish background
+                
+                # Add some visual elements
+                current_time = time.time()
+                
+                # Draw a grid pattern
+                for i in range(0, 640, 40):
+                    cv2.line(frame, (i, 0), (i, 480), (50, 40, 30), 1)
+                for i in range(0, 480, 40):
+                    cv2.line(frame, (0, i), (640, i), (50, 40, 30), 1)
+                
+                # Draw robot status
+                status_text = "SIMULATOR" if not self.emergency_stopped else "EMERGENCY STOP"
+                status_color = (0, 255, 0) if not self.emergency_stopped else (0, 0, 255)
+                cv2.putText(frame, status_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, status_color, 2)
+                
+                # Draw battery level
+                battery_text = f"Battery: {self.battery_level:.1f}%"
+                cv2.putText(frame, battery_text, (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                
+                # Draw moving indicator
+                if self.is_moving:
+                    # Animate a moving indicator
+                    offset = int(50 * math.sin(current_time * 3))
+                    cv2.circle(frame, (320 + offset, 240), 30, (0, 255, 255), 2)
+                    cv2.putText(frame, "MOVING", (280, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                
+                # Draw timestamp
+                timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                cv2.putText(frame, timestamp, (500, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (128, 128, 128), 1)
+                
+                # Draw robot ID
+                cv2.putText(frame, self.robot_id, (20, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (128, 128, 128), 1)
+                
+                # Update global frame
+                with _frame_lock:
+                    _current_frame = frame
+                
+                time.sleep(0.033)  # ~30 FPS
+                
+            except Exception as e:
+                logger.error(f"Error generating simulated frame: {e}")
+                time.sleep(0.1)
+
+    def update_frame(self, frame):
+        """
+        Update the current camera frame for streaming.
+        Can be used to inject external frames instead of simulated ones.
+        
+        Args:
+            frame: OpenCV frame (numpy array) from camera
+        """
+        global _current_frame, _frame_lock
+        
+        if frame is not None:
+            with _frame_lock:
+                _current_frame = frame.copy() if hasattr(frame, 'copy') else frame
+
+    @property
+    def camera_url(self) -> str:
+        """Get the camera stream URL."""
+        return f"http://{self._ip_address}:{self.camera_port}/?action=stream"
+
+    @property
+    def snapshot_url(self) -> str:
+        """Get the camera snapshot URL."""
+        return f"http://{self._ip_address}:{self.camera_port}/?action=snapshot"
+
+    # ==========================================
+    # EMERGENCY STOP CALLBACK
+    # ==========================================
+
+    def set_emergency_stop_callback(self, callback: Callable[[str], None]):
+        """
+        Set callback function for emergency stop events.
+        
+        Args:
+            callback: Function that takes a reason string as argument
+        """
+        self.on_emergency_stop_callback = callback
+        logger.info("Emergency stop callback registered")
+
+    def is_emergency_stopped(self) -> bool:
+        """Check if emergency stop is currently active."""
+        return self.emergency_stopped
+
+    def get_emergency_stop_reason(self) -> Optional[str]:
+        """Get the reason for the current emergency stop."""
+        return self.emergency_reason if self.emergency_stopped else None
+
+    def clear_emergency_stop(self):
+        """Clear the emergency stop state locally."""
+        if self.emergency_stopped:
+            logger.info("Emergency stop cleared locally")
+            self.emergency_stopped = False
+            self.emergency_reason = None
+
     # ==================== MAIN LOOP ====================
     
     async def connect(self):
@@ -1145,6 +1524,9 @@ class TonyPiSimulator:
             self.client.publish(self.topics["status"], json.dumps(offline_data))
             await asyncio.sleep(0.5)
         
+        # Stop camera server
+        self._stop_camera_server()
+        
         self.client.loop_stop()
         self.client.disconnect()
     
@@ -1159,9 +1541,14 @@ class TonyPiSimulator:
         print(f"   Mode: {self.mode.value}")
         print(f"   MQTT Broker: {self.mqtt_broker}:{self.mqtt_port}")
         print(f"   Hardware Mode: {self.hardware_available} (simulation)")
+        print(f"   Camera Stream: http://{self._ip_address}:{self.camera_port}/?action=stream")
         print("="*60)
         
         try:
+            # Start camera streaming server
+            if self.enable_camera_stream:
+                self._start_camera_server()
+            
             await self.connect()
             print("✅ Connected to MQTT broker successfully!")
             
