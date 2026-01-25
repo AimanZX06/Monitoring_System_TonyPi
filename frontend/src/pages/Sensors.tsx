@@ -76,7 +76,13 @@ const Sensors: React.FC = () => {
         }
 
         const sensors = await apiService.getSensorData('sensors', '5m');
-        setRecentSensors(sensors.slice(-20) as SensorReading[]);
+        const mappedSensors: SensorReading[] = sensors.slice(-20).map(s => ({
+          timestamp: s.timestamp instanceof Date ? s.timestamp.toISOString() : String(s.timestamp),
+          sensor_type: s.sensor_type || s.field || 'unknown',
+          value: typeof s.value === 'number' ? s.value : 0,
+          unit: s.unit || ''
+        }));
+        setRecentSensors(mappedSensors);
       } catch (error) {
         console.error('Error fetching sensor data:', error);
       } finally {
