@@ -1,0 +1,190 @@
+@startuml TonyPi_Deployment_Diagram
+
+title TonyPi Robot Monitoring System - Deployment Diagram
+
+skinparam node {
+    BackgroundColor<<server>> LightBlue
+    BackgroundColor<<container>> LightGreen
+    BackgroundColor<<database>> LightYellow
+    BackgroundColor<<device>> Orange
+    BackgroundColor<<external>> Pink
+}
+
+skinparam artifact {
+    BackgroundColor White
+}
+
+' ========== MONITORING SERVER (HOST MACHINE) ==========
+
+node "Monitoring Server\n(Windows/Linux PC)" <<server>> as Server {
+    
+    node "Docker Engine" as Docker {
+        
+        node "Frontend Container\n:3001" <<container>> as FrontendContainer {
+            artifact "React Application" as ReactApp {
+                component "Dashboard" as DashboardComp
+                component "Monitoring Views" as MonitoringComp
+                component "SSH Terminal (XTerm.js)" as XTermComp
+                component "Charts (ReCharts)" as ChartsComp
+            }
+            artifact "Nginx" as Nginx
+        }
+        
+        node "Backend Container\n:8000" <<container>> as BackendContainer {
+            artifact "FastAPI Application" as FastAPIApp {
+                component "REST API Routers" as APIRouters
+                component "WebSocket Handler" as WSHandler
+                component "MQTT Client" as MQTTClient
+                component "SSH Manager (AsyncSSH)" as SSHManager
+            }
+            artifact "Python 3.11" as Python
+        }
+        
+        node "PostgreSQL Container\n:5432" <<database>> as PostgresContainer {
+            database "tonypi_db" as PostgresDB {
+                collections "robots"
+                collections "users"
+                collections "alerts"
+                collections "jobs"
+                collections "reports"
+                collections "system_logs"
+            }
+        }
+        
+        node "InfluxDB Container\n:8086" <<database>> as InfluxContainer {
+            database "robot_data (Bucket)" as InfluxDB {
+                collections "robot_status"
+                collections "sensor_data"
+                collections "servo_data"
+                collections "system_metrics"
+            }
+        }
+        
+        node "Mosquitto Container\n:1883, :9001" <<container>> as MQTTContainer {
+            artifact "MQTT Broker" as MQTTBroker {
+                component "TCP Listener :1883" as TCPListener
+                component "WebSocket Listener :9001" as WSListener
+            }
+        }
+        
+        node "Grafana Container\n:3000" <<container>> as GrafanaContainer {
+            artifact "Grafana" as Grafana {
+                component "Dashboards" as GrafanaDash
+                component "Alert Manager" as GrafanaAlert
+            }
+        }
+    }
+    
+    artifact "docker-compose.yml" as DockerCompose
+}
+
+' ========== TONYPI ROBOT ==========
+
+node "TonyPi Robot\n(Raspberry Pi 5)" <<device>> as RobotNode {
+    
+    artifact "Robot Client Software" as RobotSoftware {
+        component "TonyPi Client (main.py)" as MainClient
+        component "MQTT Publisher" as MQTTPub
+        component "Camera Stream Server :8080" as CameraServer
+        component "Hardware Interface" as HWInterface
+    }
+    
+    artifact "HiWonder SDK" as SDK {
+        component "Servo Controller" as ServoCtrl
+        component "IMU Driver" as IMUDriver
+        component "GPIO Interface" as GPIOInterface
+    }
+    
+    node "Hardware Components" as Hardware {
+        component "6x Servos (Bus)" as Servos
+        component "Camera (USB/CSI)" as Camera
+        component "IMU Sensor" as IMU
+        component "Ultrasonic Sensor" as Ultrasonic
+        component "Light Sensor" as LightSensor
+    }
+}
+
+' ========== EXTERNAL SERVICES ==========
+
+cloud "Google Cloud" <<external>> as GoogleCloud {
+    node "Gemini AI API" as GeminiAPI {
+        component "generative-ai" as GenAI
+    }
+}
+
+cloud "Network" as Network {
+    component "Local Network / WiFi" as WiFi
+}
+
+' ========== USER DEVICES ==========
+
+node "User Device\n(Browser)" <<device>> as UserDevice {
+    artifact "Web Browser" as Browser {
+        component "Chrome/Firefox/Edge" as BrowserApp
+    }
+}
+
+' ========== CONNECTIONS ==========
+
+' Docker internal connections
+FrontendContainer --> BackendContainer : HTTP/WebSocket\n(internal network)
+BackendContainer --> PostgresContainer : SQL\nPort 5432
+BackendContainer --> InfluxContainer : HTTP API\nPort 8086
+BackendContainer --> MQTTContainer : MQTT\nPort 1883
+BackendContainer --> GrafanaContainer : HTTP Proxy\nPort 3000
+GrafanaContainer --> InfluxContainer : Flux Queries
+GrafanaContainer --> PostgresContainer : SQL Queries
+
+' External connections
+UserDevice --> FrontendContainer : HTTPS\nPort 3001
+UserDevice --> GrafanaContainer : HTTPS\nPort 3000
+UserDevice --> BackendContainer : HTTP/WS\nPort 8000
+
+BackendContainer --> GeminiAPI : HTTPS API\n(AI Reports)
+
+' Robot connections
+RobotNode --> MQTTContainer : MQTT\nPort 1883
+BackendContainer --> RobotNode : SSH\nPort 22
+UserDevice --> RobotNode : Camera Stream\nPort 8080
+
+' Hardware connections
+MainClient --> SDK : Python Import
+SDK --> Hardware : GPIO/I2C/Serial
+HWInterface --> Servos : Bus Serial
+HWInterface --> IMU : I2C
+HWInterface --> Ultrasonic : GPIO
+HWInterface --> LightSensor : GPIO
+CameraServer --> Camera : USB/CSI
+
+' Network
+Server -- Network : Ethernet/WiFi
+RobotNode -- Network : WiFi
+UserDevice -- Network : WiFi
+
+' ========== NOTES ==========
+
+note right of Server
+    **Server Requirements:**
+    - Docker Desktop
+    - 8GB+ RAM
+    - Ports: 1883, 3000, 3001, 
+      5432, 8000, 8086, 9001
+end note
+
+note right of RobotNode
+    **Robot Hardware:**
+    - Raspberry Pi 5 (4GB+)
+    - HiWonder TonyPi Kit
+    - USB/CSI Camera
+    - WiFi connectivity
+end note
+
+note bottom of DockerCompose
+    **Container Orchestration:**
+    - Automatic service startup
+    - Health checks
+    - Volume persistence
+    - Network isolation
+end note
+
+@enduml

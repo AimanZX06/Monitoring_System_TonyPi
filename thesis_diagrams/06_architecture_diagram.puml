@@ -1,0 +1,234 @@
+@startuml TonyPi_Architecture_Diagram
+
+title TonyPi Robot Monitoring System - System Architecture Diagram
+
+skinparam rectangle {
+    BackgroundColor<<presentation>> LightBlue
+    BackgroundColor<<application>> LightGreen
+    BackgroundColor<<business>> LightYellow
+    BackgroundColor<<data>> Pink
+    BackgroundColor<<integration>> LightCoral
+    BackgroundColor<<infrastructure>> LightGray
+    BackgroundColor<<external>> Lavender
+}
+
+' ========== PRESENTATION LAYER ==========
+
+rectangle "Presentation Layer" <<presentation>> as PresentationLayer {
+    
+    rectangle "Web Application (React 18)" as WebApp {
+        component "Dashboard View" as Dashboard
+        component "Monitoring View" as Monitoring
+        component "Alerts Management" as AlertsUI
+        component "Reports & Analytics" as ReportsUI
+        component "SSH Terminal (XTerm.js)" as SSHTerminal
+        component "User Management" as UsersUI
+    }
+    
+    rectangle "Data Visualization" as DataViz {
+        component "ReCharts" as ReCharts
+        component "Grafana Dashboards" as GrafanaDash
+        component "Real-time Charts" as RTCharts
+    }
+    
+    rectangle "State Management" as StateManagement {
+        component "React Context" as ReactContext
+        component "WebSocket Client" as WSClient
+        component "MQTT.js Client" as MQTTjs
+    }
+}
+
+' ========== APPLICATION LAYER ==========
+
+rectangle "Application Layer (FastAPI)" <<application>> as ApplicationLayer {
+    
+    rectangle "API Gateway" as APIGateway {
+        component "REST API Endpoints" as RestAPI
+        component "WebSocket Endpoints" as WSAPI
+        component "Authentication Middleware" as AuthMiddleware
+        component "CORS Handler" as CORSHandler
+    }
+    
+    rectangle "Core Services" as CoreServices {
+        component "Robot Data Service" as RobotDataSvc
+        component "Alert Service" as AlertSvc
+        component "Report Service" as ReportSvc
+        component "User Service" as UserSvc
+        component "Log Service" as LogSvc
+    }
+    
+    rectangle "Integration Services" as IntegrationSvcs {
+        component "MQTT Service" as MQTTSvc
+        component "SSH Service" as SSHSvc
+        component "AI Analytics Service" as AISvc
+        component "Grafana Proxy" as GrafanaProxy
+    }
+}
+
+' ========== BUSINESS LOGIC LAYER ==========
+
+rectangle "Business Logic Layer" <<business>> as BusinessLayer {
+    
+    rectangle "Domain Logic" as DomainLogic {
+        component "Telemetry Processor" as TelemetryProc
+        component "Alert Engine" as AlertEngine
+        component "Job Scheduler" as JobScheduler
+        component "Data Validator" as DataValidator
+    }
+    
+    rectangle "Business Rules" as BusinessRules {
+        component "Threshold Manager" as ThresholdMgr
+        component "Role-Based Access Control" as RBAC
+        component "Alert Escalation Rules" as EscalationRules
+    }
+}
+
+' ========== DATA ACCESS LAYER ==========
+
+rectangle "Data Access Layer" <<data>> as DataLayer {
+    
+    rectangle "ORM & Query Builders" as DataAccess {
+        component "SQLAlchemy Models" as SQLAlchemy
+        component "InfluxDB Client" as InfluxClient
+        component "Pydantic Schemas" as Pydantic
+    }
+    
+    rectangle "Data Stores" as DataStores {
+        database "PostgreSQL\n(Relational Data)" as Postgres {
+            collections "robots"
+            collections "users"
+            collections "alerts"
+            collections "jobs"
+            collections "reports"
+        }
+        
+        database "InfluxDB\n(Time-Series Data)" as InfluxDB {
+            collections "robot_status"
+            collections "sensor_data"
+            collections "servo_data"
+        }
+    }
+}
+
+' ========== INTEGRATION LAYER ==========
+
+rectangle "Integration Layer" <<integration>> as IntegrationLayer {
+    
+    rectangle "Message Broker" as MessageBroker {
+        component "Mosquitto MQTT Broker" as MQTT {
+            port "TCP :1883" as TCPPort
+            port "WebSocket :9001" as WSPort
+        }
+    }
+    
+    rectangle "Communication Protocols" as Protocols {
+        component "MQTT Protocol" as MQTTProtocol
+        component "HTTP/REST" as HTTPProtocol
+        component "WebSocket" as WSProtocol
+        component "SSH Protocol" as SSHProtocol
+    }
+}
+
+' ========== ROBOT CLIENT LAYER ==========
+
+rectangle "Robot Client Layer (TonyPi)" <<external>> as RobotLayer {
+    
+    rectangle "Robot Software" as RobotSoftware {
+        component "Main Controller" as MainCtrl
+        component "Vision Controller" as VisionCtrl
+        component "Movement Controller" as MovementCtrl
+        component "TTS Provider" as TTSProvider
+    }
+    
+    rectangle "Hardware Abstraction" as HAL {
+        component "Servo Manager" as ServoMgr
+        component "Sensor Manager" as SensorMgr
+        component "Camera Manager" as CameraMgr
+    }
+    
+    rectangle "Communication" as RobotComm {
+        component "MQTT Publisher" as MQTTPub
+        component "Command Handler" as CmdHandler
+        component "Camera Streamer" as CamStreamer
+    }
+}
+
+' ========== EXTERNAL SERVICES ==========
+
+rectangle "External Services" <<external>> as ExternalServices {
+    component "Google Gemini AI" as GeminiAI
+}
+
+' ========== INFRASTRUCTURE LAYER ==========
+
+rectangle "Infrastructure Layer" <<infrastructure>> as InfrastructureLayer {
+    
+    rectangle "Container Orchestration" as Containers {
+        component "Docker Compose" as DockerCompose
+        component "Docker Networks" as DockerNetworks
+        component "Docker Volumes" as DockerVolumes
+    }
+    
+    rectangle "Monitoring & Logging" as MonitoringInfra {
+        component "Grafana" as Grafana
+        component "System Logs" as SysLogs
+    }
+}
+
+' ========== RELATIONSHIPS ==========
+
+' Presentation to Application
+Dashboard --> RestAPI
+Monitoring --> WSAPI
+SSHTerminal --> SSHSvc
+ReportsUI --> ReportSvc
+AlertsUI --> AlertSvc
+GrafanaDash --> GrafanaProxy
+
+' Application to Business
+RobotDataSvc --> TelemetryProc
+AlertSvc --> AlertEngine
+RobotDataSvc --> DataValidator
+UserSvc --> RBAC
+AlertSvc --> ThresholdMgr
+
+' Business to Data
+TelemetryProc --> SQLAlchemy
+TelemetryProc --> InfluxClient
+AlertEngine --> SQLAlchemy
+RBAC --> SQLAlchemy
+
+' Application to Integration
+MQTTSvc --> MQTT
+SSHSvc --> SSHProtocol
+AISvc --> GeminiAI
+
+' Integration to Robot
+MQTT --> MQTTPub
+CmdHandler --> MQTT
+CamStreamer ..> WebApp : HTTP Stream
+
+' State management connections
+WSClient --> WSAPI
+MQTTjs --> MQTT
+
+' Infrastructure
+DockerCompose --> Postgres
+DockerCompose --> InfluxDB
+DockerCompose --> MQTT
+DockerCompose --> Grafana
+
+' ========== LEGEND ==========
+
+legend right
+    |= Layer |= Color |= Description |
+    | Presentation | Light Blue | User Interface |
+    | Application | Light Green | API & Services |
+    | Business | Light Yellow | Domain Logic |
+    | Data | Pink | Data Storage |
+    | Integration | Light Coral | Communication |
+    | External | Lavender | Third-party |
+    | Infrastructure | Light Gray | DevOps |
+endlegend
+
+@enduml

@@ -1,0 +1,97 @@
+@startuml TonyPi_Use_Case_Diagram
+
+title TonyPi Robot Monitoring System - Use Case Diagram
+
+left to right direction
+skinparam actorStyle hollow
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor White
+    BorderColor Black
+}
+
+' ========== ACTORS (LEFT) ==========
+actor "Administrator" as Admin
+actor "Operator" as Operator
+actor "Viewer" as Viewer
+
+' ========== ACTORS (RIGHT) ==========
+actor "TonyPi Robot" as Robot
+actor "MQTT Broker" as MQTT
+actor "Gemini AI" as AI
+
+' ========== SYSTEM BOUNDARY ==========
+rectangle "TonyPi Robot Monitoring System" {
+    
+    usecase "Login/Logout" as UC_Login
+    usecase "Manage Users" as UC_ManageUsers
+    
+    usecase "View Dashboard" as UC_Dashboard
+    usecase "Monitor Telemetry" as UC_Telemetry
+    usecase "View Sensors" as UC_SensorData
+    usecase "View Camera" as UC_Camera
+    
+    usecase "Send Commands" as UC_SendCommand
+    usecase "Emergency Stop" as UC_EmergencyStop
+    usecase "SSH Terminal" as UC_SSH
+    usecase "Manage Jobs" as UC_ManageJobs
+    
+    usecase "View Alerts" as UC_ViewAlerts
+    usecase "Acknowledge Alert" as UC_AckAlert
+    usecase "Configure Thresholds" as UC_ConfigThresholds
+    
+    usecase "Generate Report" as UC_GenReport
+    usecase "AI Analysis" as UC_AIAnalysis
+    usecase "Grafana Dashboard" as UC_Grafana
+    
+    usecase "Send Telemetry" as UC_SendTelemetry
+    usecase "Receive Commands" as UC_ReceiveCmd
+    usecase "Execute Actions" as UC_ExecuteAction
+}
+
+' ========== ADMIN RELATIONSHIPS ==========
+Admin --> UC_Login
+Admin --> UC_ManageUsers
+Admin --> UC_Dashboard
+Admin --> UC_SendCommand
+Admin --> UC_EmergencyStop
+Admin --> UC_SSH
+Admin --> UC_ConfigThresholds
+Admin --> UC_GenReport
+Admin --> UC_AIAnalysis
+
+' ========== OPERATOR RELATIONSHIPS ==========
+Operator --> UC_Login
+Operator --> UC_Dashboard
+Operator --> UC_Telemetry
+Operator --> UC_SensorData
+Operator --> UC_Camera
+Operator --> UC_SendCommand
+Operator --> UC_ManageJobs
+Operator --> UC_ViewAlerts
+Operator --> UC_AckAlert
+Operator --> UC_SSH
+
+' ========== VIEWER RELATIONSHIPS ==========
+Viewer --> UC_Login
+Viewer --> UC_Dashboard
+Viewer --> UC_Telemetry
+Viewer --> UC_Camera
+Viewer --> UC_ViewAlerts
+Viewer --> UC_Grafana
+
+' ========== ROBOT RELATIONSHIPS ==========
+UC_SendTelemetry --> Robot
+UC_ReceiveCmd --> Robot
+UC_ExecuteAction --> Robot
+
+' ========== SYSTEM RELATIONSHIPS ==========
+UC_SendTelemetry --> MQTT
+UC_ReceiveCmd --> MQTT
+UC_AIAnalysis --> AI
+
+' ========== INCLUDE/EXTEND ==========
+UC_SendCommand ..> UC_ReceiveCmd : <<include>>
+UC_ViewAlerts ..> UC_AckAlert : <<extend>>
+
+@enduml

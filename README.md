@@ -20,6 +20,7 @@ A comprehensive full-stack monitoring, analytics, and management system for HiWo
 ### 🤖 Robot Management
 - **Multi-Robot Support**: Monitor multiple TonyPi robots simultaneously
 - **Remote Commands**: Send commands to robots in real-time
+- **SSH Terminal Access**: Web-based SSH terminal for direct robot access
 - **Job Tracking**: Track robot tasks and job progress
 - **Location Tracking**: GPS/position updates
 

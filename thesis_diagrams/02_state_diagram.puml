@@ -1,0 +1,63 @@
+@startuml TonyPi_State_Diagram
+
+title TonyPi Robot Monitoring System - Robot State Diagram
+
+skinparam state {
+    BackgroundColor<<online>> LightGreen
+    BackgroundColor<<offline>> LightGray
+    BackgroundColor<<error>> LightCoral
+    BackgroundColor<<warning>> LightYellow
+    BackgroundColor<<active>> LightBlue
+}
+
+[*] --> Offline
+
+state Offline <<offline>>
+Offline : Robot not connected
+Offline : No heartbeat received
+
+state Online <<online>>
+Online : Connected to MQTT
+Online : Initialized
+
+state Executing <<active>>
+Executing : Running task
+
+state EmergencyStop <<error>>
+EmergencyStop : E-Stop active
+
+state LowBattery <<warning>>
+LowBattery : Battery < 20%
+
+state Charging <<online>>
+Charging : Power connected
+
+state Error <<error>>
+Error : Hardware failure
+
+state Maintenance <<warning>>
+Maintenance : Calibration mode
+
+Offline --> Online : MQTT connected
+Online --> Executing : Receive command
+Online --> LowBattery : Battery < 20%
+Online --> Charging : Power connected
+
+Executing --> Online : Task complete
+Executing --> EmergencyStop : E-Stop triggered
+Executing --> LowBattery : Battery critical
+
+EmergencyStop --> Online : Reset command
+
+LowBattery --> Charging : Power connected
+LowBattery --> Offline : Battery depleted
+
+Charging --> Online : Battery > 90%
+
+Online --> Offline : Connection lost
+Online --> Error : Hardware failure
+Online --> Maintenance : Enter maintenance
+Error --> Offline : System restart
+Maintenance --> Online : Exit maintenance
+
+@enduml

@@ -1,0 +1,70 @@
+@startuml Architecture Diagram - TonyPi System
+!theme plain
+skinparam rectangle {
+    BackgroundColor White
+    BorderColor #333333
+}
+skinparam component {
+    BackgroundColor White
+    BorderColor #333333
+}
+
+title TonyPi Robot Monitoring System - Architecture Overview
+
+' Presentation Layer
+rectangle "Presentation Layer" as PL #LightBlue {
+    component "React Dashboard" as Dashboard
+    component "Grafana Visualizations" as GrafanaUI
+}
+
+' Application Layer
+rectangle "Application Layer" as AL #LightGreen {
+    component "FastAPI Backend" as API
+    component "WebSocket Server" as WS
+    component "Google Gemini AI" as AI
+}
+
+' Communication Layer
+rectangle "Communication Layer" as CL #LightCoral {
+    component "Mosquitto MQTT Broker" as MQTT
+}
+
+' Data Layer
+rectangle "Data Layer" as DL #LightYellow {
+    database "PostgreSQL\n(Users, Config, Alerts)" as PG
+    database "InfluxDB\n(Telemetry, Metrics)" as Influx
+}
+
+' Robot Layer
+rectangle "Robot Layer (TonyPi)" as RL #Orange {
+    component "Robot Client" as Client
+    component "Vision Module" as Vision
+    component "Movement Controller" as Movement
+    component "Hardware Interface" as HW
+}
+
+' Data Flow Arrows
+Dashboard --> API : REST API
+Dashboard --> WS : Real-time Updates
+GrafanaUI --> Influx : Queries
+
+API --> PG : Metadata
+API --> Influx : Time-series
+API --> AI : Analysis Requests
+API <--> MQTT : Commands & Status
+
+WS --> Dashboard : Push Updates
+
+MQTT <--> Client : Telemetry & Commands
+
+Client --> Vision : Frame Processing
+Client --> Movement : Actions
+Client --> HW : Sensor/Servo Control
+
+' Layer connections (simplified)
+PL -[hidden]down- AL
+AL -[hidden]down- CL
+CL -[hidden]down- DL
+DL -[hidden]down- RL
+
+@enduml

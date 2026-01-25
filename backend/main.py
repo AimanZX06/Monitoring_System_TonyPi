@@ -66,7 +66,8 @@ from routers import (
     data_validation, # Data validation endpoints
     alerts,          # Alert management and threshold configuration
     logs,            # System logging endpoints
-    users            # User authentication and management
+    users,           # User authentication and management
+    ssh              # SSH terminal access to robots
 )
 
 # ============================================================================
@@ -320,6 +321,9 @@ app.include_router(logs.router, prefix=API_PREFIX, tags=["logs"])
 
 # User authentication and management
 app.include_router(users.router, prefix=API_PREFIX, tags=["users"])
+
+# SSH terminal access to robots via WebSocket
+app.include_router(ssh.router, prefix=API_PREFIX, tags=["ssh"])
 
 
 # ============================================================================

@@ -1,0 +1,61 @@
+@startuml Session_State_Diagram
+
+title User Session State Diagram
+
+skinparam state {
+    BackgroundColor<<online>> LightGreen
+    BackgroundColor<<offline>> LightGray
+    BackgroundColor<<error>> LightCoral
+    BackgroundColor<<warning>> LightYellow
+    BackgroundColor<<active>> LightBlue
+}
+
+[*] --> LoggedOut
+
+state LoggedOut <<offline>>
+LoggedOut : No active session
+LoggedOut : Login required
+
+state ViewDashboard <<online>>
+ViewDashboard : Main dashboard view
+
+state Monitoring <<online>>
+Monitoring : Robot details view
+
+state ManageAlerts <<warning>>
+ManageAlerts : Alert management
+
+state Reports <<online>>
+Reports : Report generation
+
+state SSHSession <<active>>
+SSHSession : Terminal access
+
+state AdminPanel <<active>>
+AdminPanel : Admin functions
+
+state SessionExpired <<error>>
+SessionExpired : Token expired
+SessionExpired : Re-login required
+
+LoggedOut --> ViewDashboard : Login success
+
+ViewDashboard --> Monitoring : Select robot
+ViewDashboard --> ManageAlerts : View alerts
+ViewDashboard --> Reports : Open reports
+ViewDashboard --> AdminPanel : Admin access
+
+Monitoring --> SSHSession : Open terminal
+Monitoring --> ViewDashboard : Back
+
+ManageAlerts --> ViewDashboard : Close
+Reports --> ViewDashboard : Close
+AdminPanel --> ViewDashboard : Close
+SSHSession --> Monitoring : Close terminal
+
+ViewDashboard --> LoggedOut : Logout
+ViewDashboard --> SessionExpired : Token expired
+SessionExpired --> LoggedOut : Redirect
+SessionExpired --> ViewDashboard : Refresh token
+
+@enduml

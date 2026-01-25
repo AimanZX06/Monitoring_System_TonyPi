@@ -1,0 +1,69 @@
+@startuml Job_State_Diagram
+
+title Job Lifecycle State Diagram
+
+skinparam state {
+    BackgroundColor<<online>> LightGreen
+    BackgroundColor<<offline>> LightGray
+    BackgroundColor<<error>> LightCoral
+    BackgroundColor<<warning>> LightYellow
+    BackgroundColor<<active>> LightBlue
+}
+
+[*] --> Pending
+
+state Pending <<offline>>
+Pending : Job created
+Pending : Waiting to start
+
+state Initializing <<active>>
+Initializing : Setting up
+
+state Scanning <<active>>
+Scanning : Scanning environment
+
+state Searching <<active>>
+Searching : Looking for target
+
+state JobExecuting <<active>>
+JobExecuting : Executing action
+
+state Finalizing <<active>>
+Finalizing : Wrapping up
+
+state Completed <<online>>
+Completed : Job finished
+Completed : Results recorded
+
+state Failed <<error>>
+Failed : Error occurred
+Failed : Unable to complete
+
+state Cancelled <<warning>>
+Cancelled : User cancelled
+Cancelled : Timeout occurred
+
+Pending --> Initializing : Start job
+Pending --> Cancelled : Cancel before start
+
+Initializing --> Scanning : Start scan
+Scanning --> Searching : Scan complete
+Searching --> JobExecuting : Target found
+JobExecuting --> Finalizing : Action complete
+Finalizing --> Completed : Success
+
+Initializing --> Failed : Init error
+Scanning --> Failed : Scan error
+Searching --> Failed : Not found
+JobExecuting --> Failed : Execution error
+
+Initializing --> Cancelled : User cancel
+Scanning --> Cancelled : User cancel
+Searching --> Cancelled : Timeout
+JobExecuting --> Cancelled : User cancel
+
+Completed --> [*]
+Failed --> [*]
+Cancelled --> [*]
+
+@enduml

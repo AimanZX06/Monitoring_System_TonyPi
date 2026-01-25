@@ -68,6 +68,9 @@ import { RobotData } from '../types';
 // Components - Grafana panel for charts
 import GrafanaPanel from '../components/GrafanaPanel';
 
+// SSH Terminal Modal - web-based SSH access to robots
+import SSHTerminalModal from '../components/SSHTerminalModal';
+
 // Configuration - Grafana URL builder
 import { getGrafanaPanelUrl } from '../utils/config';
 
@@ -90,6 +93,9 @@ const Robots: React.FC = () => {
   const [isStopping, setIsStopping] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [cameraRefreshKey, setCameraRefreshKey] = useState(0);
+  const [showSSHTerminal, setShowSSHTerminal] = useState(false);
+  const [sshRobotId, setSSHRobotId] = useState<string>('');
+  const [sshRobotName, setSSHRobotName] = useState<string>('');
   const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -566,6 +572,19 @@ const Robots: React.FC = () => {
               >
                 Details
               </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSSHRobotId(robot.robot_id);
+                  setSSHRobotName(robot.name || robot.robot_id);
+                  setShowSSHTerminal(true);
+                }}
+                className="px-3 py-1.5 text-sm bg-gray-700 text-white rounded hover:bg-gray-600 flex items-center gap-1"
+                title="Open SSH Terminal"
+              >
+                <Terminal size={14} />
+                SSH
+              </button>
             </div>
           </div>
         ))}
@@ -661,6 +680,20 @@ const Robots: React.FC = () => {
                 <p className={`text-sm mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Last Seen</p>
                 <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{new Date(selectedRobot.last_seen).toLocaleString()}</p>
               </div>
+
+              {/* SSH Terminal Access Button */}
+              <button
+                onClick={() => {
+                  setSSHRobotId(selectedRobot.robot_id);
+                  setSSHRobotName(selectedRobot.name || selectedRobot.robot_id);
+                  setShowSSHTerminal(true);
+                  setSelectedRobot(null);
+                }}
+                className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 font-medium transition-colors"
+              >
+                <Terminal size={20} />
+                Open SSH Terminal
+              </button>
             </div>
 
 
@@ -725,6 +758,18 @@ const Robots: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* SSH Terminal Modal */}
+      <SSHTerminalModal
+        isOpen={showSSHTerminal}
+        onClose={() => {
+          setShowSSHTerminal(false);
+          setSSHRobotId('');
+          setSSHRobotName('');
+        }}
+        robotId={sshRobotId}
+        robotName={sshRobotName}
+      />
     </div>
   );
 };

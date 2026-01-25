@@ -1,0 +1,57 @@
+@startuml Alert_State_Diagram
+
+title Alert Lifecycle State Diagram
+
+skinparam state {
+    BackgroundColor<<online>> LightGreen
+    BackgroundColor<<offline>> LightGray
+    BackgroundColor<<error>> LightCoral
+    BackgroundColor<<warning>> LightYellow
+    BackgroundColor<<active>> LightBlue
+}
+
+[*] --> Inactive
+
+state Inactive <<offline>>
+Inactive : Threshold not exceeded
+Inactive : Monitoring active
+
+state AlertInfo <<online>>
+AlertInfo : Low severity alert
+
+state AlertWarning <<warning>>
+AlertWarning : Medium severity alert
+
+state AlertCritical <<error>>
+AlertCritical : High severity alert
+
+state Acknowledged <<active>>
+Acknowledged : User aware of alert
+Acknowledged : Waiting for resolution
+
+state Resolved <<online>>
+Resolved : Issue fixed
+Resolved : Alert cleared
+
+Inactive --> AlertInfo : Info threshold
+Inactive --> AlertWarning : Warning threshold
+Inactive --> AlertCritical : Critical threshold
+
+AlertInfo --> AlertWarning : Severity increased
+AlertWarning --> AlertCritical : Threshold exceeded
+AlertCritical --> AlertWarning : Value improved
+AlertWarning --> AlertInfo : Value improved
+
+AlertInfo --> Acknowledged : User acknowledges
+AlertWarning --> Acknowledged : User acknowledges
+AlertCritical --> Acknowledged : User acknowledges
+
+AlertInfo --> Resolved : Auto-resolve
+AlertWarning --> Resolved : Auto-resolve
+AlertCritical --> Resolved : Auto-resolve
+
+Acknowledged --> Resolved : User resolves
+Resolved --> Inactive : Clear alert
+Resolved --> [*]
+
+@enduml

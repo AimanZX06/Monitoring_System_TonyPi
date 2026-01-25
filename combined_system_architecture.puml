@@ -16,6 +16,8 @@ skinparam package {
     BackgroundColor<<Monitoring>> Pink
     BackgroundColor<<RobotClient>> Orange
     BackgroundColor<<MQTT>> LightCoral
+    BackgroundColor<<Infrastructure>> LightGray
+    BackgroundColor<<AI>> Lavender
 }
 
 ' ========== SYSTEM COMPONENTS ==========
@@ -24,12 +26,14 @@ class "React UI" as Frontend <<Frontend>> {
     - components: Map
     - websocket: WebSocket
     - currentUser: User
+    - xterminal: XTerm
     ..
     + renderDashboard(): Void
     + updateRealTimeCharts(data): Void
     + sendRobotCommand(cmd): Void
     + displayAlerts(alerts): Void
     + connectWebSocket(): Void
+    + openSSHTerminal(robotId): Void
 }
 
 class "FastAPI Backend" as Backend <<Backend>> {
@@ -37,6 +41,7 @@ class "FastAPI Backend" as Backend <<Backend>> {
     - db_session: Session
     - mqtt_client: MQTTClient
     - scheduler: APScheduler
+    - ssh_manager: AsyncSSH
     ..
     + get_robot_status(): Dict
     + post_robot_command(cmd): Response
@@ -44,6 +49,17 @@ class "FastAPI Backend" as Backend <<Backend>> {
     + authenticate_user(token): User
     + schedule_job(job): JobID
     + handle_mqtt_message(msg): Void
+    + create_ssh_session(host): SSHSession
+    + stream_ssh_output(ws): Void
+}
+
+class "Google Gemini AI" as GeminiAI <<AI>> {
+    - api_key: String
+    - model: GenerativeModel
+    ..
+    + generate_report(data): String
+    + analyze_telemetry(metrics): Insights
+    + suggest_actions(alerts): List
 }
 
 class "Mosquitto MQTT" as MQTT <<MQTT>> {
@@ -227,12 +243,44 @@ Backend --> Postgres : SQL
 Backend --> InfluxDB : TimeSeries
 Backend <--> MQTT : Pub/Sub
 Backend --> Grafana : DataSource
+Backend --> GeminiAI : AI Reports
+Frontend ..> Backend : SSH Terminal (WebSocket)
 
 MainController <--> MQTT : Telemetry
 MovementController <--> MQTT : Commands
 
 Grafana --> InfluxDB : Queries
 Grafana --> Postgres : Metadata
+
+' ========== INFRASTRUCTURE LAYER ==========
+
+package "Infrastructure (Docker)" <<Infrastructure>> {
+    class "Docker Compose" as Docker {
+        - services: List
+        - networks: List
+        - volumes: List
+        ..
+        + orchestrate(): Void
+        + healthCheck(): Status
+    }
+    
+    note right of Docker
+      **Containerized Services:**
+      - mosquitto (MQTT)
+      - influxdb (TimeSeries)
+      - postgres (Relational)
+      - grafana (Monitoring)
+      - backend (FastAPI)
+      - frontend (React)
+    end note
+}
+
+Docker --> Backend : contains
+Docker --> Frontend : contains
+Docker --> MQTT : contains
+Docker --> Postgres : contains
+Docker --> InfluxDB : contains
+Docker --> Grafana : contains
 
 ' ========== NOTES ==========
 
@@ -250,6 +298,22 @@ note bottom of MainController
   Runs on Raspberry Pi
   Controls TonyPi Robot
   Publishes via MQTT
+end note
+
+note top of GeminiAI
+  **AI Features:**
+  - Auto-generated reports
+  - Telemetry analysis
+  - Anomaly detection
+end note
+
+note left of Frontend
+  **Frontend Stack:**
+  - React 18 + TypeScript
+  - Tailwind CSS
+  - ReCharts (visualization)
+  - XTerm.js (SSH terminal)
+  - MQTT.js (real-time)
 end note
 
 @enduml
