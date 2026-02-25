@@ -1,0 +1,160 @@
+@startuml UIPageHierarchy
+skinparam backgroundColor #FFFFFF
+skinparam linetype ortho
+
+title TonyPi Robot Monitoring System - UI Page Hierarchy \u0026 Wireframes
+
+' ============================================================================
+' STYLING
+' ============================================================================
+
+skinparam rectangle {
+    BackgroundColor<<page>> #FFFFFF
+    BorderColor<<page>> #1976D2
+    BackgroundColor<<section>> #E3F2FD
+    BorderColor<<section>> #64B5F6
+    BackgroundColor<<component>> #FFF3E0
+    BorderColor<<component>> #FFB74D
+}
+
+' ============================================================================
+' PAGE HIERARCHY
+' ============================================================================
+
+package "🔐 Auth Pages" #E8F5E9 {
+    rectangle "Login Page" as Login <<page>> {
+        rectangle "Logo + Title" as LoginLogo <<component>>
+        rectangle "Username Input" as LoginUsername <<component>>
+        rectangle "Password Input" as LoginPassword <<component>>
+        rectangle "Login Button" as LoginBtn <<component>>
+        rectangle "Dark Mode Toggle" as DarkMode <<component>>
+    }
+}
+
+package "📊 Main Application (Authenticated)" #E3F2FD {
+    
+    rectangle "Dashboard" as Dashboard <<page>> {
+        rectangle "Stats Cards Section" as DashStats <<section>> {
+            rectangle "Active Robots" as StatRobots <<component>>
+            rectangle "Active Jobs" as StatJobs <<component>>
+            rectangle "Completed Today" as StatCompleted <<component>>
+            rectangle "Items Processed" as StatItems <<component>>
+        }
+        rectangle "Robot Status Cards" as DashRobots <<section>> {
+            rectangle "Robot Card Grid" as RobotCards <<component>>
+        }
+        rectangle "System Services Card" as DashServices <<section>>
+        rectangle "Resource Usage Card" as DashResources <<section>>
+    }
+    
+    rectangle "Monitoring / Task Manager" as Monitoring <<page>> {
+        rectangle "Robot Selector" as MonRobotSelect <<component>>
+        rectangle "Metric Cards Row" as MonMetrics <<section>> {
+            rectangle "CPU Usage" as MetricCPU <<component>>
+            rectangle "Memory Usage" as MetricMem <<component>>
+            rectangle "Disk Usage" as MetricDisk <<component>>
+            rectangle "Temperature" as MetricTemp <<component>>
+        }
+        rectangle "Charts Section" as MonCharts <<section>> {
+            rectangle "CPU \u0026 Memory Line Chart" as ChartCPUMem <<component>>
+            rectangle "Disk Usage Chart" as ChartDisk <<component>>
+            rectangle "Temperature Chart" as ChartTemp <<component>>
+        }
+        rectangle "Grafana Embedded Panels" as MonGrafana <<section>>
+    }
+    
+    rectangle "Robots" as Robots <<page>> {
+        rectangle "Robot List/Grid" as RobotList <<section>>
+        rectangle "Robot Detail View" as RobotDetail <<section>> {
+            rectangle "Camera Stream" as CameraStream <<component>>
+            rectangle "Control Buttons" as Controls <<component>>
+            rectangle "SSH Terminal" as SSHTerminal <<component>>
+        }
+    }
+    
+    rectangle "Sensors" as Sensors <<page>> {
+        rectangle "IMU Data Cards" as IMUCards <<section>> {
+            rectangle "Accelerometer XYZ" as AccelCard <<component>>
+            rectangle "Gyroscope XYZ" as GyroCard <<component>>
+        }
+        rectangle "Environmental Data" as EnvCards <<section>> {
+            rectangle "Light Level" as LightCard <<component>>
+            rectangle "Distance Sensor" as DistCard <<component>>
+        }
+        rectangle "Grafana Sensor Panels" as SensorGrafana <<section>>
+    }
+    
+    rectangle "Servos" as Servos <<page>> {
+        rectangle "Servo Data Table" as ServoTable <<section>>
+        rectangle "Servo Status Cards" as ServoCards <<section>> {
+            rectangle "Position Indicator" as ServoPos <<component>>
+            rectangle "Temperature Gauge" as ServoTemp <<component>>
+            rectangle "Voltage Reading" as ServoVolt <<component>>
+        }
+    }
+    
+    rectangle "Jobs" as Jobs <<page>> {
+        rectangle "Active Job Panel" as ActiveJob <<section>>
+        rectangle "Job History Table" as JobHistory <<section>>
+        rectangle "Job Progress Bar" as JobProgress <<component>>
+        rectangle "Filters \u0026 Search" as JobFilters <<component>>
+    }
+    
+    rectangle "Alerts" as Alerts <<page>> {
+        rectangle "Alert Statistics" as AlertStats <<section>> {
+            rectangle "Total / Critical / Warning" as AlertCounts <<component>>
+        }
+        rectangle "Threshold Configuration" as ThresholdConfig <<section>>
+        rectangle "Alert List Table" as AlertList <<section>> {
+            rectangle "Acknowledge Button" as AckBtn <<component>>
+            rectangle "Resolve Button" as ResolveBtn <<component>>
+        }
+        rectangle "Test Alert Generator" as TestAlert <<section>>
+    }
+    
+    rectangle "Reports" as Reports <<page>> {
+        rectangle "Report Generator Form" as ReportForm <<section>> {
+            rectangle "Report Type Selector" as ReportType <<component>>
+            rectangle "Robot Selector" as ReportRobot <<component>>
+            rectangle "Time Period Picker" as ReportPeriod <<component>>
+            rectangle "Generate Button" as GenerateBtn <<component>>
+        }
+        rectangle "Report List Table" as ReportList <<section>>
+        rectangle "Report Preview Card" as ReportPreview <<section>> {
+            rectangle "AI Analysis Section" as AIAnalysis <<component>>
+            rectangle "Export PDF Button" as ExportPDF <<component>>
+        }
+    }
+    
+    rectangle "Logs" as Logs <<page>> {
+        rectangle "Filter Panel" as LogFilters <<section>> {
+            rectangle "Level Filter" as LevelFilter <<component>>
+            rectangle "Category Filter" as CatFilter <<component>>
+            rectangle "Robot Filter" as RobotFilter <<component>>
+            rectangle "Date Range" as DateFilter <<component>>
+        }
+        rectangle "Log Table" as LogTable <<section>>
+        rectangle "Pagination" as LogPagination <<component>>
+    }
+    
+    rectangle "Users (Admin Only)" as Users <<page>> {
+        rectangle "Add User Button" as AddUserBtn <<component>>
+        rectangle "User Table" as UserTable <<section>> {
+            rectangle "Username / Email / Role" as UserInfo <<component>>
+            rectangle "Edit / Delete Actions" as UserActions <<component>>
+        }
+        rectangle "User Form Modal" as UserModal <<section>>
+    }
+}
+
+' ============================================================================
+' NAVIGATION FLOW
+' ============================================================================
+
+Login --> Dashboard : "Authentication"
+Dashboard <--> Monitoring : "Tab Switch"
+Dashboard <--> Robots : "Tab Switch"
+Dashboard <--> Alerts : "Tab Switch"
+Dashboard <--> Reports : "Tab Switch"
+
+@enduml

@@ -1,0 +1,11 @@
+{
+  "topics": {
+    "publish": [],
+    "subscribe": []
+  },
+  "messages": [],
+  "settings": {
+    "port": 1883
+  },
+  "generated_at": "2026-02-03 03:41:26.625068"
+}

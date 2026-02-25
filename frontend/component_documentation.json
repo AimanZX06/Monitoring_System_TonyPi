@@ -1,0 +1,142 @@
+{
+  "components": [
+    {
+      "name": "Unknown",
+      "file": "src\\components\\GrafanaPanel.tsx",
+      "props": "/** \r\n   * Full iframe URL to the Grafana panel (from Share -> Embed)\r\n   * Example: \"http://localhost:3001/d-solo/abc123/dashboard?panelId=2\"\r\n   */\r\n  panelUrl: string;\r\n  \r\n  /** Width of the panel container (CSS value or number for pixels) */\r\n  width?: string | number;\r\n  \r\n  /** Height of the panel container (CSS value or number for pixels) */\r\n  height?: string | number;\r\n  \r\n  /** Show fallback message if panel fails to load (default: true) */\r\n  showFallback?: boolean;",
+      "imports": 2,
+      "hasJSX": true
+    },
+    {
+      "name": "Unknown",
+      "file": "src\\components\\Layout.tsx",
+      "props": "children: React.ReactNode;  // ReactNode can be any renderable content",
+      "imports": 3,
+      "hasJSX": true
+    },
+    {
+      "name": "Unknown",
+      "file": "src\\components\\SSHTerminal.tsx",
+      "props": "robotId: string;\r\n  sshUsername: string;\r\n  sshPassword: string;\r\n  onClose?: () => void;",
+      "imports": 3,
+      "hasJSX": true
+    },
+    {
+      "name": "Unknown",
+      "file": "src\\components\\SSHTerminalModal.tsx",
+      "props": "isOpen: boolean;\r\n  onClose: () => void;\r\n  robotId: string;\r\n  robotName?: string;",
+      "imports": 2,
+      "hasJSX": true
+    },
+    {
+      "name": "Unknown",
+      "file": "src\\components\\Toast.tsx",
+      "props": "No props",
+      "imports": 2,
+      "hasJSX": true
+    }
+  ],
+  "pages": [
+    {
+      "name": "Alerts",
+      "file": "src\\pages\\Alerts.tsx",
+      "size": 36083,
+      "lines": 772
+    },
+    {
+      "name": "Dashboard",
+      "file": "src\\pages\\Dashboard.tsx",
+      "size": 14077,
+      "lines": 349
+    },
+    {
+      "name": "Jobs",
+      "file": "src\\pages\\Jobs.tsx",
+      "size": 36297,
+      "lines": 710
+    },
+    {
+      "name": "Login",
+      "file": "src\\pages\\Login.tsx",
+      "size": 9632,
+      "lines": 242
+    },
+    {
+      "name": "Logs",
+      "file": "src\\pages\\Logs.tsx",
+      "size": 30223,
+      "lines": 652
+    },
+    {
+      "name": "Monitoring",
+      "file": "src\\pages\\Monitoring.tsx",
+      "size": 17400,
+      "lines": 410
+    },
+    {
+      "name": "Reports",
+      "file": "src\\pages\\Reports.tsx",
+      "size": 37885,
+      "lines": 833
+    },
+    {
+      "name": "Robots",
+      "file": "src\\pages\\Robots.tsx",
+      "size": 34849,
+      "lines": 782
+    },
+    {
+      "name": "Sensors",
+      "file": "src\\pages\\Sensors.tsx",
+      "size": 11488,
+      "lines": 271
+    },
+    {
+      "name": "Servos",
+      "file": "src\\pages\\Servos.tsx",
+      "size": 16914,
+      "lines": 384
+    },
+    {
+      "name": "Users",
+      "file": "src\\pages\\Users.tsx",
+      "size": 26769,
+      "lines": 593
+    }
+  ],
+  "dependencies": {
+    "dependencies": {
+      "@headlessui/react": "^1.7.17",
+      "@types/node": "^20.8.0",
+      "@types/react": "^18.2.25",
+      "@types/react-dom": "^18.2.11",
+      "axios": "^1.5.0",
+      "clsx": "^2.0.0",
+      "html2canvas": "^1.4.1",
+      "jspdf": "^3.0.4",
+      "lucide-react": "^0.400.0",
+      "mqtt": "^5.3.0",
+      "react": "^18.2.0",
+      "react-dom": "^18.2.0",
+      "react-router-dom": "^6.16.0",
+      "react-scripts": "5.0.1",
+      "recharts": "^2.8.0",
+      "tailwind-merge": "^1.14.0",
+      "typescript": "^4.9.5",
+      "xterm": "^5.3.0",
+      "xterm-addon-fit": "^0.8.0"
+    },
+    "devDependencies": {
+      "@testing-library/jest-dom": "^6.1.5",
+      "@testing-library/react": "^14.1.2",
+      "@testing-library/user-event": "^14.5.1",
+      "@types/jest": "^29.5.11",
+      "autoprefixer": "^10.4.16",
+      "msw": "^2.0.11",
+      "postcss": "^8.4.31",
+      "tailwindcss": "^3.3.0"
+    },
+    "version": "1.0.0"
+  },
+  "generatedAt": "2026-02-02T19:41:27.480Z"
+}

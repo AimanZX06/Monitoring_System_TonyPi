@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-02-03T03:41:27.499443",
+  "documentation_files": [
+    "api_documentation.json",
+    "database_documentation.json",
+    "mqtt_documentation.json",
+    "testing_documentation.json"
+  ],
+  "generation_results": {
+    "Backend API Documentation": true,
+    "Database Schema Documentation": true,
+    "MQTT Protocol Documentation": true,
+    "Testing Documentation": true,
+    "Frontend Components": true
+  }
+}

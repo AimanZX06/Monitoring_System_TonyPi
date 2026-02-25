@@ -1,0 +1,87 @@
+@startuml CompleteSystemSimple
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+
+title TonyPi Robot Monitoring System - Architecture Overview
+
+' ============================================================================
+' SIMPLIFIED SYSTEM ARCHITECTURE
+' ============================================================================
+
+package "Robot Layer" #LightBlue {
+    [TonyPi Robot] as Robot
+    note right of Robot
+        Raspberry Pi 5
+        - Sensors & Servos
+        - Camera Stream
+        - MQTT Client
+    end note
+}
+
+package "Message Broker" #LightGreen {
+    [Mosquitto MQTT] as MQTT
+}
+
+package "Backend Layer" #LightYellow {
+    [FastAPI Server] as Backend
+    note right of Backend
+        REST API + WebSocket
+        - Robot Data Router
+        - Alerts Router
+        - Reports Router
+        - Users Router
+    end note
+}
+
+package "Database Layer" #LightCoral {
+    database "PostgreSQL" as PG {
+        [Users]
+        [Robots]
+        [Alerts]
+        [Jobs]
+        [Reports]
+        [Logs]
+    }
+    
+    database "InfluxDB" as Influx {
+        [Sensor Data]
+        [Servo Data]
+        [System Metrics]
+    }
+}
+
+package "Frontend Layer" #LightPink {
+    [React Web App] as Frontend
+    note right of Frontend
+        11 Pages:
+        Dashboard, Monitoring,
+        Robots, Sensors, Servos,
+        Jobs, Alerts, Reports,
+        Logs, Users, Login
+    end note
+}
+
+package "Visualization" #LightGray {
+    [Grafana] as Grafana
+}
+
+' ============================================================================
+' CONNECTIONS
+' ============================================================================
+
+Robot --> MQTT : "Publish Telemetry"
+MQTT --> Robot : "Commands"
+
+MQTT --> Backend : "Subscribe"
+Backend --> MQTT : "Publish Commands"
+
+Backend --> PG : "SQLAlchemy ORM"
+Backend --> Influx : "Write/Query"
+
+Frontend --> Backend : "REST API / WebSocket"
+Grafana --> Influx : "Flux Queries"
+
+Frontend ..> Grafana : "Embedded Panels"
+
+@enduml

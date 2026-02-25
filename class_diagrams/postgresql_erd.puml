@@ -1,0 +1,243 @@
+@startuml PostgreSQLERD
+skinparam linetype ortho
+skinparam ranksep 60
+skinparam nodesep 40
+
+title TonyPi Robot Monitoring System\nPostgreSQL Database Design (Entity Relationship Diagram)
+
+' ============================================================================
+' STYLING
+' ============================================================================
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+' Use entity notation for database tables
+hide circle
+hide methods
+
+' ============================================================================
+' ENTITIES (TABLES)
+' ============================================================================
+
+entity "users" as users {
+    * **id** : VARCHAR(36) <<PK>>
+    --
+    * username : VARCHAR(50) <<UNIQUE>>
+    * email : VARCHAR(100) <<UNIQUE>>
+    * password_hash : VARCHAR(255)
+    * role : VARCHAR(20)
+    is_active : BOOLEAN = TRUE
+    created_at : TIMESTAMPTZ
+    updated_at : TIMESTAMPTZ
+}
+
+entity "robots" as robots {
+    * **id** : SERIAL <<PK>>
+    --
+    * robot_id : VARCHAR(100) <<UNIQUE>>
+    name : VARCHAR(100)
+    description : TEXT
+    location : JSONB
+    status : VARCHAR(20) = 'offline'
+    ip_address : VARCHAR(45)
+    camera_url : VARCHAR(255)
+    battery_threshold_low : FLOAT = 20.0
+    battery_threshold_critical : FLOAT = 10.0
+    temp_threshold_warning : FLOAT = 70.0
+    temp_threshold_critical : FLOAT = 80.0
+    settings : JSONB
+    last_seen : TIMESTAMPTZ
+    created_at : TIMESTAMPTZ
+    updated_at : TIMESTAMPTZ
+    is_active : BOOLEAN = TRUE
+}
+
+entity "alerts" as alerts {
+    * **id** : SERIAL <<PK>>
+    --
+    robot_id : VARCHAR(100) <<FK>>
+    * alert_type : VARCHAR(50)
+    * severity : VARCHAR(20)
+    * title : VARCHAR(255)
+    * message : TEXT
+    source : VARCHAR(100)
+    value : FLOAT
+    threshold : FLOAT
+    acknowledged : BOOLEAN = FALSE
+    acknowledged_by : VARCHAR(50)
+    acknowledged_at : TIMESTAMPTZ
+    resolved : BOOLEAN = FALSE
+    resolved_at : TIMESTAMPTZ
+    details : JSONB
+    created_at : TIMESTAMPTZ
+}
+
+entity "alert_thresholds" as alert_thresholds {
+    * **id** : SERIAL <<PK>>
+    --
+    robot_id : VARCHAR(100) <<FK>>
+    * metric_type : VARCHAR(50)
+    * warning_threshold : FLOAT
+    * critical_threshold : FLOAT
+    enabled : BOOLEAN = TRUE
+    created_at : TIMESTAMPTZ
+    updated_at : TIMESTAMPTZ
+}
+
+entity "jobs" as jobs {
+    * **id** : SERIAL <<PK>>
+    --
+    * robot_id : VARCHAR(100) <<FK>>
+    * start_time : TIMESTAMPTZ
+    end_time : TIMESTAMPTZ
+    items_total : INTEGER
+    items_done : INTEGER = 0
+    percent_complete : FLOAT = 0.0
+    last_item : JSONB
+    status : VARCHAR(20) = 'active'
+    task_name : VARCHAR(255)
+    phase : VARCHAR(50)
+    estimated_duration : FLOAT
+    action_duration : FLOAT
+    success : BOOLEAN
+    cancel_reason : TEXT
+    created_at : TIMESTAMPTZ
+    updated_at : TIMESTAMPTZ
+}
+
+entity "reports" as reports {
+    * **id** : SERIAL <<PK>>
+    --
+    * title : VARCHAR(255)
+    description : TEXT
+    robot_id : VARCHAR(100) <<FK>>
+    * report_type : VARCHAR(50)
+    data : JSONB
+    file_path : VARCHAR(255)
+    created_at : TIMESTAMPTZ
+    created_by : VARCHAR(100) <<FK>>
+}
+
+entity "system_logs" as system_logs {
+    * **id** : SERIAL <<PK>>
+    --
+    * level : VARCHAR(20)
+    * category : VARCHAR(50)
+    * message : TEXT
+    robot_id : VARCHAR(100) <<FK>>
+    details : JSONB
+    timestamp : TIMESTAMPTZ
+}
+
+' ============================================================================
+' RELATIONSHIPS
+' ============================================================================
+
+robots ||--o{ alerts : "triggers"
+robots ||--o{ alert_thresholds : "configures"
+robots ||--o{ jobs : "executes"
+robots ||--o{ reports : "subject of"
+robots ||--o{ system_logs : "generates"
+
+users ||--o{ reports : "creates"
+users ||--o{ alerts : "acknowledges"
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note right of users
+    **Role Values:**
+    - admin
+    - operator
+    - viewer
+    
+    Password stored as
+    bcrypt hash
+end note
+
+note right of robots
+    **Status Values:**
+    - online
+    - offline
+    - error
+    - maintenance
+    
+    **Location JSONB:**
+    {"x": 0.0, "y": 0.0, "z": 0.0}
+end note
+
+note right of alerts
+    **Alert Types:**
+    - temperature
+    - battery
+    - servo_temp
+    - servo_voltage
+    - cpu
+    - memory
+    - emergency_stop
+    
+    **Severity:**
+    - critical
+    - warning
+    - info
+end note
+
+note bottom of jobs
+    **Status Values:**
+    - active
+    - completed
+    - cancelled
+    - failed
+    
+    **Phase Values:**
+    - scanning
+    - searching
+    - executing
+    - done
+end note
+
+note bottom of reports
+    **Report Types:**
+    - performance
+    - job
+    - maintenance
+    - custom
+    
+    **Data JSONB** contains
+    metrics and AI analysis
+end note
+
+note bottom of system_logs
+    **Log Levels:**
+    - INFO
+    - WARNING
+    - ERROR
+    - CRITICAL
+    
+    **Categories:**
+    mqtt, api, database,
+    system, command,
+    robot, alert, etc.
+end note
+
+' ============================================================================
+' LEGEND
+' ============================================================================
+
+legend right
+    | Symbol | Meaning |
+    |--------|---------|
+    | **bold** | NOT NULL |
+    | <<PK>> | Primary Key |
+    | <<FK>> | Foreign Key |
+    | <<UNIQUE>> | Unique Constraint |
+    | SERIAL | Auto-increment |
+    | TIMESTAMPTZ | Timestamp with timezone |
+    | JSONB | Binary JSON |
+endlegend
+
+@enduml

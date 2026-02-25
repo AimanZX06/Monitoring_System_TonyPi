@@ -1,0 +1,1835 @@
+{
+  "endpoints": [
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "get",
+        "/alerts"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "get",
+        "/alerts/stats"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "post",
+        "/alerts"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "post",
+        "/alerts/{alert_id}/acknowledge"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "post",
+        "/alerts/{alert_id}/resolve"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "post",
+        "/alerts/acknowledge-all"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "delete",
+        "/alerts/{alert_id}"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "get",
+        "/alerts/thresholds"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "get",
+        "/alerts/thresholds/defaults"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "post",
+        "/alerts/thresholds"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "put",
+        "/alerts/thresholds/{threshold_id}"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "delete",
+        "/alerts/thresholds/{threshold_id}"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": [
+        "router",
+        "post",
+        "/alerts/thresholds/init-defaults"
+      ]
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_alerts"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_alert_stats"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "create_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "acknowledge_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "resolve_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "acknowledge_all_alerts"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "delete_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_thresholds"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_default_thresholds"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "create_threshold"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "update_threshold"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "delete_threshold"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "init_default_thresholds"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_alerts"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_alert_stats"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "create_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "acknowledge_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "resolve_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "acknowledge_all_alerts"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "delete_alert"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_thresholds"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "get_default_thresholds"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "create_threshold"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "update_threshold"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "delete_threshold"
+    },
+    {
+      "file": "alerts.py",
+      "path": "routers\\alerts.py",
+      "match": "init_default_thresholds"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": [
+        "router",
+        "get",
+        "/robot/{robot_id}"
+      ]
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": [
+        "router",
+        "get",
+        "/data-sample/{robot_id}"
+      ]
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": [
+        "router",
+        "get",
+        "/expected-format"
+      ]
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": [
+        "router",
+        "get",
+        "/all-robots"
+      ]
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "validate_robot_data"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "get_data_sample"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "get_expected_data_format"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "validate_all_robots"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "validate_robot_data"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "get_data_sample"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "get_expected_data_format"
+    },
+    {
+      "file": "data_validation.py",
+      "path": "routers\\data_validation.py",
+      "match": "validate_all_robots"
+    },
+    {
+      "file": "grafana_proxy.py",
+      "path": "routers\\grafana_proxy.py",
+      "match": [
+        "router",
+        "get",
+        "/render"
+      ]
+    },
+    {
+      "file": "grafana_proxy.py",
+      "path": "routers\\grafana_proxy.py",
+      "match": "render_panel"
+    },
+    {
+      "file": "grafana_proxy.py",
+      "path": "routers\\grafana_proxy.py",
+      "match": "render_panel"
+    },
+    {
+      "file": "health.py",
+      "path": "routers\\health.py",
+      "match": [
+        "router",
+        "get",
+        "/health"
+      ]
+    },
+    {
+      "file": "health.py",
+      "path": "routers\\health.py",
+      "match": "health_check"
+    },
+    {
+      "file": "health.py",
+      "path": "routers\\health.py",
+      "match": "health_check"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs/stats"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "post",
+        "/logs"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs/categories"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs/levels"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs/commands"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs/errors"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "delete",
+        "/logs/clear"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs/export/json"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": [
+        "router",
+        "get",
+        "/logs/export/csv"
+      ]
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_logs"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_log_stats"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "create_log"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_log_categories"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_log_levels"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_command_history"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_error_logs"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "clear_old_logs"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "export_logs_json"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "export_logs_csv"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_logs"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_log_stats"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "create_log"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_log_categories"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_log_levels"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_command_history"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "get_error_logs"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "clear_old_logs"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "export_logs_json"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "export_logs_csv"
+    },
+    {
+      "file": "logs.py",
+      "path": "routers\\logs.py",
+      "match": "log_event"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "post",
+        "/management/command"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "get",
+        "/management/robots"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "get",
+        "/management/robots/{robot_id}/config"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "put",
+        "/management/robots/{robot_id}/config"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "post",
+        "/management/robots/{robot_id}/emergency-stop"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "post",
+        "/management/robots/{robot_id}/resume"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "post",
+        "/management/emergency-stop/broadcast"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": [
+        "router",
+        "get",
+        "/management/system/status"
+      ]
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "send_command"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "get_robots"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "get_robot_config"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "update_robot_config"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "emergency_stop"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "resume_robot"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "broadcast_emergency_stop"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "get_system_status"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "send_command"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "get_robots"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "get_robot_config"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "update_robot_config"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "emergency_stop"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "resume_robot"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "broadcast_emergency_stop"
+    },
+    {
+      "file": "management.py",
+      "path": "routers\\management.py",
+      "match": "get_system_status"
+    },
+    {
+      "file": "pi_perf.py",
+      "path": "routers\\pi_perf.py",
+      "match": [
+        "router",
+        "get",
+        "/pi/perf/{host}"
+      ]
+    },
+    {
+      "file": "pi_perf.py",
+      "path": "routers\\pi_perf.py",
+      "match": "get_pi_performance"
+    },
+    {
+      "file": "pi_perf.py",
+      "path": "routers\\pi_perf.py",
+      "match": "get_pi_performance"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "get",
+        "/reports"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "post",
+        "/reports"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "post",
+        "/reports/generate"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "get",
+        "/reports/ai-status"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "get",
+        "/reports/export/csv"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "get",
+        "/reports/export/json"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "get",
+        "/reports/{report_id}"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "delete",
+        "/reports/{report_id}"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": [
+        "router",
+        "get",
+        "/reports/{report_id}/pdf"
+      ]
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_reports"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "create_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "generate_and_store_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_ai_status"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "export_reports_csv"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "export_reports_json"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "delete_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_report_pdf"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "generate_pdf_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_reports"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "create_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "generate_and_store_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_ai_status"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "export_reports_csv"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "export_reports_json"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "delete_report"
+    },
+    {
+      "file": "reports.py",
+      "path": "routers\\reports.py",
+      "match": "get_report_pdf"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "get",
+        "/robots"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "get",
+        "/robots/{robot_id}"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "post",
+        "/robots"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "put",
+        "/robots/{robot_id}"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "delete",
+        "/robots/{robot_id}"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "get",
+        "/logs"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "get",
+        "/jobs/history"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "get",
+        "/jobs/cumulative-stats"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "get",
+        "/jobs/overall-stats"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": [
+        "router",
+        "get",
+        "/stats"
+      ]
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "get_all_robots"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "get_robot"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "create_robot"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "update_robot"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "delete_robot"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "get_system_logs"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "get_job_history"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "get_cumulative_job_stats"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "get_overall_job_stats"
+    },
+    {
+      "file": "robots_db.py",
+      "path": "routers\\robots_db.py",
+      "match": "get_database_stats"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": [
+        "router",
+        "get",
+        "/robot-data/sensors"
+      ]
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": [
+        "router",
+        "get",
+        "/robot-data/status"
+      ]
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": [
+        "router",
+        "get",
+        "/robot-data/latest/{robot_id}"
+      ]
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": [
+        "router",
+        "post",
+        "/robot-data/command"
+      ]
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": [
+        "router",
+        "get",
+        "/robot-data/job-summary/{robot_id}"
+      ]
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": [
+        "router",
+        "get",
+        "/robot-data/servos/{robot_id}"
+      ]
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": [
+        "router",
+        "post",
+        "/robot-data/trigger-scan"
+      ]
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_sensor_data"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_robot_status"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_latest_data"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "send_robot_command"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_job_summary"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_servo_data"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "trigger_scan"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "resolve_measurement_name"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_sensor_data"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_robot_status"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_latest_data"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "send_robot_command"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_job_summary"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "get_servo_data"
+    },
+    {
+      "file": "robot_data.py",
+      "path": "routers\\robot_data.py",
+      "match": "trigger_scan"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": [
+        "router",
+        "get",
+        "/test/{robot_id}"
+      ]
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "connect"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "_forward_data"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "ws_to_ssh"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "ssh_to_ws"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "disconnect"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "websocket_ssh_endpoint"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "test_ssh_connection"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "__init__"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "connect"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "_forward_data"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "ws_to_ssh"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "ssh_to_ws"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "disconnect"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "websocket_ssh_endpoint"
+    },
+    {
+      "file": "ssh.py",
+      "path": "routers\\ssh.py",
+      "match": "test_ssh_connection"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": [
+        "router",
+        "post",
+        "/auth/login"
+      ]
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": [
+        "router",
+        "get",
+        "/auth/me"
+      ]
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": [
+        "router",
+        "post",
+        "/users"
+      ]
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": [
+        "router",
+        "get",
+        "/users"
+      ]
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": [
+        "router",
+        "get",
+        "/users/{user_id}"
+      ]
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": [
+        "router",
+        "put",
+        "/users/{user_id}"
+      ]
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": [
+        "router",
+        "delete",
+        "/users/{user_id}"
+      ]
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "get_current_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "require_admin"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "login"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "get_current_user_info"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "create_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "list_users"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "get_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "update_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "delete_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "format_datetime"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "get_current_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "require_admin"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "login"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "get_current_user_info"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "create_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "list_users"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "get_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "update_user"
+    },
+    {
+      "file": "users.py",
+      "path": "routers\\users.py",
+      "match": "delete_user"
+    }
+  ],
+  "models": [
+    {
+      "file": "alert.py",
+      "classes": [
+        "Alert",
+        "AlertThreshold"
+      ],
+      "fields": [
+        [
+          "id",
+          "Integer, primary_key=True, index=True"
+        ],
+        [
+          "robot_id",
+          "String, index=True, nullable=True"
+        ],
+        [
+          "alert_type",
+          "String, index=True, nullable=False"
+        ],
+        [
+          "severity",
+          "String, index=True, nullable=False"
+        ],
+        [
+          "title",
+          "String, nullable=False"
+        ],
+        [
+          "message",
+          "Text, nullable=False"
+        ],
+        [
+          "source",
+          "String, nullable=True"
+        ],
+        [
+          "value",
+          "Float, nullable=True"
+        ],
+        [
+          "threshold",
+          "Float, nullable=True"
+        ],
+        [
+          "acknowledged",
+          "Boolean, default=False, index=True"
+        ],
+        [
+          "acknowledged_by",
+          "String, nullable=True"
+        ],
+        [
+          "acknowledged_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "resolved",
+          "Boolean, default=False, index=True"
+        ],
+        [
+          "resolved_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "details",
+          "JSON, nullable=True"
+        ],
+        [
+          "created_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "id",
+          "Integer, primary_key=True, index=True"
+        ],
+        [
+          "robot_id",
+          "String, index=True, nullable=True"
+        ],
+        [
+          "metric_type",
+          "String, index=True, nullable=False"
+        ],
+        [
+          "warning_threshold",
+          "Float, nullable=False"
+        ],
+        [
+          "critical_threshold",
+          "Float, nullable=False"
+        ],
+        [
+          "enabled",
+          "Boolean, default=True"
+        ],
+        [
+          "created_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "updated_at",
+          "DateTime(timezone=True"
+        ]
+      ]
+    },
+    {
+      "file": "job.py",
+      "classes": [
+        "Job"
+      ],
+      "fields": [
+        [
+          "id",
+          "Integer, primary_key=True, index=True"
+        ],
+        [
+          "robot_id",
+          "String, index=True, nullable=False"
+        ],
+        [
+          "start_time",
+          "DateTime(timezone=True"
+        ],
+        [
+          "end_time",
+          "DateTime(timezone=True"
+        ],
+        [
+          "items_total",
+          "Integer, nullable=True"
+        ],
+        [
+          "items_done",
+          "Integer, default=0"
+        ],
+        [
+          "percent_complete",
+          "Float, default=0.0"
+        ],
+        [
+          "last_item",
+          "JSON, nullable=True"
+        ],
+        [
+          "status",
+          "String, default='active'"
+        ],
+        [
+          "created_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "updated_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "task_name",
+          "String, nullable=True"
+        ],
+        [
+          "phase",
+          "String, nullable=True"
+        ],
+        [
+          "estimated_duration",
+          "Float, nullable=True"
+        ],
+        [
+          "action_duration",
+          "Float, nullable=True"
+        ],
+        [
+          "success",
+          "Boolean, nullable=True"
+        ],
+        [
+          "cancel_reason",
+          "String, nullable=True"
+        ]
+      ]
+    },
+    {
+      "file": "report.py",
+      "classes": [
+        "Report"
+      ],
+      "fields": [
+        [
+          "id",
+          "Integer, primary_key=True, index=True"
+        ],
+        [
+          "title",
+          "String, nullable=False, index=True"
+        ],
+        [
+          "description",
+          "Text, nullable=True"
+        ],
+        [
+          "robot_id",
+          "String, index=True, nullable=True"
+        ],
+        [
+          "report_type",
+          "String, index=True, nullable=False"
+        ],
+        [
+          "data",
+          "JSON, nullable=True"
+        ],
+        [
+          "file_path",
+          "String, nullable=True"
+        ],
+        [
+          "created_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "created_by",
+          "String, nullable=True"
+        ]
+      ]
+    },
+    {
+      "file": "robot.py",
+      "classes": [
+        "Robot"
+      ],
+      "fields": [
+        [
+          "id",
+          "Integer, primary_key=True, index=True"
+        ],
+        [
+          "robot_id",
+          "String, unique=True, index=True, nullable=False"
+        ],
+        [
+          "name",
+          "String, nullable=True"
+        ],
+        [
+          "description",
+          "String, nullable=True"
+        ],
+        [
+          "location",
+          "JSON, nullable=True"
+        ],
+        [
+          "status",
+          "String, default='offline'"
+        ],
+        [
+          "ip_address",
+          "String, nullable=True"
+        ],
+        [
+          "camera_url",
+          "String, nullable=True"
+        ],
+        [
+          "battery_threshold_low",
+          "Float, default=20.0"
+        ],
+        [
+          "battery_threshold_critical",
+          "Float, default=10.0"
+        ],
+        [
+          "temp_threshold_warning",
+          "Float, default=70.0"
+        ],
+        [
+          "temp_threshold_critical",
+          "Float, default=80.0"
+        ],
+        [
+          "settings",
+          "JSON, nullable=True"
+        ],
+        [
+          "last_seen",
+          "DateTime(timezone=True"
+        ],
+        [
+          "created_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "updated_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "is_active",
+          "Boolean, default=True"
+        ]
+      ]
+    },
+    {
+      "file": "system_log.py",
+      "classes": [
+        "SystemLog"
+      ],
+      "fields": [
+        [
+          "id",
+          "Integer, primary_key=True, index=True"
+        ],
+        [
+          "level",
+          "String, index=True, nullable=False"
+        ],
+        [
+          "category",
+          "String, index=True, nullable=False"
+        ],
+        [
+          "message",
+          "Text, nullable=False"
+        ],
+        [
+          "robot_id",
+          "String, index=True, nullable=True"
+        ],
+        [
+          "details",
+          "JSON, nullable=True"
+        ],
+        [
+          "timestamp",
+          "DateTime(timezone=True"
+        ]
+      ]
+    },
+    {
+      "file": "user.py",
+      "classes": [
+        "User"
+      ],
+      "fields": [
+        [
+          "id",
+          "String, primary_key=True, index=True"
+        ],
+        [
+          "username",
+          "String(50"
+        ],
+        [
+          "email",
+          "String(100"
+        ],
+        [
+          "password_hash",
+          "String(255"
+        ],
+        [
+          "role",
+          "String(20"
+        ],
+        [
+          "is_active",
+          "Boolean, default=True"
+        ],
+        [
+          "created_at",
+          "DateTime(timezone=True"
+        ],
+        [
+          "updated_at",
+          "DateTime(timezone=True"
+        ]
+      ]
+    }
+  ],
+  "requirements": [
+    "fastapi==0.104.1",
+    "uvicorn[standard]==0.24.0",
+    "pydantic[email]==2.5.0",
+    "sqlalchemy==2.0.23",
+    "alembic==1.12.1",
+    "psycopg2-binary>=2.9.9",
+    "influxdb-client==1.38.0",
+    "paho-mqtt==1.6.1",
+    "python-dotenv==1.0.0",
+    "httpx==0.25.2",
+    "python-multipart==0.0.6",
+    "bcrypt>=4.0.0",
+    "python-jose[cryptography]==3.3.0",
+    "reportlab==4.0.8",
+    "google-generativeai==0.8.3",
+    "asyncssh==2.14.2",
+    "websockets==12.0",
+    "",
+    "# Testing dependencies",
+    "pytest==7.4.3",
+    "pytest-cov==4.1.0",
+    "pytest-asyncio==0.21.1",
+    "pytest-mock==3.12.0",
+    "fakeredis==2.20.0",
+    "factory-boy==3.3.0",
+    "aiosqlite==0.19.0"
+  ],
+  "generated_at": "2026-02-03 03:41:26.291148"
+}

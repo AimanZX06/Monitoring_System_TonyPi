@@ -1,0 +1,236 @@
+{
+  "tests": [
+    {
+      "file": "test_alerts.py",
+      "path": "tests\\test_alerts.py",
+      "test_functions": [
+        "test_get_alerts_empty",
+        "test_get_alerts_with_data",
+        "test_get_alerts_filter_by_robot_id",
+        "test_get_alerts_filter_by_severity",
+        "test_get_alerts_filter_by_acknowledged",
+        "test_create_alert",
+        "test_acknowledge_alert",
+        "test_acknowledge_nonexistent_alert",
+        "test_resolve_alert",
+        "test_resolve_nonexistent_alert",
+        "test_acknowledge_all_alerts",
+        "test_delete_alert",
+        "test_delete_nonexistent_alert",
+        "test_get_alert_stats",
+        "test_get_alert_stats_filter_by_robot",
+        "test_get_thresholds",
+        "test_get_default_thresholds",
+        "test_create_threshold",
+        "test_create_threshold_updates_existing",
+        "test_update_threshold",
+        "test_update_nonexistent_threshold",
+        "test_delete_threshold",
+        "test_delete_nonexistent_threshold",
+        "test_init_default_thresholds"
+      ],
+      "test_classes": [],
+      "total_tests": 24
+    },
+    {
+      "file": "test_data_validation.py",
+      "path": "tests\\test_data_validation.py",
+      "test_functions": [
+        "test_validate_robot_data_healthy",
+        "test_validate_robot_data_not_registered",
+        "test_validate_robot_data_no_influx_data",
+        "test_validate_robot_data_out_of_range_values",
+        "test_get_data_sample",
+        "test_get_data_sample_no_data",
+        "test_get_data_sample_custom_measurement",
+        "test_get_data_sample_with_limit",
+        "test_get_expected_data_format",
+        "test_expected_format_contains_topics",
+        "test_validate_all_robots_empty",
+        "test_validate_all_robots_with_data"
+      ],
+      "test_classes": [],
+      "total_tests": 12
+    },
+    {
+      "file": "test_grafana_proxy.py",
+      "path": "tests\\test_grafana_proxy.py",
+      "test_functions": [
+        "test_render_panel_no_api_key",
+        "test_render_panel_success",
+        "test_render_panel_grafana_error",
+        "test_render_panel_with_variables",
+        "test_render_panel_custom_dimensions",
+        "test_render_panel_missing_required_params"
+      ],
+      "test_classes": [],
+      "total_tests": 6
+    },
+    {
+      "file": "test_health.py",
+      "path": "tests\\test_health.py",
+      "test_functions": [
+        "test_health_check_returns_200",
+        "test_health_check_response_format",
+        "test_root_endpoint",
+        "test_api_info_endpoint"
+      ],
+      "test_classes": [],
+      "total_tests": 4
+    },
+    {
+      "file": "test_logs.py",
+      "path": "tests\\test_logs.py",
+      "test_functions": [
+        "test_get_logs_empty",
+        "test_get_logs_with_data",
+        "test_get_logs_filter_by_level",
+        "test_get_logs_filter_by_category",
+        "test_get_logs_filter_by_robot_id",
+        "test_get_logs_search",
+        "test_create_log",
+        "test_get_log_categories",
+        "test_get_log_levels",
+        "test_get_log_stats",
+        "test_get_command_history",
+        "test_get_command_history_filter_by_robot",
+        "test_get_error_logs",
+        "test_clear_old_logs",
+        "test_export_logs_json",
+        "test_export_logs_csv",
+        "test_export_logs_csv_empty"
+      ],
+      "test_classes": [],
+      "total_tests": 17
+    },
+    {
+      "file": "test_management.py",
+      "path": "tests\\test_management.py",
+      "test_functions": [
+        "test_send_command_success",
+        "test_send_command_failure",
+        "test_send_command_default_robot_id",
+        "test_get_robots",
+        "test_get_robot_config",
+        "test_update_robot_config_success",
+        "test_update_robot_config_failure",
+        "test_emergency_stop_success",
+        "test_get_system_status"
+      ],
+      "test_classes": [],
+      "total_tests": 9
+    },
+    {
+      "file": "test_pi_perf.py",
+      "path": "tests\\test_pi_perf.py",
+      "test_functions": [
+        "test_get_pi_performance",
+        "test_get_pi_performance_no_data",
+        "test_get_pi_performance_custom_time_range",
+        "test_get_pi_performance_fallback_to_robot_status",
+        "test_get_pi_performance_influx_error",
+        "test_get_pi_performance_filters_by_host",
+        "test_get_pi_performance_device_field_match"
+      ],
+      "test_classes": [],
+      "total_tests": 7
+    },
+    {
+      "file": "test_reports.py",
+      "path": "tests\\test_reports.py",
+      "test_functions": [
+        "test_get_reports_empty",
+        "test_get_reports_with_data",
+        "test_create_report",
+        "test_get_report_by_id",
+        "test_get_report_not_found",
+        "test_delete_report",
+        "test_filter_reports_by_robot_id",
+        "test_filter_reports_by_type",
+        "test_ai_status_endpoint"
+      ],
+      "test_classes": [],
+      "total_tests": 9
+    },
+    {
+      "file": "test_robots_db.py",
+      "path": "tests\\test_robots_db.py",
+      "test_functions": [
+        "test_get_all_robots_empty",
+        "test_get_all_robots_with_data",
+        "test_get_all_robots_excludes_inactive",
+        "test_get_robot_by_id",
+        "test_get_robot_not_found",
+        "test_create_robot",
+        "test_create_robot_duplicate",
+        "test_update_robot",
+        "test_update_robot_not_found",
+        "test_delete_robot",
+        "test_delete_robot_not_found",
+        "test_get_system_logs",
+        "test_get_system_logs_filter_by_level",
+        "test_get_system_logs_filter_by_category",
+        "test_get_job_history",
+        "test_get_job_history_filter_by_robot",
+        "test_get_database_stats"
+      ],
+      "test_classes": [],
+      "total_tests": 17
+    },
+    {
+      "file": "test_robot_data.py",
+      "path": "tests\\test_robot_data.py",
+      "test_functions": [
+        "test_get_robot_status",
+        "test_get_sensor_data",
+        "test_get_sensor_data_missing_params",
+        "test_get_latest_data_for_robot",
+        "test_get_job_summary",
+        "test_send_command",
+        "test_trigger_scan",
+        "test_get_servo_data"
+      ],
+      "test_classes": [],
+      "total_tests": 8
+    },
+    {
+      "file": "test_users.py",
+      "path": "tests\\test_users.py",
+      "test_functions": [
+        "test_login_success",
+        "test_login_invalid_password",
+        "test_login_nonexistent_user",
+        "test_login_inactive_user",
+        "test_get_current_user_no_token",
+        "test_get_current_user_invalid_token",
+        "test_get_current_user_invalid_scheme",
+        "test_create_user_as_admin",
+        "test_create_user_duplicate_username",
+        "test_create_user_invalid_role",
+        "test_list_users_as_admin",
+        "test_get_user_by_id",
+        "test_get_user_not_found",
+        "test_update_user",
+        "test_update_user_no_fields",
+        "test_delete_user",
+        "test_delete_self",
+        "test_non_admin_cannot_create_user",
+        "test_non_admin_cannot_list_users"
+      ],
+      "test_classes": [],
+      "total_tests": 19
+    }
+  ],
+  "coverage": {
+    "type": ".coverage"
+  },
+  "configuration": {
+    "markers": [
+      "unit: Unit tests (fast, no external dependencies)"
+    ],
+    "testpaths": [
+      "tests"
+    ]
+  },
+  "generated_at": "2026-02-03 03:41:26.773723"
+}

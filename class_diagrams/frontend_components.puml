@@ -1,0 +1,367 @@
+@startuml FrontendComponents
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+title TonyPi Robot Monitoring System - Frontend Components (React + TypeScript)
+
+' ============================================================================
+' MAIN APPLICATION
+' ============================================================================
+
+package "Application Entry" {
+    
+    class App <<Component>> {
+        +render() : JSX.Element
+    }
+    
+    class TonyPiApp <<Component>> {
+        -activeTab : String
+        +setActiveTab(tab: String)
+        +render() : JSX.Element
+    }
+}
+
+' ============================================================================
+' CONTEXT PROVIDERS
+' ============================================================================
+
+package "Context Providers" {
+    
+    class AuthContext <<Context>> {
+        +user : User | null
+        +isAuthenticated : Boolean
+        +token : String | null
+        +loading : Boolean
+        --
+        +login(username, password) : Promise
+        +logout() : void
+        +register(userData) : Promise
+    }
+    
+    class ThemeContext <<Context>> {
+        +theme : "light" | "dark"
+        +isDark : Boolean
+        --
+        +toggleTheme() : void
+    }
+    
+    class NotificationContext <<Context>> {
+        +notifications : Notification[]
+        --
+        +addNotification(notification) : void
+        +removeNotification(id) : void
+        +showToast(message, type) : void
+    }
+}
+
+' ============================================================================
+' PAGE COMPONENTS
+' ============================================================================
+
+package "Page Components" {
+    
+    class Dashboard <<Page>> {
+        -robotStatuses : RobotStatus[]
+        -systemStats : SystemStats
+        -recentAlerts : Alert[]
+        +render() : JSX.Element
+    }
+    
+    class Monitoring <<Page>> {
+        -performanceData : PerformanceData
+        -cpuHistory : DataPoint[]
+        -memoryHistory : DataPoint[]
+        -tempHistory : DataPoint[]
+        +render() : JSX.Element
+    }
+    
+    class Robots <<Page>> {
+        -robots : Robot[]
+        -selectedRobot : String | null
+        -cameraFeeds : Object
+        +sendCommand(robotId, command) : void
+        +render() : JSX.Element
+    }
+    
+    class Sensors <<Page>> {
+        -sensorData : SensorData
+        -imuData : IMUData
+        -lightLevel : Number
+        -distance : Number
+        +render() : JSX.Element
+    }
+    
+    class Servos <<Page>> {
+        -servoData : ServoData[]
+        +render() : JSX.Element
+    }
+    
+    class Jobs <<Page>> {
+        -jobs : Job[]
+        -activeJob : Job | null
+        -filters : JobFilters
+        +setFilters(filters) : void
+        +render() : JSX.Element
+    }
+    
+    class Alerts <<Page>> {
+        -alerts : Alert[]
+        -thresholds : AlertThreshold[]
+        -filters : AlertFilters
+        +acknowledgeAlert(id) : Promise
+        +resolveAlert(id) : Promise
+        +updateThreshold(id, data) : Promise
+        +render() : JSX.Element
+    }
+    
+    class Logs <<Page>> {
+        -logs : SystemLog[]
+        -filters : LogFilters
+        -pagination : Pagination
+        +setFilters(filters) : void
+        +render() : JSX.Element
+    }
+    
+    class Reports <<Page>> {
+        -reports : Report[]
+        -generating : Boolean
+        +generateReport(type, params) : Promise
+        +exportPDF(reportId) : Promise
+        +render() : JSX.Element
+    }
+    
+    class Users <<Page>> {
+        -users : User[]
+        -selectedUser : User | null
+        +createUser(userData) : Promise
+        +updateUser(userId, data) : Promise
+        +deleteUser(userId) : Promise
+        +render() : JSX.Element
+    }
+    
+    class Login <<Page>> {
+        -username : String
+        -password : String
+        -error : String | null
+        -loading : Boolean
+        +handleLogin() : Promise
+        +render() : JSX.Element
+    }
+}
+
+' ============================================================================
+' SHARED COMPONENTS
+' ============================================================================
+
+package "Shared Components" {
+    
+    class Layout <<Component>> {
+        +children : ReactNode
+        +title : String
+        +render() : JSX.Element
+    }
+    
+    class SSHTerminal <<Component>> {
+        +robotId : String
+        -connection : WebSocket
+        -terminal : Terminal
+        +connect() : void
+        +disconnect() : void
+        +render() : JSX.Element
+    }
+    
+    class GrafanaPanel <<Component>> {
+        +panelId : String
+        +dashboardId : String
+        +timeRange : String
+        +render() : JSX.Element
+    }
+    
+    class Toast <<Component>> {
+        +message : String
+        +type : "success" | "error" | "info" | "warning"
+        +visible : Boolean
+        +onClose() : void
+        +render() : JSX.Element
+    }
+}
+
+' ============================================================================
+' TYPESCRIPT INTERFACES
+' ============================================================================
+
+package "TypeScript Interfaces" {
+    
+    interface RobotInterface <<interface>> {
+        +id : Number
+        +robot_id : String
+        +name : String
+        +status : "online" | "offline" | "error"
+        +ip_address : String
+        +camera_url : String
+        +location : Location
+        +last_seen : String
+        +is_active : Boolean
+    }
+    
+    interface AlertInterface <<interface>> {
+        +id : Number
+        +robot_id : String
+        +alert_type : String
+        +severity : "critical" | "warning" | "info"
+        +title : String
+        +message : String
+        +acknowledged : Boolean
+        +resolved : Boolean
+        +created_at : String
+    }
+    
+    interface JobInterface <<interface>> {
+        +id : Number
+        +robot_id : String
+        +task_name : String
+        +status : "active" | "completed" | "cancelled"
+        +phase : String
+        +percent_complete : Number
+        +items_done : Number
+        +items_total : Number
+    }
+    
+    interface SensorDataInterface <<interface>> {
+        +accel_x : Number
+        +accel_y : Number
+        +accel_z : Number
+        +gyro_x : Number
+        +gyro_y : Number
+        +gyro_z : Number
+        +temperature : Number
+        +light_level : Number
+        +distance : Number
+    }
+    
+    interface ServoDataInterface <<interface>> {
+        +servo_id : Number
+        +name : String
+        +position : Number
+        +temperature : Number
+        +voltage : Number
+    }
+    
+    interface UserInterface <<interface>> {
+        +id : String
+        +username : String
+        +email : String
+        +role : "admin" | "operator" | "viewer"
+        +is_active : Boolean
+    }
+}
+
+' ============================================================================
+' UTILITY CLASSES
+' ============================================================================
+
+package "Utilities" {
+    
+    class API <<Utility>> {
+        +baseURL : String
+        +axios : AxiosInstance
+        --
+        +get(url, params) : Promise
+        +post(url, data) : Promise
+        +put(url, data) : Promise
+        +delete(url) : Promise
+        +setAuthToken(token) : void
+    }
+    
+    class MQTTService <<Utility>> {
+        +client : mqtt.Client
+        +connected : Boolean
+        --
+        +connect(brokerUrl) : Promise
+        +disconnect() : void
+        +subscribe(topic, callback) : void
+        +unsubscribe(topic) : void
+        +publish(topic, message) : void
+    }
+}
+
+' ============================================================================
+' RELATIONSHIPS
+' ============================================================================
+
+App --> AuthContext : provides
+App --> ThemeContext : provides
+App --> NotificationContext : provides
+
+App --> Dashboard : routes to
+App --> Monitoring : routes to
+App --> Robots : routes to
+App --> Sensors : routes to
+App --> Servos : routes to
+App --> Jobs : routes to
+App --> Alerts : routes to
+App --> Logs : routes to
+App --> Reports : routes to
+App --> Users : routes to
+App --> Login : routes to
+
+Dashboard --> Layout : uses
+Monitoring --> Layout : uses
+Robots --> Layout : uses
+Sensors --> Layout : uses
+Servos --> Layout : uses
+Jobs --> Layout : uses
+Alerts --> Layout : uses
+Logs --> Layout : uses
+Reports --> Layout : uses
+Users --> Layout : uses
+
+Robots --> SSHTerminal : uses
+Sensors --> GrafanaPanel : uses
+Monitoring --> GrafanaPanel : uses
+
+Dashboard --> API : calls
+Monitoring --> API : calls
+Robots --> API : calls
+Alerts --> API : calls
+Jobs --> API : calls
+Reports --> API : calls
+Users --> API : calls
+Login --> API : calls
+
+Dashboard --> MQTTService : subscribes
+Sensors --> MQTTService : subscribes
+Servos --> MQTTService : subscribes
+Jobs --> MQTTService : subscribes
+
+Dashboard ..> RobotInterface : uses
+Robots ..> RobotInterface : uses
+Alerts ..> AlertInterface : uses
+Jobs ..> JobInterface : uses
+Sensors ..> SensorDataInterface : uses
+Servos ..> ServoDataInterface : uses
+Users ..> UserInterface : uses
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note right of AuthContext
+  Manages user authentication state.
+  JWT token stored in localStorage.
+  Provides login/logout functions.
+end note
+
+note right of SSHTerminal
+  Uses xterm.js for terminal emulation.
+  WebSocket connection to backend
+  SSH proxy for robot access.
+end note
+
+note bottom of API
+  Axios-based HTTP client.
+  Automatically adds auth token.
+  Base URL from environment.
+end note
+
+@enduml

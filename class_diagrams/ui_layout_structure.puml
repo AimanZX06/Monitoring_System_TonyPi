@@ -1,0 +1,55 @@
+@startuml UserInterfaceDesign
+skinparam backgroundColor #FFFFFF
+skinparam handwritten false
+
+title TonyPi Robot Monitoring System - User Interface Design
+
+' ============================================================================
+' LAYOUT STRUCTURE
+' ============================================================================
+
+rectangle "Main Application Layout" as MainLayout {
+    
+    rectangle "Sidebar (Fixed 256px)" as Sidebar #E3F2FD {
+        rectangle "Logo Section" as Logo #BBDEFB {
+            note as LogoNote
+                TonyPi
+                Monitor
+            end note
+        }
+        
+        rectangle "Navigation Menu" as NavMenu #FFFFFF {
+            rectangle "📊 Dashboard" as NavDashboard
+            rectangle "📈 Monitoring" as NavMonitoring
+            rectangle "📄 Reporting" as NavReporting
+            rectangle "⚙️ Management" as NavManagement
+            rectangle "🔔 Alerts (Badge)" as NavAlerts #FFCDD2
+        }
+        
+        rectangle "System Status" as SysStatus #E8F5E9 {
+            note as StatusNote
+                WiFi: ● Online
+                Battery: ● OK
+            end note
+        }
+    }
+    
+    rectangle "Main Content Area (Scrollable)" as MainContent {
+        
+        rectangle "Header Bar" as Header #FAFAFA {
+            rectangle "Page Title" as PageTitle
+            rectangle "🔔 Bell + Status" as HeaderRight
+        }
+        
+        rectangle "Page Content (Dynamic)" as PageContent #FFFFFF {
+            note as ContentNote
+                Content changes based
+                on selected navigation
+            end note
+        }
+    }
+}
+
+Sidebar -[hidden]-> MainContent
+
+@enduml

@@ -1,0 +1,484 @@
+{
+  "models": [
+    {
+      "class": "Alert",
+      "table": "alerts",
+      "file": "alert.py",
+      "columns": [
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "alert_type",
+          "type": "String"
+        },
+        {
+          "name": "severity",
+          "type": "String"
+        },
+        {
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "name": "message",
+          "type": "Text"
+        },
+        {
+          "name": "source",
+          "type": "String"
+        },
+        {
+          "name": "value",
+          "type": "Float"
+        },
+        {
+          "name": "threshold",
+          "type": "Float"
+        },
+        {
+          "name": "acknowledged",
+          "type": "Boolean"
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "String"
+        },
+        {
+          "name": "acknowledged_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "resolved",
+          "type": "Boolean"
+        },
+        {
+          "name": "resolved_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "details",
+          "type": "JSON"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "metric_type",
+          "type": "String"
+        },
+        {
+          "name": "warning_threshold",
+          "type": "Float"
+        },
+        {
+          "name": "critical_threshold",
+          "type": "Float"
+        },
+        {
+          "name": "enabled",
+          "type": "Boolean"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "updated_at",
+          "type": "DateTime(timezone=True"
+        }
+      ]
+    },
+    {
+      "class": "AlertThreshold",
+      "table": "alert_thresholds",
+      "file": "alert.py",
+      "columns": [
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "alert_type",
+          "type": "String"
+        },
+        {
+          "name": "severity",
+          "type": "String"
+        },
+        {
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "name": "message",
+          "type": "Text"
+        },
+        {
+          "name": "source",
+          "type": "String"
+        },
+        {
+          "name": "value",
+          "type": "Float"
+        },
+        {
+          "name": "threshold",
+          "type": "Float"
+        },
+        {
+          "name": "acknowledged",
+          "type": "Boolean"
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "String"
+        },
+        {
+          "name": "acknowledged_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "resolved",
+          "type": "Boolean"
+        },
+        {
+          "name": "resolved_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "details",
+          "type": "JSON"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "metric_type",
+          "type": "String"
+        },
+        {
+          "name": "warning_threshold",
+          "type": "Float"
+        },
+        {
+          "name": "critical_threshold",
+          "type": "Float"
+        },
+        {
+          "name": "enabled",
+          "type": "Boolean"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "updated_at",
+          "type": "DateTime(timezone=True"
+        }
+      ]
+    },
+    {
+      "class": "Job",
+      "table": "jobs",
+      "file": "job.py",
+      "columns": [
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "start_time",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "end_time",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "items_total",
+          "type": "Integer"
+        },
+        {
+          "name": "items_done",
+          "type": "Integer"
+        },
+        {
+          "name": "percent_complete",
+          "type": "Float"
+        },
+        {
+          "name": "last_item",
+          "type": "JSON"
+        },
+        {
+          "name": "status",
+          "type": "String"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "updated_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "task_name",
+          "type": "String"
+        },
+        {
+          "name": "phase",
+          "type": "String"
+        },
+        {
+          "name": "estimated_duration",
+          "type": "Float"
+        },
+        {
+          "name": "action_duration",
+          "type": "Float"
+        },
+        {
+          "name": "success",
+          "type": "Boolean"
+        },
+        {
+          "name": "cancel_reason",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "class": "Report",
+      "table": "reports",
+      "file": "report.py",
+      "columns": [
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "name": "description",
+          "type": "Text"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "report_type",
+          "type": "String"
+        },
+        {
+          "name": "data",
+          "type": "JSON"
+        },
+        {
+          "name": "file_path",
+          "type": "String"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "created_by",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "class": "Robot",
+      "table": "robots",
+      "file": "robot.py",
+      "columns": [
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "description",
+          "type": "String"
+        },
+        {
+          "name": "location",
+          "type": "JSON"
+        },
+        {
+          "name": "status",
+          "type": "String"
+        },
+        {
+          "name": "ip_address",
+          "type": "String"
+        },
+        {
+          "name": "camera_url",
+          "type": "String"
+        },
+        {
+          "name": "battery_threshold_low",
+          "type": "Float"
+        },
+        {
+          "name": "battery_threshold_critical",
+          "type": "Float"
+        },
+        {
+          "name": "temp_threshold_warning",
+          "type": "Float"
+        },
+        {
+          "name": "temp_threshold_critical",
+          "type": "Float"
+        },
+        {
+          "name": "settings",
+          "type": "JSON"
+        },
+        {
+          "name": "last_seen",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "updated_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "is_active",
+          "type": "Boolean"
+        }
+      ]
+    },
+    {
+      "class": "SystemLog",
+      "table": "system_logs",
+      "file": "system_log.py",
+      "columns": [
+        {
+          "name": "id",
+          "type": "Integer"
+        },
+        {
+          "name": "level",
+          "type": "String"
+        },
+        {
+          "name": "category",
+          "type": "String"
+        },
+        {
+          "name": "message",
+          "type": "Text"
+        },
+        {
+          "name": "robot_id",
+          "type": "String"
+        },
+        {
+          "name": "details",
+          "type": "JSON"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime(timezone=True"
+        }
+      ]
+    },
+    {
+      "class": "User",
+      "table": "users",
+      "file": "user.py",
+      "columns": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "username",
+          "type": "String(50"
+        },
+        {
+          "name": "email",
+          "type": "String(100"
+        },
+        {
+          "name": "password_hash",
+          "type": "String(255"
+        },
+        {
+          "name": "role",
+          "type": "String(20"
+        },
+        {
+          "name": "is_active",
+          "type": "Boolean"
+        },
+        {
+          "name": "created_at",
+          "type": "DateTime(timezone=True"
+        },
+        {
+          "name": "updated_at",
+          "type": "DateTime(timezone=True"
+        }
+      ]
+    }
+  ],
+  "influxdb_schema": {
+    "measurements": [],
+    "tags": [],
+    "fields": []
+  },
+  "migrations": [],
+  "generated_at": "2026-02-03 03:41:26.471480"
+}

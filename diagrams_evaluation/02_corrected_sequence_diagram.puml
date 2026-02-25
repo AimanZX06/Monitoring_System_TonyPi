@@ -1,0 +1,193 @@
+@startuml Corrected_Sequence_Diagram
+
+title TonyPi Robot Monitoring System - Corrected Sequence Diagram
+footer Shows ALL Database Interactions Explicitly
+
+skinparam responseMessageBelowArrow true
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+
+' Define all participants
+actor "User" as User
+participant "React Frontend" as FE #LightBlue
+participant "FastAPI Backend" as BE #LightGreen
+participant "MQTTClient\n(mqtt_client.py)" as MQTT_SVC #LightCoral
+participant "Mosquitto\nBroker" as MQTT #Coral
+database "PostgreSQL\n(SQLAlchemy)" as PG #Yellow
+database "InfluxDB\n(Time-Series)" as IDB #Cyan
+participant "TonyPiRobotClient\n(tonypi_client.py)" as Robot #Orange
+
+== 1. User Authentication (Login) ==
+
+User -> FE : Enter credentials
+FE -> BE : POST /api/v1/auth/login\n{username, password}
+
+group Database Interaction - User Verification
+    BE -> PG : SELECT * FROM users\nWHERE username = ?
+    PG --> BE : User(id, username,\npassword_hash, role)
+end
+
+BE -> BE : verify_password(\npassword, password_hash)
+BE --> FE : {access_token: JWT,\ntoken_type: "bearer"}
+FE -> FE : Store token in localStorage
+FE --> User : Redirect to Dashboard
+
+== 2. Dashboard Initial Load ==
+
+User -> FE : Open Dashboard
+
+group Database Interaction - Fetch Robots
+    FE -> BE : GET /api/v1/robots
+    BE -> PG : SELECT * FROM robots\nWHERE is_active = true
+    PG --> BE : List[Robot]
+    BE --> FE : [{robot_id, name, status, ...}]
+end
+
+group Database Interaction - Fetch Alerts
+    FE -> BE : GET /api/v1/alerts?resolved=false
+    BE -> PG : SELECT * FROM alerts\nWHERE resolved = false\nORDER BY created_at DESC
+    PG --> BE : List[Alert]
+    BE --> FE : [{alert_type, severity, message, ...}]
+end
+
+group Database Interaction - Fetch Telemetry (Time-Series)
+    FE -> BE : GET /api/v1/robot-data/{robot_id}/latest
+    BE -> IDB : from(bucket: "robot_data")\n|> range(start: -5m)\n|> filter(robot_id)
+    IDB --> BE : Time-series data points
+    BE --> FE : {cpu_temp, battery, servos, ...}
+end
+
+FE --> User : Render Dashboard with data
+
+== 3. Real-Time Telemetry Flow ==
+
+Robot -> Robot : TonyPiRobotClient.publish_telemetry()
+Robot -> MQTT : publish("tonypi/sensors/cpu_temp",\n{robot_id, value: 65.5})
+MQTT -> MQTT_SVC : on_message() callback
+
+group Database Interaction - Store Time-Series
+    MQTT_SVC -> IDB : InfluxClient.write_validated_sensor(\nrobot_id, "cpu_temp", 65.5)
+    note right of IDB: Stored in "sensor_data" measurement\nwith tags: robot_id, sensor_type
+end
+
+group Database Interaction - Check Thresholds
+    MQTT_SVC -> PG : SELECT * FROM alert_thresholds\nWHERE robot_id = ? AND metric_type = 'temperature'
+    PG --> MQTT_SVC : AlertThreshold(warning: 60, critical: 75)
+    MQTT_SVC -> MQTT_SVC : Check if value > threshold
+end
+
+MQTT_SVC -> FE : WebSocket push\n{type: "telemetry", data: {...}}
+FE --> User : Update real-time chart
+
+== 4. Alert Generation (Threshold Exceeded) ==
+
+Robot -> MQTT : publish("tonypi/sensors/cpu_temp",\n{robot_id, value: 78.5})
+MQTT -> MQTT_SVC : on_message()
+
+group Database Interaction - Store & Check
+    MQTT_SVC -> IDB : write_validated_sensor(\nrobot_id, "cpu_temp", 78.5)
+    MQTT_SVC -> PG : SELECT * FROM alert_thresholds\nWHERE robot_id = ? AND metric_type = 'temperature'
+    PG --> MQTT_SVC : AlertThreshold(warning: 60, critical: 75)
+end
+
+MQTT_SVC -> MQTT_SVC : 78.5 > 75 (critical)\nGenerate Alert
+
+group Database Interaction - Create Alert Record
+    MQTT_SVC -> PG : INSERT INTO alerts\n(robot_id, alert_type, severity,\ntitle, message, value, threshold)
+    PG --> MQTT_SVC : Alert(id: 42)
+end
+
+MQTT_SVC -> FE : WebSocket push\n{type: "alert", data: {...}}
+FE --> User : Show notification\n"Critical: High Temperature!"
+
+== 5. User Acknowledges Alert ==
+
+User -> FE : Click "Acknowledge"
+FE -> BE : POST /api/v1/alerts/42/acknowledge
+
+group Database Interaction - Update Alert
+    BE -> PG : UPDATE alerts\nSET acknowledged = true,\nacknowledged_by = ?,\nacknowledged_at = NOW()\nWHERE id = 42
+    PG --> BE : Alert(acknowledged: true)
+end
+
+BE --> FE : {id: 42, acknowledged: true}
+FE --> User : Alert marked as acknowledged
+
+== 6. Send Command to Robot ==
+
+User -> FE : Click "Move Forward"
+FE -> BE : POST /api/v1/management/command\n{robot_id, command: "move_forward"}
+
+group Database Interaction - Log Command
+    BE -> PG : INSERT INTO system_logs\n(robot_id, log_type, level,\nmessage, details)
+    PG --> BE : SystemLog(id: 123)
+end
+
+BE -> MQTT : mqtt_client.publish(\n"tonypi/commands",\n{action: "move_forward"})
+MQTT -> Robot : Deliver command message
+Robot -> Robot : handle_command("move_forward")\nRobotActions.move_forward()
+Robot -> MQTT : publish("tonypi/commands/response",\n{status: "completed"})
+MQTT -> MQTT_SVC : on_message()
+
+group Database Interaction - Log Response
+    MQTT_SVC -> PG : INSERT INTO system_logs\n(robot_id, log_type: "command_response",\nmessage: "completed")
+end
+
+MQTT_SVC -> FE : WebSocket push\n{type: "command_response", status: "completed"}
+FE --> User : Show "Command executed"
+
+== 7. Generate AI Report ==
+
+User -> FE : Click "Generate Report"
+FE -> BE : POST /api/v1/reports/generate\n{robot_id, report_type: "daily"}
+
+group Database Interaction - Fetch Data for Report
+    BE -> IDB : Query last 24h telemetry\nfrom(bucket: "robot_data")\n|> range(start: -24h)
+    IDB --> BE : Aggregated telemetry data
+    
+    BE -> PG : SELECT * FROM alerts\nWHERE robot_id = ?\nAND created_at > NOW() - 24h
+    PG --> BE : List[Alert] (today's alerts)
+end
+
+BE -> BE : GeminiAnalytics.generate_report(\ntelemetry, alerts)
+
+group Database Interaction - Save Report
+    BE -> PG : INSERT INTO reports\n(title, report_type, content,\nrobot_id, generated_by)
+    PG --> BE : Report(id: 15)
+end
+
+BE --> FE : {id: 15, title: "Daily Report", content: "..."}
+FE --> User : Display generated report
+
+== 8. Robot Registration (First Connect) ==
+
+Robot -> MQTT : publish("tonypi/status/connect",\n{robot_id: "tonypi_02", ip: "192.168.1.50"})
+MQTT -> MQTT_SVC : on_message()
+
+group Database Interaction - Register Robot
+    MQTT_SVC -> PG : SELECT * FROM robots\nWHERE robot_id = "tonypi_02"
+    PG --> MQTT_SVC : null (not found)
+    
+    MQTT_SVC -> PG : INSERT INTO robots\n(robot_id, name, ip_address,\nstatus, last_seen)
+    PG --> MQTT_SVC : Robot(id: 2, robot_id: "tonypi_02")
+    
+    MQTT_SVC -> PG : INSERT INTO system_logs\n(robot_id, log_type: "robot_connected",\nmessage: "New robot registered")
+end
+
+MQTT_SVC -> FE : WebSocket push\n{type: "robot_connected", robot_id: "tonypi_02"}
+FE --> User : Dashboard updates\nwith new robot
+
+== 9. Query Historical Data ==
+
+User -> FE : Select date range\n(Last 7 days)
+FE -> BE : GET /api/v1/robot-data/{robot_id}/history\n?start=2026-01-24&end=2026-01-31
+
+group Database Interaction - Historical Query
+    BE -> IDB : from(bucket: "robot_data")\n|> range(start: 2026-01-24,\nstop: 2026-01-31)\n|> filter(robot_id)\n|> aggregateWindow(every: 1h)
+    IDB --> BE : Aggregated historical data
+end
+
+BE --> FE : [{timestamp, cpu_temp, battery, ...}, ...]
+FE --> User : Render historical chart
+
+@enduml

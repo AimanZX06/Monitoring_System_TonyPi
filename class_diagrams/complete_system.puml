@@ -1,0 +1,294 @@
+@startuml CompleteSystemOverview
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+title TonyPi Robot Monitoring System - Complete System Class Diagram
+
+' ============================================================================
+' ROBOT LAYER
+' ============================================================================
+
+package "TonyPi Robot (Raspberry Pi)" <<Node>> #LightBlue {
+    
+    class TonyPiRobotClient {
+        +robot_id : String
+        +mqtt_client : Client
+        --
+        +get_sensor_data() : Dict
+        +get_servo_data() : List
+        +get_battery_status() : Dict
+        +publish_telemetry()
+        +handle_command(payload)
+    }
+    
+    class CameraStream {
+        +port : Integer
+        --
+        +start()
+        +get_frame() : bytes
+    }
+    
+    class HiWonderSDK <<External>> {
+        +Controller
+        +Sonar
+        +Board
+    }
+    
+    TonyPiRobotClient --> HiWonderSDK : uses
+    TonyPiRobotClient --> CameraStream : manages
+}
+
+' ============================================================================
+' MQTT LAYER
+' ============================================================================
+
+package "Message Broker" <<Node>> #LightGreen {
+    
+    class Mosquitto <<Broker>> {
+        +port : 1883
+        +websocket_port : 9001
+        --
+        +route_messages()
+    }
+}
+
+' ============================================================================
+' BACKEND LAYER
+' ============================================================================
+
+package "Backend Server (FastAPI)" <<Node>> #LightYellow {
+    
+    class FastAPIApp {
+        +version : String
+        --
+        +include_router(router)
+    }
+    
+    class MQTTClient {
+        --
+        +handle_sensor_data(payload)
+        +handle_servo_data(payload)
+        +publish_command(robot_id, cmd)
+    }
+    
+    package "API Routers" {
+        class RobotDataRouter
+        class AlertsRouter
+        class ManagementRouter
+        class ReportsRouter
+        class UsersRouter
+        class JobsRouter
+        class LogsRouter
+    }
+    
+    class GeminiService {
+        --
+        +analyze_data(data) : Dict
+    }
+    
+    FastAPIApp --> RobotDataRouter
+    FastAPIApp --> AlertsRouter
+    FastAPIApp --> ManagementRouter
+    FastAPIApp --> ReportsRouter
+    FastAPIApp --> UsersRouter
+    FastAPIApp --> JobsRouter
+    FastAPIApp --> LogsRouter
+    FastAPIApp --> MQTTClient : starts
+    ReportsRouter --> GeminiService
+}
+
+' ============================================================================
+' DATABASE LAYER
+' ============================================================================
+
+package "Databases" <<Database>> #LightCoral {
+    
+    package "PostgreSQL" {
+        class Robot {
+            +id : Integer
+            +robot_id : String
+            +status : String
+        }
+        
+        class User {
+            +id : String
+            +username : String
+            +role : String
+        }
+        
+        class Alert {
+            +id : Integer
+            +severity : String
+            +acknowledged : Boolean
+        }
+        
+        class Job {
+            +id : Integer
+            +status : String
+            +percent_complete : Float
+        }
+        
+        class Report {
+            +id : Integer
+            +report_type : String
+            +data : JSON
+        }
+        
+        class SystemLog {
+            +id : Integer
+            +level : String
+            +message : Text
+        }
+    }
+    
+    package "InfluxDB" {
+        class SensorData <<Measurement>> {
+            +robot_id : Tag
+            +sensor_type : Tag
+            +value : Field
+            +timestamp : Time
+        }
+        
+        class ServoData <<Measurement>> {
+            +robot_id : Tag
+            +servo_id : Tag
+            +position : Field
+            +temperature : Field
+        }
+        
+        class BatteryData <<Measurement>> {
+            +robot_id : Tag
+            +voltage : Field
+            +percentage : Field
+        }
+    }
+}
+
+' ============================================================================
+' FRONTEND LAYER
+' ============================================================================
+
+package "Frontend (React)" <<Node>> #LightPink {
+    
+    class ReactApp {
+        --
+        +render()
+    }
+    
+    package "Pages" {
+        class Dashboard
+        class Monitoring
+        class Robots
+        class Sensors
+        class Alerts
+        class Jobs
+        class Reports
+        class Users
+    }
+    
+    package "Contexts" {
+        class AuthContext
+        class ThemeContext
+    }
+    
+    class APIClient {
+        --
+        +get(url) : Promise
+        +post(url, data) : Promise
+    }
+    
+    class MQTTService {
+        --
+        +subscribe(topic)
+        +onMessage(callback)
+    }
+    
+    ReactApp --> Dashboard
+    ReactApp --> Monitoring
+    ReactApp --> Robots
+    ReactApp --> Sensors
+    ReactApp --> Alerts
+    ReactApp --> Jobs
+    ReactApp --> Reports
+    ReactApp --> Users
+    ReactApp --> AuthContext
+    ReactApp --> ThemeContext
+    
+    Dashboard --> APIClient
+    Dashboard --> MQTTService
+}
+
+' ============================================================================
+' VISUALIZATION LAYER
+' ============================================================================
+
+package "Grafana" <<Node>> #LightGray {
+    class GrafanaDashboard {
+        --
+        +query_influxdb()
+        +render_panels()
+    }
+}
+
+' ============================================================================
+' RELATIONSHIPS BETWEEN LAYERS
+' ============================================================================
+
+TonyPiRobotClient --> Mosquitto : publishes telemetry
+Mosquitto --> MQTTClient : delivers messages
+MQTTClient --> SensorData : writes
+MQTTClient --> ServoData : writes
+MQTTClient --> BatteryData : writes
+MQTTClient --> Robot : updates status
+MQTTClient --> Alert : creates
+
+ManagementRouter --> Mosquitto : publishes commands
+Mosquitto --> TonyPiRobotClient : delivers commands
+
+RobotDataRouter --> SensorData : queries
+RobotDataRouter --> ServoData : queries
+AlertsRouter --> Alert : CRUD
+UsersRouter --> User : CRUD
+JobsRouter --> Job : CRUD
+ReportsRouter --> Report : CRUD
+LogsRouter --> SystemLog : CRUD
+
+ReactApp --> FastAPIApp : REST API calls
+MQTTService --> Mosquitto : WebSocket connection
+GrafanaDashboard --> SensorData : queries
+GrafanaDashboard --> ServoData : queries
+Robots --> CameraStream : HTTP stream
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note top of "TonyPi Robot (Raspberry Pi)"
+  Physical robot with sensors:
+  - 6 Servos
+  - IMU (accelerometer, gyroscope)
+  - Ultrasonic sensor
+  - Light sensor
+  - Camera
+end note
+
+note top of "Backend Server (FastAPI)"
+  REST API + MQTT subscriber
+  Port 8000
+end note
+
+note bottom of PostgreSQL
+  Relational data:
+  Users, Robots, Alerts,
+  Jobs, Reports, Logs
+end note
+
+note bottom of InfluxDB
+  Time-series data:
+  Sensor readings,
+  Servo telemetry,
+  Performance metrics
+end note
+
+@enduml

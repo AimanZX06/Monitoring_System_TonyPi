@@ -1,0 +1,133 @@
+@startuml DatabaseArchitecture
+skinparam linetype ortho
+
+title TonyPi Robot Monitoring System\nDual Database Architecture
+
+' ============================================================================
+' STYLING
+' ============================================================================
+skinparam rectangle {
+    BackgroundColor White
+    BorderColor Black
+}
+
+skinparam database {
+    BackgroundColor #E8F5E9
+    BorderColor #2E7D32
+}
+
+skinparam component {
+    BackgroundColor #FFF3E0
+    BorderColor #E65100
+}
+
+' ============================================================================
+' ARCHITECTURE DIAGRAM
+' ============================================================================
+
+rectangle "Data Sources" {
+    component "TonyPi Robot\n(Raspberry Pi)" as robot #LightBlue
+    component "Web Frontend\n(React)" as frontend #LightPink
+    component "Backend API\n(FastAPI)" as backend #LightYellow
+}
+
+rectangle "Message Broker" {
+    component "Mosquitto\nMQTT Broker" as mqtt #LightGreen
+}
+
+rectangle "Databases" {
+    database "PostgreSQL\n(Relational)" as postgres {
+        rectangle "users" as tbl_users
+        rectangle "robots" as tbl_robots
+        rectangle "alerts" as tbl_alerts
+        rectangle "alert_thresholds" as tbl_thresholds
+        rectangle "jobs" as tbl_jobs
+        rectangle "reports" as tbl_reports
+        rectangle "system_logs" as tbl_logs
+    }
+    
+    database "InfluxDB\n(Time-Series)" as influxdb {
+        rectangle "sensor_data" as meas_sensor
+        rectangle "servo_data" as meas_servo
+        rectangle "robot_status" as meas_status
+        rectangle "battery_status" as meas_battery
+        rectangle "robot_location" as meas_location
+        rectangle "vision_data" as meas_vision
+    }
+}
+
+rectangle "Visualization" {
+    component "Grafana\nDashboards" as grafana #LightGray
+}
+
+' ============================================================================
+' DATA FLOW
+' ============================================================================
+
+robot --> mqtt : "Publish\ntelemetry"
+mqtt --> backend : "Subscribe\n& process"
+
+backend --> postgres : "CRUD operations\n(SQLAlchemy)"
+backend --> influxdb : "Write time-series\n(influxdb-client)"
+
+frontend --> backend : "REST API\n(Axios)"
+frontend --> mqtt : "WebSocket\nreal-time updates"
+
+grafana --> influxdb : "Flux queries"
+grafana --> postgres : "SQL queries"
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note bottom of postgres
+    **PostgreSQL Usage:**
+    - User authentication
+    - Robot configuration
+    - Alert management
+    - Job tracking
+    - Report storage
+    - Audit logs
+    
+    **Why PostgreSQL?**
+    - ACID transactions
+    - Complex JOINs
+    - Referential integrity
+    - JSON support (JSONB)
+end note
+
+note bottom of influxdb
+    **InfluxDB Usage:**
+    - Sensor readings
+    - Servo telemetry
+    - System metrics
+    - Battery history
+    - Location tracking
+    
+    **Why InfluxDB?**
+    - High write throughput
+    - Time-range queries
+    - Automatic downsampling
+    - Built-in aggregations
+end note
+
+' ============================================================================
+' LEGEND
+' ============================================================================
+
+legend right
+    **Data Storage Strategy**
+    |=|=|
+    | **PostgreSQL** | Structured data with relationships |
+    | **InfluxDB** | High-frequency time-stamped data |
+    
+    **Write Frequency**
+    | Data Type | Frequency |
+    | Sensor data | ~10/sec |
+    | Servo data | ~2/sec |
+    | Status | ~0.2/sec |
+    | Alerts | On threshold breach |
+    | Jobs | On state change |
+endlegend
+
+@enduml

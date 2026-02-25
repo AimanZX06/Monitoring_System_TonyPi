@@ -1,0 +1,184 @@
+@startuml RobotClient
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+title TonyPi Robot Monitoring System - Robot Client (Raspberry Pi)
+
+' ============================================================================
+' MAIN CLIENT
+' ============================================================================
+
+package "Robot Client" {
+    
+    class TonyPiRobotClient <<Main>> {
+        -mqtt_broker : String
+        -mqtt_port : Integer
+        -robot_id : String
+        -mqtt_client : paho.Client
+        -running : Boolean
+        -emergency_stopped : Boolean
+        -light_sensor : LightSensor
+        ==
+        {static} +SERVO_NAMES : List<String>
+        ==
+        +__init__(mqtt_broker, mqtt_port, robot_id)
+        +on_connect(client, userdata, flags, rc)
+        +on_disconnect(client, userdata, flags, rc)
+        +on_message(client, userdata, msg)
+        --
+        .. Command Handlers ..
+        +handle_move_command(payload: Dict)
+        +handle_stop_command(payload: Dict)
+        +handle_head_nod(payload: Dict)
+        +handle_head_shake(payload: Dict)
+        +handle_status_request(payload: Dict)
+        +handle_battery_request(payload: Dict)
+        +handle_shutdown_command(payload: Dict)
+        +_handle_emergency_stop(payload: Dict)
+        +_handle_resume_command(payload: Dict)
+        --
+        .. Data Collection ..
+        +get_system_info() : Dict
+        +get_cpu_temperature() : Float
+        +get_local_ip() : String
+        +get_battery_status() : Dict
+        +get_sensor_data() : Dict
+        +get_servo_data() : List<Dict>
+        --
+        .. Telemetry ..
+        +publish_telemetry()
+        +telemetry_loop()
+        +run()
+        +stop()
+    }
+    
+    class LightSensor <<Sensor>> {
+        -pin : Integer
+        -initialized : Boolean
+        --
+        +__init__(pin: Integer)
+        +is_dark() : Boolean
+        +get_light_level() : Integer
+        +cleanup()
+    }
+    
+    class CameraStream <<Server>> {
+        -port : Integer
+        -camera : cv2.VideoCapture
+        -running : Boolean
+        -frame_buffer : bytes
+        --
+        +__init__(port: Integer)
+        +start()
+        +stop()
+        +get_frame() : bytes
+        +generate_mjpeg() : Generator
+        +run_server()
+    }
+}
+
+' ============================================================================
+' HIWONDER SDK
+' ============================================================================
+
+package "HiWonder SDK" <<External>> {
+    
+    class Controller <<External>> {
+        +get_servo_info(servo_ids: List) : List
+        +set_servo_position(servo_id, position, time)
+        +set_servo_speed(servo_id, speed)
+        +get_battery_voltage() : Float
+    }
+    
+    class Sonar <<External>> {
+        +get_distance() : Float
+    }
+    
+    class Board <<External>> {
+        +get_accelerometer() : Tuple
+        +get_gyroscope() : Tuple
+        +get_magnetometer() : Tuple
+    }
+    
+    class ActionGroupControl <<External>> {
+        {static} +runActionGroup(action_name: String)
+        {static} +stopActionGroup()
+        {static} +executeMovement(movement: String)
+    }
+    
+    class ros_robot_controller_sdk <<External>> {
+        +Board() : Board
+    }
+}
+
+' ============================================================================
+' SYSTEM LIBRARIES
+' ============================================================================
+
+package "System Libraries" <<External>> {
+    
+    class psutil <<External>> {
+        {static} +cpu_percent() : Float
+        {static} +virtual_memory() : MemInfo
+        {static} +disk_usage(path) : DiskInfo
+        {static} +net_if_addrs() : Dict
+    }
+    
+    class paho.mqtt.client <<External>> {
+        +Client() : Client
+        +connect(host, port)
+        +subscribe(topic)
+        +publish(topic, payload)
+        +loop_start()
+        +loop_stop()
+    }
+    
+    class RPi.GPIO <<External>> {
+        {static} +setmode(mode)
+        {static} +setup(pin, direction)
+        {static} +input(pin) : Boolean
+        {static} +cleanup()
+    }
+}
+
+' ============================================================================
+' RELATIONSHIPS
+' ============================================================================
+
+TonyPiRobotClient --> LightSensor : uses
+TonyPiRobotClient --> CameraStream : starts
+TonyPiRobotClient --> Controller : uses
+TonyPiRobotClient --> Sonar : uses
+TonyPiRobotClient --> Board : uses
+TonyPiRobotClient --> ActionGroupControl : uses
+TonyPiRobotClient --> psutil : uses
+TonyPiRobotClient --> "paho.mqtt.client" : uses
+
+LightSensor --> "RPi.GPIO" : uses
+Board --> ros_robot_controller_sdk : from
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note right of TonyPiRobotClient
+  Main robot client that runs on Raspberry Pi.
+  Collects sensor data and publishes via MQTT.
+  Receives commands from monitoring system.
+  Falls back to simulation if hardware unavailable.
+end note
+
+note right of CameraStream
+  HTTP streaming server on port 8080.
+  Provides MJPEG video stream.
+  Used by frontend for live camera view.
+end note
+
+note bottom of ActionGroupControl
+  Pre-defined action sequences:
+  - forward, backward
+  - turn_left, turn_right
+  - wave, bow, stand
+end note
+
+@enduml

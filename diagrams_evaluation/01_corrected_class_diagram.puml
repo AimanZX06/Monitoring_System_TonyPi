@@ -1,0 +1,390 @@
+@startuml Corrected_Class_Diagram
+
+title TonyPi Robot Monitoring System - Corrected Class Diagram
+footer Shows ACTUAL Python Classes in the Codebase
+
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 50
+
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+}
+
+skinparam package {
+    BackgroundColor<<Models>> LightYellow
+    BackgroundColor<<Services>> LightGreen
+    BackgroundColor<<Database>> LightBlue
+    BackgroundColor<<RobotClient>> Orange
+    BackgroundColor<<Sensors>> Pink
+}
+
+' ========== SQLALCHEMY ORM MODELS (backend/models/) ==========
+' These are ACTUAL Python classes that inherit from SQLAlchemy Base
+
+package "SQLAlchemy ORM Models" <<Models>> {
+    
+    note as N1
+        Location: backend/models/
+        These classes map to PostgreSQL tables
+        All inherit from declarative Base
+    end note
+    
+    class "User" as UserModel {
+        <i>File: models/user.py:37</i>
+        __tablename__ = "users"
+        --
+        + id: String <<PK>>
+        + username: String(50)
+        + email: String(100)
+        + password_hash: String
+        + role: String
+        + is_active: Boolean
+        + created_at: DateTime
+        + updated_at: DateTime
+    }
+    
+    class "Robot" as RobotModel {
+        <i>File: models/robot.py:43</i>
+        __tablename__ = "robots"
+        --
+        + id: Integer <<PK>>
+        + robot_id: String
+        + name: String
+        + description: String
+        + location: JSON
+        + status: String
+        + ip_address: String
+        + camera_url: String
+        + battery_threshold_low: Float
+        + battery_threshold_critical: Float
+        + temp_threshold_warning: Float
+        + temp_threshold_critical: Float
+        + settings: JSON
+        + last_seen: DateTime
+        + is_active: Boolean
+    }
+    
+    class "Alert" as AlertModel {
+        <i>File: models/alert.py:48</i>
+        __tablename__ = "alerts"
+        --
+        + id: Integer <<PK>>
+        + robot_id: String <<FK>>
+        + alert_type: String
+        + severity: String
+        + title: String
+        + message: Text
+        + source: String
+        + value: Float
+        + threshold: Float
+        + acknowledged: Boolean
+        + acknowledged_by: String
+        + resolved: Boolean
+        + created_at: DateTime
+    }
+    
+    class "AlertThreshold" as AlertThresholdModel {
+        <i>File: models/alert.py:198</i>
+        __tablename__ = "alert_thresholds"
+        --
+        + id: Integer <<PK>>
+        + robot_id: String
+        + metric_type: String
+        + warning_threshold: Float
+        + critical_threshold: Float
+        + is_active: Boolean
+    }
+    
+    class "Report" as ReportModel {
+        <i>File: models/report.py:45</i>
+        __tablename__ = "reports"
+        --
+        + id: Integer <<PK>>
+        + title: String
+        + report_type: String
+        + content: Text
+        + robot_id: String
+        + generated_by: String
+        + created_at: DateTime
+    }
+    
+    class "Job" as JobModel {
+        <i>File: models/job.py:54</i>
+        __tablename__ = "jobs"
+        --
+        + id: String <<PK>>
+        + name: String
+        + job_type: String
+        + schedule: String
+        + robot_id: String
+        + status: String
+        + last_run: DateTime
+        + next_run: DateTime
+    }
+    
+    class "SystemLog" as SystemLogModel {
+        <i>File: models/system_log.py:50</i>
+        __tablename__ = "system_logs"
+        --
+        + id: Integer <<PK>>
+        + robot_id: String
+        + log_type: String
+        + level: String
+        + message: Text
+        + details: JSON
+        + created_at: DateTime
+    }
+}
+
+' ========== SERVICE CLASSES (backend/) ==========
+
+package "Backend Service Classes" <<Services>> {
+    
+    note as N2
+        Location: backend/mqtt/, backend/services/
+        These are ACTUAL Python classes
+    end note
+    
+    class "MQTTClient" as MQTTClientClass {
+        <i>File: mqtt/mqtt_client.py:103</i>
+        --
+        - broker_host: str
+        - broker_port: int
+        - username: str
+        - password: str
+        - client: mqtt.Client
+        - topics: List[str]
+        --
+        + on_connect(client, userdata, flags, rc): void
+        + on_message(client, userdata, msg): void
+        + on_disconnect(client, userdata, rc): void
+        + handle_sensor_data(topic, payload): void
+        + handle_status_data(topic, payload): void
+        + publish(topic, payload): void
+        + subscribe(topic): void
+        + start(): void
+        + stop(): void
+    }
+    
+    class "InfluxClient" as InfluxClientClass {
+        <i>File: database/influx_client.py:68</i>
+        --
+        - client: InfluxDBClient
+        - bucket: str
+        - org: str
+        - write_api: WriteApi
+        - query_api: QueryApi
+        --
+        + write_validated_sensor(robot_id, sensor_type, value): void
+        + write_servo_data(robot_id, servo_id, data): void
+        + write_battery_status(robot_id, data): void
+        + write_robot_location(robot_id, x, y, z): void
+        + query_recent_data(measurement, duration, robot_id): List
+        + query_range(start, end, measurement): ResultSet
+        + aggregate_metrics(measurement, interval): List
+    }
+    
+    class "GeminiAnalytics" as GeminiAnalyticsClass {
+        <i>File: services/gemini_analytics.py:93</i>
+        --
+        - api_key: str
+        - model: GenerativeModel
+        --
+        + generate_report(data): str
+        + analyze_telemetry(metrics): dict
+        + suggest_actions(alerts): List
+    }
+}
+
+' ========== DATABASE CLIENTS ==========
+
+package "Database Infrastructure" <<Database>> {
+    
+    class "SessionLocal" as SessionLocalClass {
+        <i>File: database/database.py</i>
+        <<sessionmaker>>
+        --
+        - autocommit: False
+        - autoflush: False
+        - bind: engine
+        --
+        + __call__(): Session
+    }
+    
+    class "Base" as BaseClass {
+        <i>File: database/database.py</i>
+        <<declarative_base>>
+        --
+        + metadata: MetaData
+    }
+}
+
+' ========== ROBOT CLIENT CLASSES ==========
+
+package "Robot Client Classes" <<RobotClient>> {
+    
+    note as N3
+        Location: robot_client/
+        These run on the TonyPi robot
+    end note
+    
+    class "TonyPiRobotClient" as TonyPiRobotClientClass {
+        <i>File: robot_client/tonypi_client.py:127</i>
+        --
+        - robot_id: str
+        - mqtt_client: mqtt.Client
+        - board: Board
+        - sensors: dict
+        - running: bool
+        --
+        + connect(): void
+        + publish_telemetry(): void
+        + handle_command(cmd): void
+        + start(): void
+        + stop(): void
+    }
+    
+    class "TonyPiSimulator" as TonyPiSimulatorClass {
+        <i>File: robot_client/simulator.py:75</i>
+        --
+        - mode: SimulatorMode
+        - robot_id: str
+        - mqtt_client: mqtt.Client
+        --
+        + generate_telemetry(): dict
+        + simulate_sensors(): void
+        + start(): void
+        + stop(): void
+    }
+    
+    class "Camera" as CameraClass {
+        <i>File: robot_client/camera_stream.py:230</i>
+        --
+        - cap: cv2.VideoCapture
+        - frame: np.ndarray
+        - running: bool
+        --
+        + capture(): np.ndarray
+        + start_streaming(): void
+        + stop(): void
+    }
+}
+
+' ========== SENSOR CLASSES ==========
+
+package "Sensor Classes" <<Sensors>> {
+    
+    note as N4
+        Location: robot_client/ and dont_touch_integration/modules/
+        Hardware interface classes
+    end note
+    
+    class "LightSensor" as LightSensorClass {
+        <i>File: robot_client/tonypi_client.py:85</i>
+        --
+        - pin: int
+        --
+        + is_dark(): bool
+        + cleanup(): void
+    }
+    
+    class "UltrasonicSensor" as UltrasonicSensorClass {
+        <i>File: dont_touch_integration/modules/ultrasonic_sensor.py:16</i>
+        --
+        - low_pin: int
+        - echo_pin: int
+        - obstacle_threshold: int
+        - distance_history: List
+        --
+        + get_distance(): float
+        + is_obstacle_detected(): bool
+        + cleanup(): void
+    }
+    
+    class "VisionController" as VisionControllerClass {
+        <i>File: dont_touch_integration/modules/vision_module.py:38</i>
+        --
+        - model: YOLO
+        - is_locked: bool
+        - last_action_time: float
+        --
+        + detect(frame): Tuple
+        + get_navigation_command(cc, width): str
+        + run_birdcage(frame): bool
+    }
+    
+    class "RobotActions" as RobotActionsClass {
+        <i>File: dont_touch_integration/modules/action_module.py:41</i>
+        --
+        - rc_board: Board
+        - board: Controller
+        --
+        + run_direct_patroling(): bool
+        + move_forward(): void
+        + turn_left(): void
+        + turn_right(): void
+        + stop(): void
+    }
+    
+    class "Sonar" as SonarClass {
+        <i>File: robot_client/hiwonder/Sonar.py:77</i>
+        --
+        - trigger_pin: int
+        - echo_pin: int
+        --
+        + get_distance(): float
+        + cleanup(): void
+    }
+    
+    class "Board" as BoardClass {
+        <i>File: robot_client/hiwonder/ros_robot_controller_sdk.py:186</i>
+        --
+        - serial_port: str
+        - baudrate: int
+        --
+        + set_servo(servo_id, angle): void
+        + get_servo(servo_id): int
+        + set_motor(motor_id, speed): void
+    }
+    
+    class "Controller" as ControllerClass {
+        <i>File: robot_client/hiwonder/Controller.py:72</i>
+        --
+        - board: Board
+        --
+        + set_servo_position(servo_id, position, time): void
+        + get_servo_position(servo_id): int
+    }
+}
+
+' ========== RELATIONSHIPS ==========
+
+' Inheritance
+UserModel --|> BaseClass
+RobotModel --|> BaseClass
+AlertModel --|> BaseClass
+AlertThresholdModel --|> BaseClass
+ReportModel --|> BaseClass
+JobModel --|> BaseClass
+SystemLogModel --|> BaseClass
+
+' Associations
+MQTTClientClass --> InfluxClientClass : writes to
+MQTTClientClass --> AlertModel : creates alerts
+TonyPiRobotClientClass --> BoardClass : uses
+TonyPiRobotClientClass --> LightSensorClass : uses
+TonyPiRobotClientClass --> MQTTClientClass : publishes via
+VisionControllerClass --> CameraClass : uses
+RobotActionsClass --> BoardClass : controls
+RobotActionsClass --> ControllerClass : uses
+
+' Foreign key relationships
+AlertModel "0..*" --> "1" RobotModel : belongs to
+ReportModel "0..*" --> "0..1" RobotModel : references
+SystemLogModel "0..*" --> "0..1" RobotModel : logged by
+JobModel "0..*" --> "0..1" RobotModel : scheduled for
+AlertThresholdModel "0..*" --> "0..1" RobotModel : configured for
+
+@enduml

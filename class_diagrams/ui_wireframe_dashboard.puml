@@ -1,0 +1,95 @@
+@startuml UIWireframeDashboard
+
+title TonyPi Robot Monitoring System - Dashboard Wireframe
+
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Arial
+
+salt
+{+
+    {#
+        ==                     | ==
+        . | {
+            {#
+                <b>TonyPi Monitor</b>
+            }
+            ---
+            [  Dashboard     ]
+            [  Monitoring    ]
+            [  Reporting     ]
+            [  Management    ]
+            [  Alerts (5)    ]
+            ---
+            .
+            .
+            .
+            System Status: ● Online
+        }
+        | {
+            {#
+                <b>Dashboard</b> | . | . | . | . | . | . | . | . | . | . | ●System Online | 🔔
+            }
+            ---
+            {#
+                {
+                    <b>Active Robots</b>
+                    <size:24>3</size>
+                } | {
+                    <b>Active Jobs</b>
+                    <size:24>2</size>
+                } | {
+                    <b>Completed Today</b>
+                    <size:24>15</size>
+                } | {
+                    <b>Items Processed</b>
+                    <size:24>247</size>
+                }
+            }
+            ---
+            {#
+                {
+                    <b>TonyPi-01</b>
+                    ID: tonypi_001
+                    ---
+                    Battery: ●85%
+                    Position: (1.2, 3.4)
+                    Last Seen: 2 min ago
+                    ---
+                    [View Details] [Send Cmd]
+                } | {
+                    <b>TonyPi-02</b>
+                    ID: tonypi_002
+                    ---
+                    Battery: ●62%
+                    Position: (0.0, 1.1)
+                    Last Seen: 5 min ago
+                    ---
+                    [View Details] [Send Cmd]
+                } | {
+                    <b>TonyPi-03</b>
+                    ID: tonypi_003
+                    ---
+                    Battery: <color:orange>●28%</color>
+                    Position: (2.0, 0.5)
+                    Last Seen: 1 sec ago
+                    ---
+                    [View Details] [Send Cmd]
+                }
+            }
+            ---
+            {#
+                <b>System Services</b>
+                ● MQTT  | ● InfluxDB | ● PostgreSQL | ● Grafana
+            }
+            ---
+            {#
+                <b>Resource Usage</b>
+                CPU     [====      ] 42%
+                Memory  [======    ] 65%
+                Disk    [===       ] 38%
+            }
+        }
+    }
+}
+
+@enduml

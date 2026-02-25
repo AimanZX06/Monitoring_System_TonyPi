@@ -1,0 +1,57 @@
+@startuml DataFlowOverview
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam handwritten false
+
+skinparam rectangle {
+    roundCorner 15
+    BorderThickness 2
+}
+
+skinparam database {
+    BorderThickness 2
+}
+
+skinparam arrow {
+    Thickness 2
+    FontSize 11
+}
+
+title <size:16><b>Figure 4.x: System Data Flow Overview</b></size>\n<size:12>Primary Data Paths in the TonyPi Robot Monitoring System</size>
+
+rectangle "<b>TonyPi Robot</b>\n//Raspberry Pi//" as robot #E3F2FD
+rectangle "<b>MQTT Broker</b>\n//Mosquitto//" as mqtt #F3E5F5
+rectangle "<b>Backend API</b>\n//FastAPI//" as backend #E8EAF6
+
+database "<b>InfluxDB</b>\n//Time-Series//" as influx #E8F5E9
+database "<b>PostgreSQL</b>\n//Relational//" as postgres #FFF3E0
+
+rectangle "<b>Frontend</b>\n//React Dashboard//" as frontend #FCE4EC
+rectangle "<b>Grafana</b>\n//Visualization//" as grafana #F1F8E9
+
+robot -right-> mqtt : **(1)** Publish\nTelemetry
+mqtt -right-> backend : **(1)** Subscribe &\nProcess
+backend -down-> influx : **(1)** Write\nTime-Series
+backend -down-> postgres : **(2)** Generate\nAlerts
+frontend -up-> backend : **(3)** REST API\nRequests
+grafana -up-> influx : **(4)** Dashboard\nQueries
+grafana -up-> postgres : **(5)** Report\nQueries
+
+legend right
+  <b>Data Flow Paths</b>
+  ----
+  |<#BBDEFB> **(1)** | Robot -> MQTT -> Backend -> InfluxDB |
+  |       | //High-frequency sensor telemetry// |
+  |<#FFE0B2> **(2)** | Robot -> MQTT -> Backend -> PostgreSQL |
+  |       | //Alerts from threshold checks// |
+  |<#C8E6C9> **(3)** | Frontend -> Backend -> PostgreSQL |
+  |       | //User actions, jobs, reports// |
+  |<#E1BEE7> **(4)** | Grafana -> InfluxDB |
+  |       | //Dashboard visualization queries// |
+  |<#B2DFDB> **(5)** | Grafana -> PostgreSQL |
+  |       | //Report data & configuration// |
+end legend
+
+@enduml

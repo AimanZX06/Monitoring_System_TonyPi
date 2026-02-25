@@ -1,0 +1,103 @@
+@startuml APIArchitectureOverview
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 11
+skinparam handwritten false
+
+skinparam package {
+    BackgroundColor white
+    BorderColor #555555
+    FontSize 13
+    FontStyle bold
+    BorderThickness 2
+}
+
+skinparam component {
+    BackgroundColor white
+    BorderColor #888888
+    FontSize 11
+    BorderThickness 1
+}
+
+skinparam rectangle {
+    roundCorner 15
+    FontSize 11
+    BorderThickness 1
+}
+
+skinparam arrow {
+    Color #555555
+    Thickness 2
+}
+
+title <size:16><b>Figure 4.x: API Architecture Overview</b></size>\n<size:12>FastAPI Router Modules Organized by Functional Domain — 71 Total Endpoints</size>
+
+' ============================================================================
+' FASTAPI APP
+' ============================================================================
+
+rectangle "<b>FastAPI Application</b>\n//main.py//" as app #B3D4FC
+
+' ============================================================================
+' CORE OPERATIONS — 37 Endpoints
+' ============================================================================
+
+package "Core Operations (37 Endpoints)" as core #E3F2FD {
+
+    component "**alerts.py**\n13 Endpoints\n---\nAlert CRUD\nAcknowledgement / Resolution\nConfigurable Thresholds" as alerts #BBDEFB
+
+    component "**robots_db.py**\n10 Endpoints\n---\nRobot Inventory\nJob History & Statistics\nDatabase Statistics" as robots_db #BBDEFB
+
+    component "**users.py**\n7 Endpoints\n---\nAuthentication (JWT)\nRole-Based Access Control\n(Admin / Operator / Viewer)" as users #BBDEFB
+
+    component "**robot_data.py**\n7 Endpoints\n---\nReal-Time Telemetry\nSensors & Servos\nJob Tracking" as robot_data #BBDEFB
+}
+
+' ============================================================================
+' MONITORING & ANALYTICS — 24 Endpoints
+' ============================================================================
+
+package "Monitoring & Analytics (24 Endpoints)" as monitoring #E8F5E9 {
+
+    component "**logs.py**\n10 Endpoints\n---\nEvent Logging & Filtering\nFull-Text Search\nJSON / CSV Export" as logs #C8E6C9
+
+    component "**reports.py**\n9 Endpoints\n---\nAI-Powered Reports\n(Google Gemini)\nPDF Export" as reports #C8E6C9
+
+    component "**data_validation.py**\n4 Endpoints\n---\nTelemetry Validation\nInfluxDB Verification" as data_val #C8E6C9
+
+    component "**pi_perf.py**\n1 Endpoint\n---\nRaspberry Pi\nPerformance Metrics" as pi_perf #C8E6C9
+}
+
+' ============================================================================
+' INFRASTRUCTURE — 10 Endpoints
+' ============================================================================
+
+package "Infrastructure (10 Endpoints)" as infra #FFF3E0 {
+
+    component "**management.py**\n8 Endpoints\n---\nRobot Control\nEmergency Stop\nSystem Configuration" as mgmt #FFE0B2
+
+    component "**health.py**\n1 Endpoint\n---\nSystem Health\nMonitoring" as health #FFE0B2
+
+    component "**grafana_proxy.py**\n1 Endpoint\n---\nSecure Grafana\nDashboard Embedding" as grafana #FFE0B2
+}
+
+' ============================================================================
+' RELATIONSHIPS
+' ============================================================================
+
+app -down-> core
+app -down-> monitoring
+app -down-> infra
+
+' ============================================================================
+' LEGEND
+' ============================================================================
+
+legend right
+  |<#BBDEFB>     | Core Operations (37) |
+  |<#C8E6C9>     | Monitoring & Analytics (24) |
+  |<#FFE0B2>     | Infrastructure (10) |
+end legend
+
+@enduml

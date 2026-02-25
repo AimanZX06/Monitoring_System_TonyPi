@@ -1,0 +1,144 @@
+@startuml InfluxDB_Schema
+
+title TonyPi Robot Monitoring System - InfluxDB Time-Series Schema
+footer Time-Series Data Organization
+
+skinparam class {
+    BackgroundColor #E0FFFF
+    BorderColor #008B8B
+}
+
+package "InfluxDB Bucket: robot_data" {
+    
+    note as N1
+        InfluxDB uses a different model than SQL:
+        - Measurement = like a table
+        - Tags = indexed string columns
+        - Fields = value columns
+        - Timestamp = automatic time column
+    end note
+    
+    class "sensor_data" as sensor_data <<Measurement>> {
+        **Tags (Indexed)**
+        --
+        robot_id : String
+        sensor_type : String
+        unit : String
+        ..
+        **Fields (Values)**
+        --
+        value : Float
+        ..
+        **Timestamp**
+        --
+        _time : DateTime (automatic)
+    }
+    
+    class "servo_data" as servo_data <<Measurement>> {
+        **Tags (Indexed)**
+        --
+        robot_id : String
+        servo_id : String
+        ..
+        **Fields (Values)**
+        --
+        position : Integer
+        temperature : Float
+        voltage : Float
+        load : Float
+        ..
+        **Timestamp**
+        --
+        _time : DateTime
+    }
+    
+    class "battery_status" as battery_status <<Measurement>> {
+        **Tags (Indexed)**
+        --
+        robot_id : String
+        ..
+        **Fields (Values)**
+        --
+        percentage : Float
+        voltage : Float
+        is_charging : Boolean
+        ..
+        **Timestamp**
+        --
+        _time : DateTime
+    }
+    
+    class "robot_location" as robot_location <<Measurement>> {
+        **Tags (Indexed)**
+        --
+        robot_id : String
+        location_type : String
+        ..
+        **Fields (Values)**
+        --
+        x : Float
+        y : Float
+        z : Float
+        heading : Float
+        ..
+        **Timestamp**
+        --
+        _time : DateTime
+    }
+    
+    class "robot_status" as robot_status <<Measurement>> {
+        **Tags (Indexed)**
+        --
+        robot_id : String
+        status : String
+        ..
+        **Fields (Values)**
+        --
+        cpu_usage : Float
+        memory_usage : Float
+        disk_usage : Float
+        uptime : Integer
+        ..
+        **Timestamp**
+        --
+        _time : DateTime
+    }
+    
+    class "vision_data" as vision_data <<Measurement>> {
+        **Tags (Indexed)**
+        --
+        robot_id : String
+        detection_type : String
+        label : String
+        ..
+        **Fields (Values)**
+        --
+        confidence : Float
+        bbox_x : Integer
+        bbox_y : Integer
+        bbox_width : Integer
+        bbox_height : Integer
+        ..
+        **Timestamp**
+        --
+        _time : DateTime
+    }
+    
+    class "robot_logs" as robot_logs <<Measurement>> {
+        **Tags (Indexed)**
+        --
+        robot_id : String
+        log_level : String
+        source : String
+        ..
+        **Fields (Values)**
+        --
+        message : String
+        ..
+        **Timestamp**
+        --
+        _time : DateTime
+    }
+}
+
+@enduml

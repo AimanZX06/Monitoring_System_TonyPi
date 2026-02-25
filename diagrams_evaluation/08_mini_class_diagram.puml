@@ -1,0 +1,33 @@
+@startuml Mini_Class_Diagram
+
+title TonyPi System - Mini Class Diagram
+scale 0.9
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam classAttributeFontSize 9
+
+package "Models (PostgreSQL)" #LightYellow {
+    class User { id, username, role }
+    class Robot { id, robot_id, name, status }
+    class Alert { id, robot_id, severity, value }
+}
+
+package "Services" #LightGreen {
+    class MQTTClient { publish(), on_message() }
+    class InfluxClient { write_sensor(), query() }
+}
+
+package "Robot Client" #Orange {
+    class TonyPiRobotClient { start(), publish_telemetry() }
+    class LightSensor { is_dark() }
+    class Board { set_servo(), get_servo() }
+}
+
+Alert --> Robot
+MQTTClient --> InfluxClient
+MQTTClient --> Alert
+TonyPiRobotClient --> Board
+TonyPiRobotClient --> LightSensor
+
+@enduml

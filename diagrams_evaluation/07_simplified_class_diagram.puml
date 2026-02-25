@@ -1,0 +1,171 @@
+@startuml Simplified_Class_Diagram
+
+title TonyPi Robot Monitoring System - Simplified Class Diagram
+footer Shows ACTUAL Python Classes (Compact Version)
+
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    FontSize 11
+}
+skinparam package {
+    BackgroundColor<<Models>> #FFFACD
+    BackgroundColor<<Services>> #90EE90
+    BackgroundColor<<Robot>> #FFA07A
+}
+
+' ========== BACKEND MODELS ==========
+package "SQLAlchemy Models\n(backend/models/)" <<Models>> {
+    
+    class User {
+        <i>user.py:37</i>
+        --
+        id: String <<PK>>
+        username: String
+        password_hash: String
+        role: String
+        is_active: Boolean
+    }
+    
+    class Robot {
+        <i>robot.py:43</i>
+        --
+        id: Integer <<PK>>
+        robot_id: String
+        name: String
+        status: String
+        ip_address: String
+        last_seen: DateTime
+    }
+    
+    class Alert {
+        <i>alert.py:48</i>
+        --
+        id: Integer <<PK>>
+        robot_id: String <<FK>>
+        alert_type: String
+        severity: String
+        value: Float
+        threshold: Float
+        acknowledged: Boolean
+    }
+    
+    class Report {
+        <i>report.py:45</i>
+        --
+        id: Integer <<PK>>
+        title: String
+        report_type: String
+        robot_id: String
+    }
+    
+    class Job {
+        <i>job.py:54</i>
+        --
+        id: String <<PK>>
+        name: String
+        robot_id: String
+        status: String
+    }
+    
+    class SystemLog {
+        <i>system_log.py:50</i>
+        --
+        id: Integer <<PK>>
+        robot_id: String
+        level: String
+        message: Text
+    }
+}
+
+' ========== BACKEND SERVICES ==========
+package "Backend Services" <<Services>> {
+    
+    class MQTTClient {
+        <i>mqtt/mqtt_client.py:103</i>
+        --
+        - broker_host: str
+        - client: mqtt.Client
+        --
+        + on_message(msg): void
+        + publish(topic, payload): void
+        + start(): void
+    }
+    
+    class InfluxClient {
+        <i>database/influx_client.py:68</i>
+        --
+        - client: InfluxDBClient
+        - bucket: str
+        --
+        + write_sensor(robot_id, data): void
+        + query_range(start, end): List
+    }
+    
+    class GeminiAnalytics {
+        <i>services/gemini_analytics.py:93</i>
+        --
+        - api_key: str
+        - model: GenerativeModel
+        --
+        + generate_report(data): str
+    }
+}
+
+' ========== ROBOT CLIENT ==========
+package "Robot Client\n(robot_client/)" <<Robot>> {
+    
+    class TonyPiRobotClient {
+        <i>tonypi_client.py:127</i>
+        --
+        - robot_id: str
+        - mqtt_client: mqtt.Client
+        - board: Board
+        --
+        + publish_telemetry(): void
+        + handle_command(cmd): void
+        + start(): void
+    }
+    
+    class LightSensor {
+        <i>tonypi_client.py:85</i>
+        --
+        - pin: int
+        --
+        + is_dark(): bool
+        + cleanup(): void
+    }
+    
+    class Board {
+        <i>hiwonder/ros_robot_controller_sdk.py:186</i>
+        --
+        - serial_port: str
+        --
+        + set_servo(id, angle): void
+        + get_servo(id): int
+    }
+    
+    class Controller {
+        <i>hiwonder/Controller.py:72</i>
+        --
+        - board: Board
+        --
+        + set_servo_position(): void
+    }
+}
+
+' ========== RELATIONSHIPS ==========
+Alert "0..*" --> "1" Robot : belongs to
+Report "0..*" --> "0..1" Robot : references
+Job "0..*" --> "0..1" Robot : scheduled for
+SystemLog "0..*" --> "0..1" Robot : logged by
+
+MQTTClient --> InfluxClient : writes to
+MQTTClient --> Alert : creates
+
+TonyPiRobotClient --> Board : uses
+TonyPiRobotClient --> LightSensor : uses
+Controller --> Board : controls
+
+@enduml

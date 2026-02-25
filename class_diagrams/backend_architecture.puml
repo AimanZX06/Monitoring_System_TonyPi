@@ -1,0 +1,230 @@
+@startuml BackendArchitecture
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+title TonyPi Robot Monitoring System - Backend Architecture (FastAPI)
+
+' ============================================================================
+' CORE APPLICATION
+' ============================================================================
+
+package "FastAPI Application" {
+    
+    class FastAPIApp <<Application>> {
+        +title : String
+        +version : String
+        +lifespan(app) : contextmanager
+        +include_router(router)
+        +add_middleware(middleware)
+    }
+    
+    ' ============================================================================
+    ' API ROUTERS
+    ' ============================================================================
+    
+    package "API Routers" {
+        
+        class RobotDataRouter <<Router>> {
+            +GET /status
+            +GET /sensors
+            +GET /servos
+            +GET /battery
+            +GET /history/{measurement}
+        }
+        
+        class AlertsRouter <<Router>> {
+            +GET /alerts
+            +POST /alerts
+            +PUT /alerts/{id}/acknowledge
+            +PUT /alerts/{id}/resolve
+            +GET /thresholds
+            +PUT /thresholds/{id}
+        }
+        
+        class ManagementRouter <<Router>> {
+            +POST /command
+            +POST /robots/{id}/emergency-stop
+            +POST /robots/{id}/resume
+            +GET /system/status
+        }
+        
+        class UsersRouter <<Router>> {
+            +POST /login
+            +POST /register
+            +GET /users
+            +PUT /users/{id}
+            +DELETE /users/{id}
+            +POST /verify-token
+        }
+        
+        class ReportsRouter <<Router>> {
+            +GET /reports
+            +POST /reports
+            +POST /reports/performance
+            +POST /reports/job
+            +POST /reports/maintenance
+            +GET /reports/{id}/pdf
+        }
+        
+        class LogsRouter <<Router>> {
+            +GET /logs
+            +POST /logs
+        }
+        
+        class JobsRouter <<Router>> {
+            +GET /jobs
+            +GET /jobs/active
+            +PUT /jobs/{id}
+        }
+        
+        class SSHRouter <<Router>> {
+            +WebSocket /ssh/{robot_id}
+            +GET /ssh/info/{robot_id}
+        }
+        
+        class RobotsDBRouter <<Router>> {
+            +GET /robots
+            +GET /robots/{id}
+            +POST /robots
+            +PUT /robots/{id}
+            +DELETE /robots/{id}
+            +GET /robots/stats
+        }
+    }
+}
+
+' ============================================================================
+' DATABASE CLIENTS
+' ============================================================================
+
+package "Database Layer" {
+    
+    class Database <<Singleton>> {
+        +engine : Engine
+        +SessionLocal : sessionmaker
+        +Base : declarative_base
+        +get_db() : Session
+    }
+    
+    class InfluxDBClient <<Singleton>> {
+        +url : String
+        +token : String
+        +org : String
+        +bucket : String
+        --
+        +write_sensor_data(robot_id, data)
+        +write_servo_data(robot_id, servo_id, data)
+        +write_status_data(robot_id, data)
+        +query_data(measurement, time_range) : List
+    }
+}
+
+' ============================================================================
+' MQTT CLIENT
+' ============================================================================
+
+package "MQTT Integration" {
+    
+    class MQTTClient <<Service>> {
+        +broker_host : String
+        +broker_port : Integer
+        +client : paho.Client
+        +robot_states : Dict
+        --
+        +start()
+        +stop()
+        +on_connect(client, userdata, flags, rc)
+        +on_message(client, userdata, msg)
+        +handle_sensor_data(topic, payload)
+        +handle_status_data(topic, payload)
+        +handle_servo_data(topic, payload)
+        +handle_battery_data(payload)
+        +handle_location_data(payload)
+        +handle_job_event(topic, payload)
+        +handle_scan(topic, payload)
+        +publish_command(robot_id, command)
+        +_check_and_create_alert(robot_id, metric, value)
+        +_create_alert(robot_id, alert_type, severity, title, message)
+    }
+}
+
+' ============================================================================
+' SERVICES
+' ============================================================================
+
+package "Business Services" {
+    
+    class GeminiAnalyticsService <<Service>> {
+        +api_key : String
+        +enabled : Boolean
+        +model : GenerativeModel
+        --
+        +analyze_performance(data) : dict
+        +analyze_job(job_data) : dict
+        +analyze_maintenance(servo_data) : dict
+        +generate_insights(query, context) : String
+    }
+    
+    class JobStore <<Service>> {
+        +active_jobs : Dict
+        --
+        +get_active_jobs() : List
+        +update_job(robot_id, job_data)
+        +complete_job(robot_id)
+        +cancel_job(robot_id, reason)
+    }
+}
+
+' ============================================================================
+' RELATIONSHIPS
+' ============================================================================
+
+FastAPIApp --> RobotDataRouter : includes
+FastAPIApp --> AlertsRouter : includes
+FastAPIApp --> ManagementRouter : includes
+FastAPIApp --> UsersRouter : includes
+FastAPIApp --> ReportsRouter : includes
+FastAPIApp --> LogsRouter : includes
+FastAPIApp --> JobsRouter : includes
+FastAPIApp --> SSHRouter : includes
+FastAPIApp --> RobotsDBRouter : includes
+FastAPIApp --> MQTTClient : starts
+
+RobotDataRouter --> InfluxDBClient : queries
+AlertsRouter --> Database : uses
+ManagementRouter --> MQTTClient : publishes commands
+UsersRouter --> Database : uses
+ReportsRouter --> Database : uses
+ReportsRouter --> InfluxDBClient : queries
+ReportsRouter --> GeminiAnalyticsService : uses
+LogsRouter --> Database : uses
+JobsRouter --> Database : uses
+JobsRouter --> JobStore : uses
+RobotsDBRouter --> Database : uses
+
+MQTTClient --> InfluxDBClient : writes data
+MQTTClient --> Database : writes alerts/logs
+MQTTClient --> JobStore : updates jobs
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note right of MQTTClient
+  Subscribes to topics:
+  - tonypi/sensors/+
+  - tonypi/status/+
+  - tonypi/servos/+
+  - tonypi/battery
+  - tonypi/job/+
+  - tonypi/scan/+
+end note
+
+note right of GeminiAnalyticsService
+  Uses Google Gemini AI
+  for intelligent analysis
+  of robot data.
+  Optional - requires API key.
+end note
+
+@enduml

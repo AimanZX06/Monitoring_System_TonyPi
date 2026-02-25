@@ -1,0 +1,244 @@
+@startuml DatabaseEntityClasses
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+title TonyPi Robot Monitoring System - Database Entity Classes (PostgreSQL)
+
+' ============================================================================
+' ENUMERATIONS
+' ============================================================================
+
+enum RobotStatus {
+    online
+    offline
+    error
+    maintenance
+}
+
+enum UserRole {
+    admin
+    operator
+    viewer
+}
+
+enum AlertSeverity {
+    critical
+    warning
+    info
+}
+
+enum AlertType {
+    temperature
+    battery
+    servo_temp
+    servo_voltage
+    cpu
+    memory
+    emergency_stop
+}
+
+enum JobStatus {
+    active
+    completed
+    cancelled
+    failed
+}
+
+enum JobPhase {
+    scanning
+    searching
+    executing
+    done
+}
+
+enum ReportType {
+    performance
+    job
+    maintenance
+    custom
+}
+
+enum LogLevel {
+    INFO
+    WARNING
+    ERROR
+    CRITICAL
+}
+
+' ============================================================================
+' DATABASE MODELS
+' ============================================================================
+
+abstract class Base {
+    {abstract} +metadata
+}
+
+class Robot {
+    +id : Integer <<PK>>
+    +robot_id : String <<unique>>
+    +name : String
+    +description : String
+    +location : JSON
+    +status : RobotStatus
+    +ip_address : String
+    +camera_url : String
+    +battery_threshold_low : Float
+    +battery_threshold_critical : Float
+    +temp_threshold_warning : Float
+    +temp_threshold_critical : Float
+    +settings : JSON
+    +last_seen : DateTime
+    +created_at : DateTime
+    +updated_at : DateTime
+    +is_active : Boolean
+    --
+    +to_dict() : dict
+}
+
+class User {
+    +id : String <<PK, UUID>>
+    +username : String <<unique>>
+    +email : String <<unique>>
+    +password_hash : String
+    +role : UserRole
+    +is_active : Boolean
+    +created_at : DateTime
+    +updated_at : DateTime
+    --
+    +to_dict() : dict
+}
+
+class Alert {
+    +id : Integer <<PK>>
+    +robot_id : String <<FK>>
+    +alert_type : AlertType
+    +severity : AlertSeverity
+    +title : String
+    +message : Text
+    +source : String
+    +value : Float
+    +threshold : Float
+    +acknowledged : Boolean
+    +acknowledged_by : String
+    +acknowledged_at : DateTime
+    +resolved : Boolean
+    +resolved_at : DateTime
+    +details : JSON
+    +created_at : DateTime
+    --
+    +to_dict() : dict
+}
+
+class AlertThreshold {
+    +id : Integer <<PK>>
+    +robot_id : String <<FK>>
+    +metric_type : String
+    +warning_threshold : Float
+    +critical_threshold : Float
+    +enabled : Boolean
+    +created_at : DateTime
+    +updated_at : DateTime
+    --
+    +to_dict() : dict
+}
+
+class Job {
+    +id : Integer <<PK>>
+    +robot_id : String <<FK>>
+    +start_time : DateTime
+    +end_time : DateTime
+    +items_total : Integer
+    +items_done : Integer
+    +percent_complete : Float
+    +last_item : JSON
+    +status : JobStatus
+    +task_name : String
+    +phase : JobPhase
+    +estimated_duration : Float
+    +action_duration : Float
+    +success : Boolean
+    +cancel_reason : String
+    +created_at : DateTime
+    +updated_at : DateTime
+    --
+    +to_dict() : dict
+}
+
+class Report {
+    +id : Integer <<PK>>
+    +title : String
+    +description : Text
+    +robot_id : String <<FK>>
+    +report_type : ReportType
+    +data : JSON
+    +file_path : String
+    +created_at : DateTime
+    +created_by : String
+    --
+    +to_dict() : dict
+}
+
+class SystemLog {
+    +id : Integer <<PK>>
+    +level : LogLevel
+    +category : String
+    +message : Text
+    +robot_id : String <<FK>>
+    +details : JSON
+    +timestamp : DateTime
+    --
+    +to_dict() : dict
+}
+
+' ============================================================================
+' INHERITANCE
+' ============================================================================
+
+Base <|-- Robot
+Base <|-- User
+Base <|-- Alert
+Base <|-- AlertThreshold
+Base <|-- Job
+Base <|-- Report
+Base <|-- SystemLog
+
+' ============================================================================
+' RELATIONSHIPS
+' ============================================================================
+
+Robot "1" -- "0..*" Alert : triggers >
+Robot "1" -- "0..*" AlertThreshold : configures >
+Robot "1" -- "0..*" Job : executes >
+Robot "1" -- "0..*" Report : subject of >
+Robot "1" -- "0..*" SystemLog : generates >
+User "1" -- "0..*" Alert : acknowledges >
+User "1" -- "0..*" Report : creates >
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note right of Robot
+  Represents a physical TonyPi
+  robot with its configuration
+  and current status.
+end note
+
+note right of User
+  User accounts with role-based
+  access control (RBAC).
+  Password stored as bcrypt hash.
+end note
+
+note right of Alert
+  Generated when sensor values
+  exceed configured thresholds.
+  Can be acknowledged and resolved.
+end note
+
+note bottom of Job
+  Tracks robot task execution
+  with progress and status.
+end note
+
+@enduml

@@ -1,0 +1,233 @@
+@startuml InfluxDBSchema
+skinparam linetype ortho
+skinparam ranksep 50
+skinparam nodesep 30
+
+title TonyPi Robot Monitoring System\nInfluxDB Time-Series Database Design
+
+' ============================================================================
+' STYLING
+' ============================================================================
+skinparam class {
+    BackgroundColor #E3F2FD
+    BorderColor #1565C0
+}
+
+skinparam package {
+    BackgroundColor #BBDEFB
+    BorderColor #1976D2
+}
+
+hide circle
+hide methods
+
+' ============================================================================
+' INFLUXDB ORGANIZATION
+' ============================================================================
+
+package "Organization: tonypi" {
+    
+    package "Bucket: robot_data" {
+        
+        ' ============================================================================
+        ' MEASUREMENT: sensor_data
+        ' ============================================================================
+        
+        class "sensor_data" as sensor_data <<Measurement>> {
+            .. **Tags** (Indexed) ..
+            robot_id : String
+            sensor_type : String
+            ==
+            .. **Fields** (Values) ..
+            value : Float
+            unit : String
+            ==
+            .. **Timestamp** ..
+            _time : RFC3339
+        }
+        
+        ' ============================================================================
+        ' MEASUREMENT: servo_data
+        ' ============================================================================
+        
+        class "servo_data" as servo_data <<Measurement>> {
+            .. **Tags** (Indexed) ..
+            robot_id : String
+            servo_id : String
+            servo_name : String
+            ==
+            .. **Fields** (Values) ..
+            position : Integer
+            temperature : Float
+            voltage : Float
+            ==
+            .. **Timestamp** ..
+            _time : RFC3339
+        }
+        
+        ' ============================================================================
+        ' MEASUREMENT: robot_status
+        ' ============================================================================
+        
+        class "robot_status" as robot_status <<Measurement>> {
+            .. **Tags** (Indexed) ..
+            robot_id : String
+            ==
+            .. **Fields** (Values) ..
+            cpu_percent : Float
+            memory_percent : Float
+            disk_percent : Float
+            temperature : Float
+            is_online : Boolean
+            ip_address : String
+            ==
+            .. **Timestamp** ..
+            _time : RFC3339
+        }
+        
+        ' ============================================================================
+        ' MEASUREMENT: battery_status
+        ' ============================================================================
+        
+        class "battery_status" as battery_status <<Measurement>> {
+            .. **Tags** (Indexed) ..
+            robot_id : String
+            ==
+            .. **Fields** (Values) ..
+            voltage : Float
+            percentage : Float
+            charging : Boolean
+            ==
+            .. **Timestamp** ..
+            _time : RFC3339
+        }
+        
+        ' ============================================================================
+        ' MEASUREMENT: robot_location
+        ' ============================================================================
+        
+        class "robot_location" as robot_location <<Measurement>> {
+            .. **Tags** (Indexed) ..
+            robot_id : String
+            ==
+            .. **Fields** (Values) ..
+            x : Float
+            y : Float
+            z : Float
+            ==
+            .. **Timestamp** ..
+            _time : RFC3339
+        }
+        
+        ' ============================================================================
+        ' MEASUREMENT: vision_data
+        ' ============================================================================
+        
+        class "vision_data" as vision_data <<Measurement>> {
+            .. **Tags** (Indexed) ..
+            robot_id : String
+            detection_type : String
+            ==
+            .. **Fields** (Values) ..
+            label : String
+            confidence : Float
+            x : Integer
+            y : Integer
+            width : Integer
+            height : Integer
+            ==
+            .. **Timestamp** ..
+            _time : RFC3339
+        }
+    }
+}
+
+' ============================================================================
+' NOTES
+' ============================================================================
+
+note right of sensor_data
+    **sensor_type values:**
+    - accelerometer_x
+    - accelerometer_y
+    - accelerometer_z
+    - gyroscope_x
+    - gyroscope_y
+    - gyroscope_z
+    - cpu_temperature
+    - light_level
+    - ultrasonic_distance
+    
+    **Sample Flux Query:**
+    from(bucket: "robot_data")
+      |> range(start: -1h)
+      |> filter(fn: (r) => 
+           r._measurement == "sensor_data")
+      |> filter(fn: (r) => 
+           r.sensor_type == "cpu_temperature")
+end note
+
+note right of servo_data
+    **servo_id values:**
+    - 1 (Right Hip Yaw)
+    - 2 (Right Hip Pitch)
+    - 3 (Right Knee)
+    - 4 (Left Hip Yaw)
+    - 5 (Left Hip Pitch)
+    - 6 (Left Knee)
+    
+    **position:** 0-1023
+    **temperature:** °C
+    **voltage:** Volts
+end note
+
+note right of robot_status
+    Published every 5 seconds
+    by robot telemetry loop.
+    
+    Used for real-time
+    monitoring dashboard.
+end note
+
+note bottom of battery_status
+    **voltage range:**
+    - Full: 12.6V
+    - Nominal: 11.1V
+    - Empty: 9.0V
+    
+    3S LiPo battery
+    (3 cells × 3.7V)
+end note
+
+note bottom of vision_data
+    **detection_type values:**
+    - qr_code
+    - color
+    - face
+    - object
+    
+    Coordinates are in pixels.
+end note
+
+' ============================================================================
+' LEGEND & INFO
+' ============================================================================
+
+legend right
+    **InfluxDB Concepts**
+    |=|=|
+    | **Organization** | Top-level namespace (like a database) |
+    | **Bucket** | Container for time-series data |
+    | **Measurement** | Like a table in SQL |
+    | **Tag** | Indexed metadata (fast filtering) |
+    | **Field** | Actual data values (not indexed) |
+    | **Timestamp** | When the data point was recorded |
+    
+    **Retention Policy**
+    Default: 30 days
+    
+    **Data Write Rate**
+    ~10 points/second per robot
+endlegend
+
+@enduml
